@@ -11,7 +11,8 @@ export function AdminPanel() {
     nombre: '',
     email: '',
     password: '',
-    rol: 'contribuidor' as 'admin' | 'contribuidor',
+    rol: 'contribuidor' as 'admin' | 'contribuidor' | 'inspector',
+    modulo: 'tickets' as 'tickets' | 'savean',
   });
   const [erroresForm, setErroresForm] = useState<Record<string, string>>({});
 
@@ -48,10 +49,11 @@ export function AdminPanel() {
         email: formData.email,
         password: formData.password,
         rol: formData.rol,
+        modulo: formData.modulo,
         activo: true,
       });
 
-      setFormData({ nombre: '', email: '', password: '', rol: 'contribuidor' });
+      setFormData({ nombre: '', email: '', password: '', rol: 'contribuidor', modulo: 'tickets' });
       setMostrarModal(false);
     }
   };
@@ -124,6 +126,7 @@ export function AdminPanel() {
             <tr>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Nombre</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Módulo</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Rol</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Fecha Creación</th>
@@ -138,12 +141,25 @@ export function AdminPanel() {
                 <td className="px-6 py-4 text-sm">
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      u.rol === 'admin'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-blue-100 text-blue-800'
+                      u.modulo === 'savean'
+                        ? 'bg-cyan-100 text-cyan-800'
+                        : 'bg-indigo-100 text-indigo-800'
                     }`}
                   >
-                    {u.rol === 'admin' ? 'Administrador' : 'Contribuidor'}
+                    {u.modulo === 'savean' ? 'Savean' : 'Tickets'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      u.rol === 'admin'
+                        ? 'bg-purple-100 text-purple-800'
+                        : u.rol === 'inspector'
+                          ? 'bg-cyan-100 text-cyan-800'
+                          : 'bg-blue-100 text-blue-800'
+                    }`}
+                  >
+                    {u.rol === 'admin' ? 'Administrador' : u.rol === 'inspector' ? 'Inspector' : 'Contribuidor'}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm">
@@ -263,6 +279,25 @@ export function AdminPanel() {
                 )}
               </div>
 
+              {/* Módulo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Módulo</label>
+                <select
+                  value={formData.modulo}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      modulo: e.target.value as 'tickets' | 'savean',
+                      rol: e.target.value === 'savean' ? 'inspector' : 'contribuidor',
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="tickets">Tickets (Portal de Créditos)</option>
+                  <option value="savean">Savean (Control Fitosanitario)</option>
+                </select>
+              </div>
+
               {/* Rol */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
@@ -271,13 +306,19 @@ export function AdminPanel() {
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      rol: e.target.value as 'admin' | 'contribuidor',
+                      rol: e.target.value as 'admin' | 'contribuidor' | 'inspector',
                     })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="contribuidor">Contribuidor</option>
-                  <option value="admin">Administrador</option>
+                  {formData.modulo === 'tickets' ? (
+                    <>
+                      <option value="contribuidor">Contribuidor</option>
+                      <option value="admin">Administrador</option>
+                    </>
+                  ) : (
+                    <option value="inspector">Inspector Fitosanitario</option>
+                  )}
                 </select>
               </div>
 

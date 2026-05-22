@@ -1,9 +1,13 @@
+export type RolSistema = 'admin' | 'contribuidor' | 'inspector';
+export type Modulo = 'tickets' | 'savean';
+
 export interface Usuario {
   id: string;
   nombre: string;
   email: string;
   password: string;
-  rol: 'admin' | 'contribuidor';
+  rol: RolSistema;
+  modulo: Modulo;
   activo: boolean;
   creadoEn: string;
 }
@@ -12,7 +16,8 @@ export interface SesionActiva {
   usuarioId: string;
   email: string;
   nombre: string;
-  rol: 'admin' | 'contribuidor';
+  rol: RolSistema;
+  modulo: Modulo;
 }
 
 export interface AuthContextType {

@@ -12,6 +12,18 @@ const USUARIO_ADMIN_DEFECTO: Usuario = {
   email: 'admin@agenciacalidad.gob.ar',
   password: 'admin123',
   rol: 'admin',
+  modulo: 'tickets',
+  activo: true,
+  creadoEn: new Date().toISOString(),
+};
+
+const USUARIO_INSPECTOR_SAVEAN: Usuario = {
+  id: 'inspector-savean-001',
+  nombre: 'Inspector Savean',
+  email: 'inspector@savean.gob.ar',
+  password: 'savean123',
+  rol: 'inspector',
+  modulo: 'savean',
   activo: true,
   creadoEn: new Date().toISOString(),
 };
@@ -32,11 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         usuariosList = JSON.parse(usuariosGuardados);
       } catch {
-        usuariosList = [USUARIO_ADMIN_DEFECTO];
+        usuariosList = [USUARIO_ADMIN_DEFECTO, USUARIO_INSPECTOR_SAVEAN];
       }
     } else {
       // Seed inicial
-      usuariosList = [USUARIO_ADMIN_DEFECTO];
+      usuariosList = [USUARIO_ADMIN_DEFECTO, USUARIO_INSPECTOR_SAVEAN];
       localStorage.setItem(STORAGE_KEY_USUARIOS, JSON.stringify(usuariosList));
     }
 
@@ -67,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: usuarioEncontrado.email,
       nombre: usuarioEncontrado.nombre,
       rol: usuarioEncontrado.rol,
+      modulo: usuarioEncontrado.modulo,
     };
 
     setUsuario(sesion);
