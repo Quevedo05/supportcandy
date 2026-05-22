@@ -43,15 +43,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (usuariosGuardados) {
       try {
         usuariosList = JSON.parse(usuariosGuardados);
+        // Asegurar que los seed users existan
+        const tieneAdmin = usuariosList.some((u) => u.email === 'admin@agenciacalidad.gob.ar');
+        const tieneInspector = usuariosList.some((u) => u.email === 'inspector@savean.gob.ar');
+
+        if (!tieneAdmin) {
+          usuariosList.push(USUARIO_ADMIN_DEFECTO);
+        }
+        if (!tieneInspector) {
+          usuariosList.push(USUARIO_INSPECTOR_SAVEAN);
+        }
       } catch {
         usuariosList = [USUARIO_ADMIN_DEFECTO, USUARIO_INSPECTOR_SAVEAN];
       }
     } else {
       // Seed inicial
       usuariosList = [USUARIO_ADMIN_DEFECTO, USUARIO_INSPECTOR_SAVEAN];
-      localStorage.setItem(STORAGE_KEY_USUARIOS, JSON.stringify(usuariosList));
     }
 
+    localStorage.setItem(STORAGE_KEY_USUARIOS, JSON.stringify(usuariosList));
     setUsuarios(usuariosList);
 
     if (sesionGuardada) {
