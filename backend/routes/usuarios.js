@@ -1,0 +1,167 @@
+const express = require('express');
+const bcrypt = require('bcrypt');
+const { v4: uuidv4 } = require('uuid');
+const { pool } = require('../db/connection');
+const { autenticar } = require('../middleware/auth');
+const { soloAdmin } = require('../middleware/adminOnly');
+
+const router = express.Router();
+
+// All routes in this file require JWT + admin role
+router.use(autenticar, soloAdmin);
+
+function formatUsuario(row) {
+  return {
+    usuarioId: row.usuarioId,
+    nombre: row.nombre,
+    email: row.email,
+    rol: row.rol,
+    activo: Boolean(row.activo),
+    creadoEn: row.creado_en instanceof Date ? row.creado_en.toISOString() : row.creado_en,
+    actualizadoEn: row.actualizado_en instanceof Date ? row.actualizado_en.toISOString() : row.actualizado_en,
+  };
+}
+
+// GET /api/usuarios
+router.get('/', async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT usuarioId, nombre, email, rol, activo, creado_en, actualizado_en FROM usuarios ORDER BY creado_en ASC'
+    );
+    return res.status(200).json({
+      usuarios: rows.map(formatUsuario),
+      total: rows.length,
+    });
+  } catch (err) {
+    console.error('[GET /usuarios]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST /api/usuarios
+router.post('/', async (req, res) => {
+  try {
+    const { nombre, email, password, rol } = req.body;
+
+    const errores = {};
+    if (!nombre || nombre.trim().length < 2) {
+      errores.nombre = 'El nombre debe tener al menos 2 caracteres';
+    } else if (nombre.trim().length > 100) {
+      errores.nombre = 'El nombre no puede superar 100 caracteres';
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email.trim())) {
+      errores.email = 'El email no es válido';
+    } else if (email.trim().length > 255) {
+      errores.email = 'El email no puede superar 255 caracteres';
+    }
+
+    if (!password || password.length < 6) {
+      errores.password = 'La contraseña debe tener al menos 6 caracteres';
+    }
+
+    if (!rol || !['admin', 'contribuidor'].includes(rol)) {
+      errores.rol = "El rol debe ser 'admin' o 'contribuidor'";
+    }
+
+    if (Object.keys(errores).length > 0) {
+      return res.status(400).json({ error: 'Datos inválidos', errores });
+    }
+
+    const emailNorm = email.trim().toLowerCase();
+
+    const [existing] = await pool.query(
+      'SELECT usuarioId FROM usuarios WHERE email = ?',
+      [emailNorm]
+    );
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'Este email ya está registrado' });
+    }
+
+    const usuarioId = uuidv4();
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    await pool.query(
+      `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, activo)
+       VALUES (?, ?, ?, ?, ?, 1)`,
+      [usuarioId, nombre.trim(), emailNorm, passwordHash, rol]
+    );
+
+    const [newRows] = await pool.query(
+      'SELECT usuarioId, nombre, email, rol, activo, creado_en, actualizado_en FROM usuarios WHERE usuarioId = ?',
+      [usuarioId]
+    );
+
+    return res.status(201).json(formatUsuario(newRows[0]));
+  } catch (err) {
+    console.error('[POST /usuarios]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PATCH /api/usuarios/:usuarioId/toggle-activo
+router.patch('/:usuarioId/toggle-activo', async (req, res) => {
+  try {
+    const { usuarioId } = req.params;
+
+    if (req.usuario.usuarioId === usuarioId) {
+      return res.status(403).json({ error: 'No puede desactivar su propia cuenta' });
+    }
+
+    const [rows] = await pool.query(
+      'SELECT usuarioId, activo FROM usuarios WHERE usuarioId = ?',
+      [usuarioId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const nuevoEstado = rows[0].activo ? 0 : 1;
+    await pool.query('UPDATE usuarios SET activo = ? WHERE usuarioId = ?', [nuevoEstado, usuarioId]);
+
+    return res.status(200).json({
+      usuarioId,
+      activo: Boolean(nuevoEstado),
+    });
+  } catch (err) {
+    console.error('[PATCH /usuarios/:id/toggle-activo]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// DELETE /api/usuarios/:usuarioId
+router.delete('/:usuarioId', async (req, res) => {
+  try {
+    const { usuarioId } = req.params;
+
+    if (req.usuario.usuarioId === usuarioId) {
+      return res.status(403).json({ error: 'No puede eliminar su propia cuenta' });
+    }
+
+    const [rows] = await pool.query(
+      'SELECT usuarioId FROM usuarios WHERE usuarioId = ?',
+      [usuarioId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    await pool.query('DELETE FROM usuarios WHERE usuarioId = ?', [usuarioId]);
+
+    return res.status(204).send();
+  } catch (err) {
+    // FK constraint: user has authored comments, can't delete
+    if (err.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(409).json({
+        error: 'No se puede eliminar el usuario porque tiene comentarios asociados. Desactívelo en su lugar.',
+      });
+    }
+    console.error('[DELETE /usuarios/:id]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+module.exports = router;
