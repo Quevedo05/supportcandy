@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useReducer, useMemo, useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, Bold, Italic, Underline, RefreshCw, List, CheckCircle, Trash2, Pencil, Users, UserCircle, Mail } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, List, CheckCircle, Trash2, Pencil, Users, UserCircle, Mail } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useFormularios } from './context/FormulariosContext';
 import { FormularioDinamico } from './components/FormularioDinamico';
@@ -48,11 +48,13 @@ interface Adjunto {
   nombre: string;
   tipo: string;
   tamano: number;
+  contenido?: string; // base64 data URL
 }
 
 interface Comentario {
   id: string;
   autor: string;
+  autorRol?: string;
   email?: string;
   fecha: Date;
   contenido: string;
@@ -108,6 +110,7 @@ interface ModalState {
   numeroActa: string;
   agentes: string;
   emailSolicitante: string;
+  adjuntos: Adjunto[];
 }
 
 interface DashboardState {
@@ -120,6 +123,7 @@ interface DashboardState {
   modal: ModalState;
   ticketAbierto: Ticket | null;
   comentarioNuevo: string;
+  comentarioAdjuntos: Adjunto[];
 }
 
 type DashboardAction =
@@ -143,7 +147,9 @@ type DashboardAction =
   | { type: 'ABRIR_TICKET_DETAIL'; payload: Ticket }
   | { type: 'CERRAR_TICKET_DETAIL' }
   | { type: 'SET_COMENTARIO_NUEVO'; payload: string }
-  | { type: 'AGREGAR_COMENTARIO'; payload: string }
+  | { type: 'SET_COMENTARIO_ADJUNTOS'; payload: Adjunto[] }
+  | { type: 'SET_MODAL_ADJUNTOS'; payload: Adjunto[] }
+  | { type: 'AGREGAR_COMENTARIO'; payload: { autor: string; autorRol: string; adjuntos: Adjunto[] } }
   | { type: 'CAMBIAR_ESTADO_TICKET'; payload: { id: string; estado: TicketEstado; autor: string } }
   | { type: 'CAMBIAR_AGENTES_TICKET'; payload: { id: string; agentes: string[]; autor: string } }
   | { type: 'ELIMINAR_TICKET'; payload: string };
@@ -681,7 +687,6 @@ function generarIDTicket(
 function validarModal(modal: ModalState): Record<string, string> {
   const errores: Record<string, string> = {};
   if (!modal.programa) errores.programa = 'Seleccioná un programa';
-  if (!modal.estado) errores.estado = 'Seleccioná un estado';
   if (!modal.prioridad) errores.prioridad = 'Seleccioná una prioridad';
   if (!modal.beneficiario.trim())
     errores.beneficiario = 'Ingresá el nombre del beneficiario';
@@ -861,6 +866,7 @@ interface NuevoTicketModalProps {
   modal: ModalState;
   onClose: () => void;
   onUpdateField: (field: string, value: unknown) => void;
+  onAdjuntosChange: (adjuntos: Adjunto[]) => void;
   onSubmit: (datosAdicionales?: Record<string, string>) => void;
   asuntoGenerado: string;
 }
@@ -870,12 +876,32 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
   modal,
   onClose,
   onUpdateField,
+  onAdjuntosChange,
   onSubmit,
   asuntoGenerado,
 }) => {
   const { formularios, obtenerCampos } = useFormularios();
   const [valoresCampos, setValoresCampos] = useState<ValoresCampos>({});
   const [erroresCampos, setErroresCampos] = useState<ErroresCampos>({});
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const contenido = e.target?.result as string;
+        onAdjuntosChange([
+          ...modal.adjuntos,
+          { nombre: file.name, tipo: file.type, tamano: file.size, contenido },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeAdjunto = (idx: number) =>
+    onAdjuntosChange(modal.adjuntos.filter((_, i) => i !== idx));
 
   // Reset dynamic values when programa changes
   useEffect(() => {
@@ -949,31 +975,11 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Estado
+                Estado inicial
               </label>
-              <select
-                value={modal.estado}
-                onChange={(e) =>
-                  onUpdateField('estado', e.target.value as TicketEstado)
-                }
-                className={`w-full px-3 py-2 border rounded-md text-sm ${
-                  modal.errores.estado
-                    ? 'border-red-400 bg-red-50'
-                    : 'border-slate-300'
-                }`}
-              >
-                <option value="">Seleccionar...</option>
-                {ESTADOS.map((e) => (
-                  <option key={e} value={e}>
-                    {e}
-                  </option>
-                ))}
-              </select>
-              {modal.errores.estado && (
-                <p className="text-xs text-red-600 mt-1">
-                  {modal.errores.estado}
-                </p>
-              )}
+              <div className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm bg-orange-50 text-orange-700 font-medium">
+                Solicitud inicial
+              </div>
             </div>
           </div>
 
@@ -1124,17 +1130,42 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Adjuntos
+              Adjuntos <span className="text-slate-400 font-normal">(PDF, Word, imágenes, etc.)</span>
             </label>
-            <div className="border-2 border-dashed border-slate-300 rounded-md p-6 text-center">
-              <File className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt"
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+            <div
+              className="border-2 border-dashed border-slate-300 rounded-md p-5 text-center cursor-pointer hover:border-[#FF9500] hover:bg-orange-50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+            >
+              <File className="w-7 h-7 text-slate-400 mx-auto mb-2" />
               <p className="text-sm text-slate-600">
-                Arrastrá archivos aquí o{' '}
-                <button className="text-[#FF9500] font-medium hover:underline">
-                  selecciona archivos
-                </button>
+                Arrastrá archivos aquí o <span className="text-[#FF9500] font-medium">seleccioná archivos</span>
               </p>
+              <p className="text-xs text-slate-400 mt-1">PDF, Word, Excel, imágenes</p>
             </div>
+            {modal.adjuntos.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                {modal.adjuntos.map((adj, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded px-3 py-1.5">
+                    <File size={14} className="text-slate-500 flex-shrink-0" />
+                    <span className="text-xs text-slate-700 flex-1 truncate">{adj.nombre}</span>
+                    <span className="text-xs text-slate-400">{(adj.tamano / 1024).toFixed(0)} KB</span>
+                    <button onClick={() => removeAdjunto(i)} className="text-slate-400 hover:text-red-500 ml-1">
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1201,31 +1232,70 @@ interface TicketDetailModalProps {
   ticket: Ticket | null;
   onClose: () => void;
   comentarioNuevo: string;
+  comentarioAdjuntos: Adjunto[];
   onCommentChange: (text: string) => void;
-  onAddComment: () => void;
+  onAdjuntosChange: (adj: Adjunto[]) => void;
+  onAddComment: (autorRol: string, adjuntos: Adjunto[]) => void;
   onChangeEstado: (id: string, estado: TicketEstado) => void;
   onChangeAgentes: (id: string, agentes: string[]) => void;
   onEliminarTicket: (id: string) => void;
   onNuevoTicket: () => void;
 }
 
+const ROL_LABELS: Record<string, string> = {
+  admin: 'Administrador', contribuidor: 'Contribuidor',
+  inspector: 'Inspector', dev: 'Desarrollador',
+};
+
+function formatBytes(b: number) {
+  return b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1024 / 1024).toFixed(1)} MB`;
+}
+
 const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   ticket,
   onClose,
   comentarioNuevo,
+  comentarioAdjuntos,
   onCommentChange,
+  onAdjuntosChange,
   onAddComment,
   onChangeEstado,
   onChangeAgentes,
   onEliminarTicket,
   onNuevoTicket,
 }) => {
+  const { usuario } = useAuth();
   const [editandoEstado, setEditandoEstado] = useState(false);
   const [estadoTmp, setEstadoTmp] = useState<TicketEstado | ''>('');
   const [editandoAgentes, setEditandoAgentes] = useState(false);
   const [agentesTmp, setAgentesTmp] = useState('');
+  const [derivarAbierto, setDerivarAbierto] = useState(false);
+  const adjuntosRef = React.useRef<HTMLInputElement>(null);
 
   if (!ticket) return null;
+
+  const autorRol = usuario ? (ROL_LABELS[usuario.rol] ?? usuario.rol) : '';
+
+  const handleAgregarArchivos = (files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const contenido = e.target?.result as string;
+        onAdjuntosChange([
+          ...comentarioAdjuntos,
+          { nombre: file.name, tipo: file.type, tamano: file.size, contenido },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+    if (adjuntosRef.current) adjuntosRef.current.value = '';
+  };
+
+  const handleEnviarComentario = () => {
+    if (!comentarioNuevo.trim() && comentarioAdjuntos.length === 0) return;
+    onAddComment(autorRol, comentarioAdjuntos);
+  };
 
   const handleGuardarEstado = () => {
     if (estadoTmp && estadoTmp !== ticket.estado) {
@@ -1290,32 +1360,85 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Editor de respuesta */}
           <div className="border-b border-slate-200 p-4 bg-white">
-            {/* Toolbar */}
-            <div className="flex items-center gap-1 mb-2 pb-2 border-b border-slate-100">
-              {[Bold, Italic, Underline].map((Icon, i) => (
-                <button key={i} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded">
-                  <Icon size={15} />
-                </button>
-              ))}
-              <div className="w-px h-5 bg-slate-200 mx-1" />
-              <button className="p-1.5 text-slate-600 hover:bg-slate-100 rounded text-xs font-bold">≡</button>
-              <button className="p-1.5 text-slate-600 hover:bg-slate-100 rounded text-xs font-bold">•</button>
-            </div>
+            {/* Author badge */}
+            {usuario && (
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-full bg-[#7F1D1D] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                  {usuario.nombre.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-slate-800">{usuario.nombre}</span>
+                  <span className="ml-2 text-xs bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">{autorRol}</span>
+                </div>
+              </div>
+            )}
             <textarea
               value={comentarioNuevo}
               onChange={(e) => onCommentChange(e.target.value)}
-              placeholder="Escribir respuesta..."
-              rows={4}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm resize-none"
+              placeholder="Escribir comentario o respuesta..."
+              rows={3}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
             />
-            <div className="mt-2 flex items-start justify-between">
-              <div className="text-xs text-slate-400">
-                <button className="text-blue-500 hover:underline">Adjuntar archivo</button>
-                <p className="mt-1 text-slate-400">RECORDÁ CARGAR LOS ARCHIVOS RÁPIDAMENTE Y NO DEMORAR EN ENVIAR EL TICKET.</p>
+            {/* Attached files list */}
+            {comentarioAdjuntos.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {comentarioAdjuntos.map((adj, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded px-2 py-1">
+                    <File size={13} className="text-slate-400 flex-shrink-0" />
+                    <span className="text-xs text-slate-700 flex-1 truncate">{adj.nombre}</span>
+                    <span className="text-xs text-slate-400">{formatBytes(adj.tamano)}</span>
+                    <button onClick={() => onAdjuntosChange(comentarioAdjuntos.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500">
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <input
+                  ref={adjuntosRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleAgregarArchivos(e.target.files)}
+                />
+                <button
+                  onClick={() => adjuntosRef.current?.click()}
+                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-[#FF9500] border border-slate-300 rounded px-2.5 py-1.5 hover:border-[#FF9500] transition-colors"
+                >
+                  <File size={13} /> Adjuntar archivo
+                </button>
+                {/* Derivar button */}
+                <div className="relative">
+                  <button
+                    onClick={() => setDerivarAbierto((v) => !v)}
+                    className="flex items-center gap-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded px-3 py-1.5 transition-colors"
+                  >
+                    ↪ Derivar a...
+                    <ChevronDown size={12} className={`transition-transform ${derivarAbierto ? 'rotate-180' : ''}`} />
+                  </button>
+                  {derivarAbierto && (
+                    <div className="absolute left-0 bottom-full mb-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1 min-w-[220px]">
+                      {ESTADOS.filter(e => e !== ticket.estado).map((e) => (
+                        <button
+                          key={e}
+                          onClick={() => {
+                            onChangeEstado(ticket.id, e);
+                            setDerivarAbierto(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF9500] transition-colors"
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <button
-                onClick={onAddComment}
-                disabled={!comentarioNuevo.trim()}
+                onClick={handleEnviarComentario}
+                disabled={!comentarioNuevo.trim() && comentarioAdjuntos.length === 0}
                 className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 ↩ Enviar respuesta
@@ -1356,25 +1479,42 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 return (
                   <div key={entrada.id} className="border border-slate-200 rounded-md p-4 bg-white">
                     <div className="flex gap-3">
-                      <div className="w-9 h-9 rounded-full bg-slate-300 flex-shrink-0 flex items-center justify-center text-slate-600">
-                        <UserCircle size={22} />
+                      <div className="w-9 h-9 rounded-full bg-[#7F1D1D] flex-shrink-0 flex items-center justify-center text-white text-sm font-bold">
+                        {entrada.autor.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm text-slate-900">{entrada.autor}</span>
-                          <span className="text-xs text-slate-500">respondió {formatearFechaHora(entrada.fecha)}</span>
+                          {entrada.autorRol && (
+                            <span className="text-xs bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">{entrada.autorRol}</span>
+                          )}
+                          <span className="text-xs text-slate-400">respondió {formatearFechaHora(entrada.fecha)}</span>
                         </div>
                         {entrada.email && (
                           <p className="text-xs text-slate-400">{entrada.email}</p>
                         )}
-                        <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{entrada.contenido}</p>
+                        {entrada.contenido && (
+                          <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{entrada.contenido}</p>
+                        )}
                         {entrada.adjuntos.length > 0 && (
-                          <div className="mt-2">
-                            <p className="text-xs font-medium text-slate-600 mb-1">Archivos adjuntos:</p>
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs font-medium text-slate-600">Archivos adjuntos:</p>
                             {entrada.adjuntos.map((adj, idx) => (
-                              <span key={idx} className="text-xs text-blue-500 flex items-center gap-1">
-                                <File size={12} /> {adj.nombre}
-                              </span>
+                              adj.contenido ? (
+                                <a
+                                  key={idx}
+                                  href={adj.contenido}
+                                  download={adj.nombre}
+                                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                  <File size={12} /> {adj.nombre}
+                                  <span className="text-slate-400">({formatBytes(adj.tamano)})</span>
+                                </a>
+                              ) : (
+                                <span key={idx} className="flex items-center gap-1.5 text-xs text-slate-500">
+                                  <File size={12} /> {adj.nombre}
+                                </span>
+                              )
                             ))}
                           </div>
                         )}
@@ -1498,6 +1638,38 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
               </div>
             )}
           </div>
+
+          {/* Archivos del ticket */}
+          {ticket.adjuntos.length > 0 && (
+            <div className="border-b border-slate-200 p-4">
+              <div className="flex items-center gap-1.5 mb-3">
+                <File size={15} className="text-slate-500" />
+                <span className="text-sm font-semibold text-slate-700">Archivos adjuntos</span>
+                <span className="text-xs bg-slate-100 text-slate-500 rounded-full px-1.5 py-0.5 ml-auto">{ticket.adjuntos.length}</span>
+              </div>
+              <div className="space-y-1.5">
+                {ticket.adjuntos.map((adj, i) =>
+                  adj.contenido ? (
+                    <a
+                      key={i}
+                      href={adj.contenido}
+                      download={adj.nombre}
+                      className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded px-2 py-1.5 transition-colors"
+                    >
+                      <File size={13} className="flex-shrink-0" />
+                      <span className="flex-1 truncate">{adj.nombre}</span>
+                      <span className="text-slate-400 flex-shrink-0">{formatBytes(adj.tamano)}</span>
+                    </a>
+                  ) : (
+                    <div key={i} className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 rounded px-2 py-1.5">
+                      <File size={13} className="flex-shrink-0" />
+                      <span className="flex-1 truncate">{adj.nombre}</span>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Campos del Ticket */}
           <div className="border-b border-slate-200 p-4">
@@ -1672,8 +1844,13 @@ function dashboardReducer(
           numeroActa: '',
           agentes: '',
           emailSolicitante: '',
+          adjuntos: [],
         },
       };
+    case 'SET_MODAL_ADJUNTOS':
+      return { ...state, modal: { ...state.modal, adjuntos: action.payload } };
+    case 'SET_COMENTARIO_ADJUNTOS':
+      return { ...state, comentarioAdjuntos: action.payload };
     case 'UPDATE_MODAL_FIELD':
       return {
         ...state,
@@ -1707,6 +1884,7 @@ function dashboardReducer(
           numeroActa: '',
           agentes: '',
           emailSolicitante: '',
+          adjuntos: [],
         },
       };
     }
@@ -1731,24 +1909,23 @@ function dashboardReducer(
       const nuevoComentario: Comentario = {
         id: String(Date.now()),
         tipo: 'comentario',
-        autor: action.payload,
+        autor: action.payload.autor,
+        autorRol: action.payload.autorRol,
         fecha: new Date(),
         contenido: state.comentarioNuevo,
-        adjuntos: [],
+        adjuntos: action.payload.adjuntos,
       };
       const ticketActualizado = {
         ...state.ticketAbierto,
         fechaActualizacion: new Date(),
         comentarios: [...state.ticketAbierto.comentarios, nuevoComentario],
       };
-      const ticketsActualizados = state.tickets.map((t) =>
-        t.id === ticketActualizado.id ? ticketActualizado : t
-      );
       return {
         ...state,
-        tickets: ticketsActualizados,
+        tickets: state.tickets.map((t) => t.id === ticketActualizado.id ? ticketActualizado : t),
         ticketAbierto: ticketActualizado,
         comentarioNuevo: '',
+        comentarioAdjuntos: [],
       };
     }
     case 'CAMBIAR_ESTADO_TICKET': {
@@ -1816,35 +1993,59 @@ function dashboardReducer(
 // SECTION 7: INITIAL STATE
 // ═════════════════════════════════════════════════════════════════════════════
 
-const getInitialState = (): DashboardState => ({
-  tickets: MOCK_TICKETS,
-  seleccionados: new Set(),
-  filtros: {
-    busqueda: '',
-    campoBusqueda: 'ID',
-    vista: 'todos',
-    programa: 'Todos',
-    prioridad: 'Todos',
-  },
-  paginaActual: 1,
-  porPagina: 50,
-  sidebarColapsado: false,
-  modal: {
-    abierto: false,
-    programa: '',
-    estado: '',
-    prioridad: '',
-    beneficiario: '',
-    dni: '',
-    descripcion: '',
-    errores: {},
-    numeroActa: '',
-    agentes: '',
-    emailSolicitante: '',
-  },
-  ticketAbierto: null,
-  comentarioNuevo: '',
-});
+function reviveDates(_key: string, value: unknown): unknown {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
+    return new Date(value);
+  }
+  return value;
+}
+
+const STORAGE_KEY_TICKETS = 'sc_tickets_dashboard';
+
+function saveTickets(tickets: Ticket[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(tickets));
+  } catch { /* quota exceeded */ }
+}
+
+const getInitialState = (): DashboardState => {
+  let tickets = MOCK_TICKETS;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_TICKETS);
+    if (raw) tickets = JSON.parse(raw, reviveDates) as Ticket[];
+  } catch { /* use mock */ }
+  return {
+    tickets,
+    seleccionados: new Set(),
+    filtros: {
+      busqueda: '',
+      campoBusqueda: 'ID',
+      vista: 'todos',
+      programa: 'Todos',
+      prioridad: 'Todos',
+    },
+    paginaActual: 1,
+    porPagina: 50,
+    sidebarColapsado: false,
+    modal: {
+      abierto: false,
+      programa: '',
+      estado: '',
+      prioridad: '',
+      beneficiario: '',
+      dni: '',
+      descripcion: '',
+      errores: {},
+      numeroActa: '',
+      agentes: '',
+      emailSolicitante: '',
+      adjuntos: [],
+    },
+    ticketAbierto: null,
+    comentarioNuevo: '',
+    comentarioAdjuntos: [],
+  };
+};
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SECTION 8: MAIN COMPONENT
@@ -1853,6 +2054,11 @@ const getInitialState = (): DashboardState => ({
 export default function AgenciaCalidadDashboard() {
   const { usuario, usuarios } = useAuth();
   const [state, dispatch] = useReducer(dashboardReducer, undefined, getInitialState);
+
+  // Persist tickets to localStorage whenever they change
+  useEffect(() => {
+    saveTickets(state.tickets);
+  }, [state.tickets]);
 
   // For contribuidores, restrict visible tickets to their assigned stages
   const etapasAsignadas = useMemo(() => {
@@ -1924,10 +2130,10 @@ export default function AgenciaCalidadDashboard() {
       },
       asunto: asuntoGenerado,
       programa: state.modal.programa as TipoPrograma,
-      estado: state.modal.estado as TicketEstado,
+      estado: (state.modal.estado as TicketEstado) || 'Solicitud inicial',
       prioridad: state.modal.prioridad as TicketPrioridad,
       descripcion: state.modal.descripcion,
-      adjuntos: [],
+      adjuntos: state.modal.adjuntos,
       fechaCreacion: new Date(),
       fechaActualizacion: new Date(),
       comentarios: [],
@@ -1950,10 +2156,16 @@ export default function AgenciaCalidadDashboard() {
         ticket={state.ticketAbierto}
         onClose={() => dispatch({ type: 'CERRAR_TICKET_DETAIL' })}
         comentarioNuevo={state.comentarioNuevo}
+        comentarioAdjuntos={state.comentarioAdjuntos}
         onCommentChange={(text) =>
           dispatch({ type: 'SET_COMENTARIO_NUEVO', payload: text })
         }
-        onAddComment={() => dispatch({ type: 'AGREGAR_COMENTARIO', payload: usuario?.nombre || 'Usuario' })}
+        onAdjuntosChange={(adj) =>
+          dispatch({ type: 'SET_COMENTARIO_ADJUNTOS', payload: adj })
+        }
+        onAddComment={(autorRol, adjuntos) =>
+          dispatch({ type: 'AGREGAR_COMENTARIO', payload: { autor: usuario?.nombre || 'Usuario', autorRol, adjuntos } })
+        }
         onChangeEstado={(id, estado) =>
           dispatch({ type: 'CAMBIAR_ESTADO_TICKET', payload: { id, estado, autor: usuario?.nombre || 'Usuario' } })
         }
@@ -2284,6 +2496,9 @@ export default function AgenciaCalidadDashboard() {
             type: 'UPDATE_MODAL_FIELD',
             payload: { field, value },
           })
+        }
+        onAdjuntosChange={(adj) =>
+          dispatch({ type: 'SET_MODAL_ADJUNTOS', payload: adj })
         }
         onSubmit={handleSubmitTicket}
         asuntoGenerado={asuntoGenerado}
