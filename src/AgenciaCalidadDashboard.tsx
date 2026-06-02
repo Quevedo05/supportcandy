@@ -618,8 +618,14 @@ function formatearFechaHora(date: Date): string {
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
-function aplicarFiltros(tickets: Ticket[], filtros: FiltrosActivos, usuarioNombre?: string): Ticket[] {
+function aplicarFiltros(
+  tickets: Ticket[],
+  filtros: FiltrosActivos,
+  usuarioNombre?: string,
+  etapasAsignadas?: string[],
+): Ticket[] {
   return tickets
+    .filter((t) => !etapasAsignadas?.length || etapasAsignadas.includes(t.estado))
     .filter((t) => {
       switch (filtros.vista) {
         case 'todos':       return !t.eliminado;
@@ -1845,13 +1851,20 @@ const getInitialState = (): DashboardState => ({
 // ═════════════════════════════════════════════════════════════════════════════
 
 export default function AgenciaCalidadDashboard() {
-  const { usuario } = useAuth();
+  const { usuario, usuarios } = useAuth();
   const [state, dispatch] = useReducer(dashboardReducer, undefined, getInitialState);
+
+  // For contribuidores, restrict visible tickets to their assigned stages
+  const etapasAsignadas = useMemo(() => {
+    if (usuario?.rol !== 'contribuidor') return undefined;
+    const fullUser = usuarios.find(u => u.id === usuario.usuarioId);
+    return fullUser?.etapasAsignadas ?? [];
+  }, [usuario, usuarios]);
 
   // Derived state
   const ticketsFiltrados = useMemo(
-    () => aplicarFiltros(state.tickets, state.filtros, usuario?.nombre),
-    [state.tickets, state.filtros, usuario?.nombre]
+    () => aplicarFiltros(state.tickets, state.filtros, usuario?.nombre, etapasAsignadas),
+    [state.tickets, state.filtros, usuario?.nombre, etapasAsignadas]
   );
 
   const ticketsPaginados = useMemo(() => {
@@ -1875,14 +1888,17 @@ export default function AgenciaCalidadDashboard() {
   }, [state.modal.programa, state.modal.beneficiario, state.tickets]);
 
   const countPorVista = useMemo(() => {
-    const noElim = state.tickets.filter((t) => !t.eliminado);
+    const visibles = etapasAsignadas?.length
+      ? state.tickets.filter((t) => etapasAsignadas.includes(t.estado))
+      : state.tickets;
+    const noElim = visibles.filter((t) => !t.eliminado);
     return {
       todos:       noElim.length,
       no_resuelto: noElim.filter((t) => t.estado !== 'Cerrado').length,
       sin_asignar: noElim.filter((t) => !t.agentes || t.agentes.length === 0).length,
       mio:         noElim.filter((t) => (t.agentes ?? []).includes(usuario?.nombre ?? '')).length,
       cerrado:     noElim.filter((t) => t.estado === 'Cerrado').length,
-      eliminado:   state.tickets.filter((t) => !!t.eliminado).length,
+      eliminado:   visibles.filter((t) => !!t.eliminado).length,
     };
   }, [state.tickets, usuario?.nombre]);
 

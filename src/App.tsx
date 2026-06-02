@@ -2,21 +2,26 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginPage } from './components/LoginPage';
 import { TicketsApp } from './components/TicketsApp';
 import { SaveanApp } from './modules/savean/SaveanApp';
+import { DevPanel } from './components/DevPanel';
+import { ActivarCuenta } from './components/ActivarCuenta';
 
 function AppContent() {
   const { usuario } = useAuth();
 
-  // Sin sesión - mostrar login
-  if (!usuario) {
-    return <LoginPage />;
-  }
+  // 1. Activation link takes priority over everything
+  const params = new URLSearchParams(window.location.search);
+  const activarToken = params.get('activar');
+  if (activarToken) return <ActivarCuenta token={activarToken} />;
 
-  // Bifurcación por módulo
-  if (usuario.modulo === 'savean') {
-    return <SaveanApp />;
-  }
+  // 2. Not logged in
+  if (!usuario) return <LoginPage />;
 
-  // Módulo tickets (comportamiento actual sin cambios)
+  // 3. Developer
+  if (usuario.rol === 'dev') return <DevPanel />;
+
+  // 4. Module routing
+  if (usuario.modulo === 'savean') return <SaveanApp />;
+
   return <TicketsApp />;
 }
 

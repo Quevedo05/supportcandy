@@ -1,49 +1,79 @@
-export type EstadoDeclaracion = 'pendiente' | 'validada' | 'observada';
+export type EstadoGuia = 'pendiente' | 'verificada' | 'vencida' | 'denegada';
 
-export interface Declaracion {
+export interface ItemMercaderia {
   id: string;
-  numero: string;           // "SAV-2026-0001"
-  estado: EstadoDeclaracion;
-  fechaCreacion: string;
-
-  // Datos del conductor/camionero
-  conductorNombre: string;
-  conductorDni: string;
-  conductorCuil?: string;
-
-  // Datos del vehículo
-  patenteVehiculo: string;
-  patenteAcoplado?: string;
-  empresaTransporte?: string;
-
-  // Datos del cargamento
+  lugarEmpaque?: string;
   especie: string;
-  variedad: string;
-  cantidadKg: number;
-  cantidadBultos?: number;
+  especieNombre?: string;
+  variedad?: string;
+  vidDestino?: string[];
+  vidInv?: string;
   tipoEnvase?: string;
-
-  // Origen / Destino
-  localidadOrigen: string;
-  localidadDestino: string;
-  provinciaDestino: string;
-
-  // Barrera
-  barrierFitosanitaria?: string;
-  inspectorNombre?: string;
-  observaciones?: string;
-  fechaValidacion?: string;
+  cantidadBultos?: number;
+  cantidadKg?: number;
 }
 
-export type DeclaracionNueva = Omit<
-  Declaracion,
-  'id' | 'numero' | 'estado' | 'fechaCreacion' | 'inspectorNombre' | 'observaciones' | 'fechaValidacion'
->;
+export interface GuiaSavean {
+  id: string;
+  numero: string;
+  token: string;
+  estado: EstadoGuia;
+  fechaEmision: string;
+  fechaVencimiento: string;
+  fechaVerificacion?: string;
+  remitenteNombre: string;
+  remitenteRenspa?: string;
+  remitenteInv?: string;
+  remitenteTipo?: string;
+  destinatarioNombre: string;
+  destinoTipo: 'externo' | 'interno';
+  destinoPais?: string;
+  destinoPuntoSalida?: string;
+  destinoMercadoInterno?: string;
+  destinoProvincia?: string;
+  items: ItemMercaderia[];
+  transporteEmpresa?: string;
+  transporteConductor: string;
+  transporteTipo?: string;
+  transporteCamionPatente: string;
+  transporteAcopladoPatente?: string;
+  transportePrecintos?: string;
+  barreraId?: string;
+  barrieraNombre?: string;
+  inspectorUsuario?: string;
+  inspectorNombre?: string;
+  motivoDenegacion?: string;
+  emailContacto?: string;
+}
+
+export interface Barrera {
+  id: string;
+  nombre: string;
+  ruta?: string;
+  kilometro?: string;
+  departamento?: string;
+  activa: boolean;
+}
+
+export interface Barrerista {
+  id: string;
+  nombre: string;
+  usuario: string;
+  activo: boolean;
+}
 
 export interface SaveanContextType {
-  declaraciones: Declaracion[];
-  crearDeclaracion: (data: DeclaracionNueva) => Declaracion;
-  validarDeclaracion: (id: string, inspectorNombre: string) => void;
-  observarDeclaracion: (id: string, observaciones: string) => void;
-  obtenerDeclaracion: (id: string) => Declaracion | undefined;
+  guias: GuiaSavean[];
+  barreras: Barrera[];
+  barreristas: Barrerista[];
+  crearGuia: (data: Omit<GuiaSavean, 'id' | 'numero' | 'token' | 'estado' | 'fechaEmision' | 'fechaVencimiento'>) => GuiaSavean;
+  verificarGuia: (id: string, barreraId: string, inspectorUsuario: string, inspectorNombre: string) => void;
+  denegarGuia: (id: string, barreraId: string, inspectorUsuario: string, inspectorNombre: string, motivo: string) => void;
+  modificarYVerificarGuia: (id: string, barreraId: string, inspectorUsuario: string, inspectorNombre: string, cambios: Partial<GuiaSavean>) => void;
+  obtenerGuia: (id: string) => GuiaSavean | undefined;
+  obtenerGuiaPorNumero: (numero: string) => GuiaSavean | undefined;
+  agregarBarrerista: (b: Omit<Barrerista, 'id'>) => void;
+  desactivarBarrerista: (id: string) => void;
+  eliminarBarrerista: (id: string) => void;
+  agregarBarrera: (b: Omit<Barrera, 'id'>) => void;
 }

@@ -6,7 +6,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const STORAGE_KEY_USUARIOS = 'sc_usuarios';
 const STORAGE_KEY_SESION = 'sc_sesion';
 
-const USUARIO_ADMIN_DEFECTO: Usuario = {
+function generarToken(): string {
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return Array.from(arr)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+const SEED_DEV: Usuario = {
+  id: 'dev-001',
+  nombre: 'Desarrollador',
+  email: 'dev@sistema.com',
+  password: 'dev123',
+  rol: 'dev',
+  modulo: 'tickets',
+  activo: true,
+  activado: true,
+  creadoEn: new Date().toISOString(),
+};
+
+const SEED_ADMIN_TICKETS: Usuario = {
   id: 'admin-001',
   nombre: 'Administrador',
   email: 'admin@agenciacalidad.gob.ar',
@@ -14,10 +34,11 @@ const USUARIO_ADMIN_DEFECTO: Usuario = {
   rol: 'admin',
   modulo: 'tickets',
   activo: true,
+  activado: true,
   creadoEn: new Date().toISOString(),
 };
 
-const USUARIO_INSPECTOR_SAVEAN: Usuario = {
+const SEED_INSPECTOR_SAVEAN: Usuario = {
   id: 'inspector-savean-001',
   nombre: 'Inspector Savean',
   email: 'inspector@savean.gob.ar',
@@ -25,73 +46,92 @@ const USUARIO_INSPECTOR_SAVEAN: Usuario = {
   rol: 'inspector',
   modulo: 'savean',
   activo: true,
+  activado: true,
   creadoEn: new Date().toISOString(),
 };
+
+const SEED_DIRECTOR_SAVEAN: Usuario = {
+  id: 'director-savean-001',
+  nombre: 'Director Savean',
+  email: 'director@savean.gob.ar',
+  password: 'director123',
+  rol: 'admin',
+  modulo: 'savean',
+  activo: true,
+  activado: true,
+  creadoEn: new Date().toISOString(),
+};
+
+const SEEDS = [SEED_DEV, SEED_ADMIN_TICKETS, SEED_INSPECTOR_SAVEAN, SEED_DIRECTOR_SAVEAN];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<SesionActiva | null>(null);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(true);
 
-  // Inicializar desde localStorage
   useEffect(() => {
-    const usuariosGuardados = localStorage.getItem(STORAGE_KEY_USUARIOS);
-    const sesionGuardada = localStorage.getItem(STORAGE_KEY_SESION);
+    const raw = localStorage.getItem(STORAGE_KEY_USUARIOS);
+    let lista: Usuario[] = [];
 
-    let usuariosList: Usuario[] = [];
-
-    if (usuariosGuardados) {
+    if (raw) {
       try {
-        usuariosList = JSON.parse(usuariosGuardados);
-        // Asegurar que los seed users existan
-        const tieneAdmin = usuariosList.some((u) => u.email === 'admin@agenciacalidad.gob.ar');
-        const tieneInspector = usuariosList.some((u) => u.email === 'inspector@savean.gob.ar');
-
-        if (!tieneAdmin) {
-          usuariosList.push(USUARIO_ADMIN_DEFECTO);
-        }
-        if (!tieneInspector) {
-          usuariosList.push(USUARIO_INSPECTOR_SAVEAN);
-        }
+        lista = (JSON.parse(raw) as Usuario[]).map((u) => ({ ...u, activado: u.activado ?? true }));
       } catch {
-        usuariosList = [USUARIO_ADMIN_DEFECTO, USUARIO_INSPECTOR_SAVEAN];
+        lista = [];
       }
-    } else {
-      // Seed inicial
-      usuariosList = [USUARIO_ADMIN_DEFECTO, USUARIO_INSPECTOR_SAVEAN];
     }
 
-    localStorage.setItem(STORAGE_KEY_USUARIOS, JSON.stringify(usuariosList));
-    setUsuarios(usuariosList);
+    SEEDS.forEach((seed) => {
+      if (!lista.some((u) => u.email === seed.email)) lista.push(seed);
+    });
 
-    if (sesionGuardada) {
+    localStorage.setItem(STORAGE_KEY_USUARIOS, JSON.stringify(lista));
+    setUsuarios(lista);
+
+    const rawSesion = localStorage.getItem(STORAGE_KEY_SESION);
+    if (rawSesion) {
       try {
-        setUsuario(JSON.parse(sesionGuardada));
+        setUsuario(JSON.parse(rawSesion));
       } catch {
         setUsuario(null);
       }
     }
+
+    setCargando(false);
   }, []);
+
+  function saveUsuarios(lista: Usuario[]) {
+    setUsuarios(lista);
+    localStorage.setItem(STORAGE_KEY_USUARIOS, JSON.stringify(lista));
+  }
 
   const login = async (email: string, password: string) => {
     setError(null);
-    const usuarioEncontrado = usuarios.find(
-      (u) => u.email === email && u.password === password && u.activo
-    );
+    const found = usuarios.find((u) => u.email === email && u.activo);
 
-    if (!usuarioEncontrado) {
+    if (!found) {
       setError('Email o contraseña incorrectos');
-      throw new Error('Email o contraseña incorrectos');
+      throw new Error('invalid');
+    }
+    if (!found.activado) {
+      setError(
+        'Tu cuenta no fue activada aún. Revisá tu email para completar el registro.',
+      );
+      throw new Error('not-activated');
+    }
+    if (found.password !== password) {
+      setError('Email o contraseña incorrectos');
+      throw new Error('invalid');
     }
 
     const sesion: SesionActiva = {
-      usuarioId: usuarioEncontrado.id,
-      email: usuarioEncontrado.email,
-      nombre: usuarioEncontrado.nombre,
-      rol: usuarioEncontrado.rol,
-      modulo: usuarioEncontrado.modulo,
+      usuarioId: found.id,
+      email: found.email,
+      nombre: found.nombre,
+      rol: found.rol,
+      modulo: found.modulo,
     };
-
     setUsuario(sesion);
     localStorage.setItem(STORAGE_KEY_SESION, JSON.stringify(sesion));
   };
@@ -102,41 +142,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const crearUsuario = (data: Omit<Usuario, 'id' | 'creadoEn'>) => {
-    const nuevoUsuario: Usuario = {
+    const nuevo: Usuario = {
       ...data,
       id: `user-${Date.now()}`,
       creadoEn: new Date().toISOString(),
     };
-
-    const usuariosActualizados = [...usuarios, nuevoUsuario];
-    setUsuarios(usuariosActualizados);
-    localStorage.setItem(STORAGE_KEY_USUARIOS, JSON.stringify(usuariosActualizados));
+    saveUsuarios([...usuarios, nuevo]);
   };
 
+  const crearInvitado = (data: {
+    nombre: string;
+    email: string;
+    rol: Usuario['rol'];
+    modulo: Usuario['modulo'];
+    etapasAsignadas?: string[];
+  }): string => {
+    const token = generarToken();
+    const nuevo: Usuario = {
+      ...data,
+      id: `user-${Date.now()}`,
+      password: '',
+      activo: true,
+      activado: false,
+      tokenActivacion: token,
+      creadoEn: new Date().toISOString(),
+    };
+    saveUsuarios([...usuarios, nuevo]);
+    return token;
+  };
+
+  const activarCuenta = (token: string, password: string): boolean => {
+    const found = usuarios.find((u) => u.tokenActivacion === token && !u.activado);
+    if (!found) return false;
+    saveUsuarios(
+      usuarios.map((u) =>
+        u.id === found.id
+          ? { ...u, password, activado: true, tokenActivacion: undefined }
+          : u,
+      ),
+    );
+    return true;
+  };
+
+  const obtenerPorToken = (token: string) =>
+    usuarios.find((u) => u.tokenActivacion === token);
+
   const eliminarUsuario = (id: string) => {
-    // No permite eliminar el usuario propio
     if (usuario?.usuarioId === id) {
-      setError('No puedes eliminar tu propia cuenta');
+      setError('No podés eliminar tu propia cuenta');
       return;
     }
-
-    const usuariosActualizados = usuarios.filter((u) => u.id !== id);
-    setUsuarios(usuariosActualizados);
-    localStorage.setItem(STORAGE_KEY_USUARIOS, JSON.stringify(usuariosActualizados));
+    saveUsuarios(usuarios.filter((u) => u.id !== id));
   };
 
   const toggleActivoUsuario = (id: string) => {
-    // No permite desactivar el usuario propio
     if (usuario?.usuarioId === id) {
-      setError('No puedes desactivar tu propia cuenta');
+      setError('No podés desactivar tu propia cuenta');
       return;
     }
-
-    const usuariosActualizados = usuarios.map((u) =>
-      u.id === id ? { ...u, activo: !u.activo } : u
-    );
-    setUsuarios(usuariosActualizados);
-    localStorage.setItem(STORAGE_KEY_USUARIOS, JSON.stringify(usuariosActualizados));
+    saveUsuarios(usuarios.map((u) => (u.id === id ? { ...u, activo: !u.activo } : u)));
   };
 
   return (
@@ -144,12 +208,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         usuario,
         usuarios,
+        cargando,
+        error,
         login,
         logout,
         crearUsuario,
+        crearInvitado,
+        activarCuenta,
+        obtenerPorToken,
         eliminarUsuario,
         toggleActivoUsuario,
-        error,
       }}
     >
       {children}
@@ -158,9 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth(): AuthContextType {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth debe usarse dentro de AuthProvider');
+  return ctx;
 }

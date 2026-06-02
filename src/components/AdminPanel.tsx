@@ -51,6 +51,7 @@ export function AdminPanel() {
         rol: formData.rol,
         modulo: formData.modulo,
         activo: true,
+        activado: true,
       });
 
       setFormData({ nombre: '', email: '', password: '', rol: 'contribuidor', modulo: 'tickets' });
