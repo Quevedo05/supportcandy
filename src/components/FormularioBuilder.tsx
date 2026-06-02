@@ -1,421 +1,467 @@
 import { useState } from 'react';
-import {
-  ChevronLeft,
-  ChevronUp,
-  ChevronDown,
-  Plus,
-  X,
-  Trash2,
-  Settings,
-  FileText,
-  GripVertical,
-} from 'lucide-react';
-import { CampoFormulario, Formulario, TipoCampo } from '../types/formularios';
+import { ChevronLeft, Trash2, X, Search } from 'lucide-react';
+import { CampoFormulario, Formulario, TipoCampo, InfoFormulario } from '../types/formularios';
 
 interface FormularioBuilderProps {
   formulario: Formulario;
-  onGuardar: (campos: CampoFormulario[]) => void;
+  onGuardar: (campos: CampoFormulario[], info: InfoFormulario) => void;
   onCancelar: () => void;
 }
 
-// Helpers
-function generarIdCampo(): string {
-  return `campo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+const TIPO_LABELS: Record<TipoCampo, string> = {
+  texto: 'Texto',
+  textarea: 'Texto Largo',
+  numero: 'Número',
+  fecha: 'Fecha',
+  selector: 'Lista (Selector)',
+  archivo: 'Archivo',
+};
+
+const PROGRAMAS = [
+  'Microcréditos 2024',
+  'Cosecha y Acarreo 2026',
+  'Programa Aprender, Trabajar y Producir',
+];
+
+function slugificar(label: string): string {
+  return 'cf_' + label
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '')
+    .slice(0, 40);
 }
 
-function normalizarOrdenes(campos: CampoFormulario[]): CampoFormulario[] {
-  return campos.map((c, i) => ({ ...c, orden: i + 1 }));
+function generarId(): string {
+  return `campo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-function validarCampos(campos: CampoFormulario[]): Record<string, string> {
-  const errores: Record<string, string> = {};
-  campos.forEach((c) => {
-    if (!c.label.trim()) {
-      errores[c.id] = 'El campo necesita una etiqueta';
+// ─── Modal Nuevo/Editar Campo ─────────────────────────────────────────────────
+interface ModalCampoProps {
+  campo: CampoFormulario | null;
+  onGuardar: (c: CampoFormulario) => void;
+  onCancelar: () => void;
+}
+
+function ModalCampo({ campo, onGuardar, onCancelar }: ModalCampoProps) {
+  const esNuevo = !campo;
+  const [form, setForm] = useState<CampoFormulario>(
+    campo ?? {
+      id: generarId(),
+      label: '',
+      campo: '',
+      tipo: '' as TipoCampo,
+      requerido: false,
+      orden: 0,
+      opciones: [],
+      descripcion: '',
+      longitudMaxima: undefined,
     }
-    if (c.tipo === 'selector' && (!c.opciones || c.opciones.length === 0)) {
-      errores[c.id] = 'Un selector necesita al menos una opción';
+  );
+  const [err, setErr] = useState('');
+
+  const set = (partial: Partial<CampoFormulario>) =>
+    setForm((prev) => ({ ...prev, ...partial }));
+
+  const handleNombreChange = (nombre: string) => {
+    set({ label: nombre, campo: esNuevo ? slugificar(nombre) : form.campo });
+  };
+
+  const handleContinuar = () => {
+    if (!form.label.trim()) { setErr('El nombre es obligatorio.'); return; }
+    if (!form.tipo) { setErr('Seleccioná un tipo.'); return; }
+    if (form.tipo === 'selector' && (!form.opciones || form.opciones.length === 0)) {
+      setErr('Un selector necesita al menos una opción.'); return;
     }
-  });
-  return errores;
-}
-
-// Sub-component: Editor de opciones para selectores
-interface OpcionesEditorProps {
-  opciones: string[];
-  onUpdate: (opciones: string[]) => void;
-}
-
-function OpcionesEditor({ opciones, onUpdate }: OpcionesEditorProps) {
-  const [nuevaOpcion, setNuevaOpcion] = useState('');
-
-  const agregarOpcion = () => {
-    if (nuevaOpcion.trim()) {
-      onUpdate([...opciones, nuevaOpcion.trim()]);
-      setNuevaOpcion('');
-    }
+    onGuardar(form);
   };
 
   return (
-    <div>
-      <label className="text-sm font-medium text-gray-700 mb-2 block">
-        Opciones del selector
-      </label>
-      <ul className="space-y-1 mb-3">
-        {opciones.map((op, i) => (
-          <li key={i} className="flex items-center gap-2 bg-white border border-gray-200 rounded px-3 py-2">
-            <span className="flex-1 text-sm text-gray-700">{op}</span>
-            <button
-              onClick={() => onUpdate(opciones.filter((_, j) => j !== i))}
-              className="p-1 hover:bg-red-50 rounded transition"
-              type="button"
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded shadow-xl w-full max-w-lg overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 bg-gray-50">
+          <h3 className="font-semibold text-gray-800">Información del Campo</h3>
+          <button onClick={onCancelar} className="text-gray-500 hover:text-gray-700">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4">
+          {/* Nombre */}
+          <div className="flex items-center gap-4">
+            <label className="w-28 text-sm text-[#8B0000] font-medium flex-shrink-0">Nombre</label>
+            <input
+              type="text"
+              value={form.label}
+              onChange={(e) => handleNombreChange(e.target.value)}
+              className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-400"
+            />
+          </div>
+
+          {/* Descripción */}
+          <div className="flex items-start gap-4">
+            <label className="w-28 text-sm text-[#8B0000] font-medium flex-shrink-0 pt-1">Descripción</label>
+            <textarea
+              value={form.descripcion ?? ''}
+              onChange={(e) => set({ descripcion: e.target.value })}
+              rows={3}
+              className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm resize-y focus:outline-none focus:border-blue-400"
+            />
+          </div>
+
+          {/* Campo (slug) */}
+          <div className="flex items-start gap-4">
+            <label className="w-28 text-sm text-[#8B0000] font-medium flex-shrink-0 pt-1">Campo</label>
+            <div className="flex-1">
+              <div className="flex items-center border border-gray-300 rounded overflow-hidden">
+                <div className="px-2 py-1.5 bg-gray-100 border-r border-gray-300">
+                  <Search size={14} className="text-gray-500" />
+                </div>
+                <input
+                  type="text"
+                  value={form.campo}
+                  onChange={(e) => set({ campo: e.target.value })}
+                  className="flex-1 px-3 py-1.5 text-sm focus:outline-none"
+                />
+              </div>
+              <p className="text-xs text-blue-500 mt-1">Campo personalizado (Contribuyentes)</p>
+            </div>
+          </div>
+
+          {/* Tipo */}
+          <div className="flex items-center gap-4">
+            <label className="w-28 text-sm text-[#8B0000] font-medium flex-shrink-0">Tipo</label>
+            <select
+              value={form.tipo}
+              onChange={(e) => set({ tipo: e.target.value as TipoCampo })}
+              className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-400"
             >
-              <X size={14} className="text-red-600" />
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={nuevaOpcion}
-          onChange={(e) => setNuevaOpcion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              agregarOpcion();
-              e.preventDefault();
-            }
-          }}
-          placeholder="Nueva opción..."
-          className="flex-1 px-3 py-2 border border-gray-200 rounded-md text-sm"
-        />
-        <button
-          onClick={agregarOpcion}
-          className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition flex items-center gap-1"
-          type="button"
-        >
-          <Plus size={14} /> Agregar
-        </button>
+              <option value="">Seleccione un Tipo</option>
+              {(Object.entries(TIPO_LABELS) as [TipoCampo, string][]).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Long. Máxima — solo texto */}
+          {(form.tipo === 'texto' || form.tipo === 'textarea') && (
+            <div className="flex items-center gap-4">
+              <label className="w-28 text-sm text-[#8B0000] font-medium flex-shrink-0">Long. Máxima</label>
+              <input
+                type="number"
+                min={1}
+                value={form.longitudMaxima ?? ''}
+                onChange={(e) => set({ longitudMaxima: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="Sin límite"
+                className="w-32 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+          )}
+
+          {/* Opciones — selector */}
+          {form.tipo === 'selector' && (
+            <OpcionesEditor
+              opciones={form.opciones ?? []}
+              onUpdate={(opciones) => set({ opciones })}
+            />
+          )}
+
+          {/* Campo Requerido */}
+          <div className="flex items-center gap-3 pt-1">
+            <input
+              type="checkbox"
+              id="req-modal"
+              checked={form.requerido}
+              onChange={(e) => set({ requerido: e.target.checked })}
+              className="w-4 h-4 accent-blue-600"
+            />
+            <label htmlFor="req-modal" className="text-sm text-gray-700">Campo Requerido</label>
+          </div>
+
+          {err && <p className="text-xs text-red-600">{err}</p>}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <button
+            onClick={handleContinuar}
+            className="px-5 py-2 bg-[#2196F3] hover:bg-[#1976D2] text-white text-sm font-medium rounded transition-colors"
+          >
+            Continuar
+          </button>
+          <button
+            onClick={onCancelar}
+            className="px-5 py-2 bg-[#F44336] hover:bg-[#D32F2F] text-white text-sm font-medium rounded transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// Sub-component: Fila de editor de campo
-interface CampoEditorRowProps {
-  campo: CampoFormulario;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
-  onUpdate: (partial: Partial<CampoFormulario>) => void;
-  onEliminar: () => void;
-  onMoverArriba: () => void;
-  onMoverAbajo: () => void;
-  error?: string;
-  esElPrimero: boolean;
-  esElUltimo: boolean;
-}
-
-function CampoEditorRow({
-  campo,
-  isExpanded,
-  onToggleExpand,
-  onUpdate,
-  onEliminar,
-  onMoverArriba,
-  onMoverAbajo,
-  error,
-  esElPrimero,
-  esElUltimo,
-}: CampoEditorRowProps) {
-  const tipoLabels: Record<TipoCampo, string> = {
-    texto: 'Texto corto',
-    textarea: 'Texto largo',
-    numero: 'Número',
-    fecha: 'Fecha',
-    selector: 'Selector',
-  };
-
+// ─── Editor opciones para selector ───────────────────────────────────────────
+function OpcionesEditor({ opciones, onUpdate }: { opciones: string[]; onUpdate: (o: string[]) => void }) {
+  const [nueva, setNueva] = useState('');
   return (
-    <>
-      <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3 hover:shadow-sm transition">
-        <GripVertical size={18} className="text-gray-400 flex-shrink-0" />
-        <div className="flex-1">
-          <p className="font-medium text-gray-900">{campo.label || 'Sin etiqueta'}</p>
-          <p className="text-xs text-gray-500">{tipoLabels[campo.tipo]}</p>
-        </div>
-        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-          {tipoLabels[campo.tipo]}
-        </span>
-        {campo.requerido && (
-          <span className="text-xs text-red-600 font-semibold">Requerido</span>
-        )}
-        <div className="flex gap-1 ml-2">
+    <div className="flex items-start gap-4">
+      <label className="w-28 text-sm text-[#8B0000] font-medium flex-shrink-0 pt-1">Opciones</label>
+      <div className="flex-1 space-y-2">
+        {opciones.map((op, i) => (
+          <div key={i} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded px-3 py-1.5">
+            <span className="flex-1 text-sm text-gray-700">{op}</span>
+            <button onClick={() => onUpdate(opciones.filter((_, j) => j !== i))} type="button">
+              <X size={13} className="text-red-500" />
+            </button>
+          </div>
+        ))}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={nueva}
+            onChange={(e) => setNueva(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && nueva.trim()) { onUpdate([...opciones, nueva.trim()]); setNueva(''); e.preventDefault(); } }}
+            placeholder="Nueva opción..."
+            className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-400"
+          />
           <button
-            onClick={onMoverArriba}
-            disabled={esElPrimero}
-            className="p-2 hover:bg-gray-100 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Mover arriba"
             type="button"
+            onClick={() => { if (nueva.trim()) { onUpdate([...opciones, nueva.trim()]); setNueva(''); } }}
+            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
           >
-            <ChevronUp size={16} className="text-gray-600" />
-          </button>
-          <button
-            onClick={onMoverAbajo}
-            disabled={esElUltimo}
-            className="p-2 hover:bg-gray-100 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Mover abajo"
-            type="button"
-          >
-            <ChevronDown size={16} className="text-gray-600" />
-          </button>
-          <button
-            onClick={onToggleExpand}
-            className="p-2 hover:bg-blue-50 rounded transition"
-            title="Editar"
-            type="button"
-          >
-            <ChevronDown
-              size={16}
-              className={`text-blue-600 transition ${isExpanded ? 'rotate-180' : ''}`}
-            />
-          </button>
-          <button
-            onClick={onEliminar}
-            className="p-2 hover:bg-red-50 rounded transition"
-            title="Eliminar"
-            type="button"
-          >
-            <Trash2 size={16} className="text-red-600" />
+            Agregar
           </button>
         </div>
       </div>
-
-      {isExpanded && (
-        <div className="bg-slate-50 border border-gray-200 border-t-0 rounded-b-lg p-4 space-y-4 -mt-2 relative z-10">
-          {/* Etiqueta + Tipo + Requerido */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">
-                Etiqueta del campo
-              </label>
-              <input
-                type="text"
-                value={campo.label}
-                onChange={(e) => onUpdate({ label: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">
-                Tipo
-              </label>
-              <select
-                value={campo.tipo}
-                onChange={(e) => onUpdate({ tipo: e.target.value as TipoCampo })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                <option value="texto">Texto corto</option>
-                <option value="textarea">Texto largo</option>
-                <option value="numero">Número / DNI</option>
-                <option value="fecha">Fecha</option>
-                <option value="selector">Selector (lista)</option>
-              </select>
-            </div>
-            <div className="flex items-end gap-2 pb-0">
-              <input
-                type="checkbox"
-                id={`req-${campo.id}`}
-                checked={campo.requerido}
-                onChange={(e) => onUpdate({ requerido: e.target.checked })}
-                className="w-4 h-4"
-              />
-              <label htmlFor={`req-${campo.id}`} className="text-sm font-medium text-gray-700">
-                Requerido
-              </label>
-            </div>
-          </div>
-
-          {/* Placeholder (solo para texto/textarea/numero) */}
-          {['texto', 'textarea', 'numero'].includes(campo.tipo) && (
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">
-                Texto de ayuda (placeholder)
-              </label>
-              <input
-                type="text"
-                value={campo.placeholder ?? ''}
-                onChange={(e) => onUpdate({ placeholder: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              />
-            </div>
-          )}
-
-          {/* Opciones editor (solo para selector) */}
-          {campo.tipo === 'selector' && (
-            <OpcionesEditor
-              opciones={campo.opciones ?? []}
-              onUpdate={(opciones) => onUpdate({ opciones })}
-            />
-          )}
-
-          {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
-        </div>
-      )}
-    </>
+    </div>
   );
 }
 
-// Main component: FormularioBuilder
-export function FormularioBuilder({
-  formulario,
-  onGuardar,
-  onCancelar,
-}: FormularioBuilderProps) {
+// ─── Sección con header gris ──────────────────────────────────────────────────
+function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <div className="border border-gray-200 rounded overflow-hidden">
+      <div className="bg-gray-100 border-b border-gray-200 px-5 py-2.5">
+        <span className="text-sm font-medium text-gray-700">{titulo}</span>
+      </div>
+      <div className="bg-white px-5 py-5">{children}</div>
+    </div>
+  );
+}
+
+// ─── Fila formulario (label izquierda + input derecha) ────────────────────────
+function FormRow({ label, children }: { label?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-5 py-2.5 border-b border-gray-100 last:border-0">
+      <div className="w-36 flex-shrink-0 text-sm text-gray-700 pt-1.5">{label}</div>
+      <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+export function FormularioBuilder({ formulario, onGuardar, onCancelar }: FormularioBuilderProps) {
+  const [info, setInfo] = useState<InfoFormulario>({
+    nombre: formulario.nombre ?? '',
+    programa: formulario.programa ?? '',
+    personasFisicas: formulario.personasFisicas ?? true,
+    personasJuridicas: formulario.personasJuridicas ?? false,
+    activo: formulario.activo,
+  });
   const [campos, setCampos] = useState<CampoFormulario[]>(
     [...(formulario.campos ?? [])].sort((a, b) => a.orden - b.orden)
   );
-  const [campoExpandido, setCampoExpandido] = useState<string | null>(null);
-  const [errores, setErrores] = useState<Record<string, string>>({});
+  const [modalCampo, setModalCampo] = useState<CampoFormulario | null | 'nuevo'>(null);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
 
-  const agregarCampo = () => {
-    const nuevoCampo: CampoFormulario = {
-      id: generarIdCampo(),
-      label: '',
-      tipo: 'texto',
-      requerido: false,
-      orden: campos.length + 1,
-      opciones: [],
-    };
-    const nuevosCampos = normalizarOrdenes([...campos, nuevoCampo]);
-    setCampos(nuevosCampos);
-    setCampoExpandido(nuevoCampo.id);
+  const setInfoField = (partial: Partial<InfoFormulario>) =>
+    setInfo((prev) => ({ ...prev, ...partial }));
+
+  const abrirNuevo = () => setModalCampo('nuevo');
+
+  const abrirEditar = (c: CampoFormulario) => {
+    setEditandoId(c.id);
+    setModalCampo(c);
   };
 
-  const eliminarCampo = (id: string) => {
-    const nuevosCampos = normalizarOrdenes(campos.filter((c) => c.id !== id));
-    setCampos(nuevosCampos);
-    if (campoExpandido === id) setCampoExpandido(null);
+  const cerrarModal = () => {
+    setModalCampo(null);
+    setEditandoId(null);
   };
 
-  const moverCampoArriba = (id: string) => {
+  const guardarCampo = (c: CampoFormulario) => {
+    if (editandoId) {
+      setCampos((prev) => prev.map((x) => x.id === editandoId ? { ...c, id: editandoId, orden: x.orden } : x));
+    } else {
+      setCampos((prev) => [...prev, { ...c, orden: prev.length + 1 }]);
+    }
+    cerrarModal();
+  };
+
+  const eliminarCampo = (id: string) =>
+    setCampos((prev) => prev.filter((c) => c.id !== id).map((c, i) => ({ ...c, orden: i + 1 })));
+
+  const mover = (id: string, dir: -1 | 1) => {
     const idx = campos.findIndex((c) => c.id === id);
-    if (idx > 0) {
-      const nuevosCampos = [...campos];
-      [nuevosCampos[idx], nuevosCampos[idx - 1]] = [
-        nuevosCampos[idx - 1],
-        nuevosCampos[idx],
-      ];
-      setCampos(normalizarOrdenes(nuevosCampos));
-    }
+    const next = idx + dir;
+    if (next < 0 || next >= campos.length) return;
+    const arr = [...campos];
+    [arr[idx], arr[next]] = [arr[next], arr[idx]];
+    setCampos(arr.map((c, i) => ({ ...c, orden: i + 1 })));
   };
 
-  const moverCampoAbajo = (id: string) => {
-    const idx = campos.findIndex((c) => c.id === id);
-    if (idx < campos.length - 1) {
-      const nuevosCampos = [...campos];
-      [nuevosCampos[idx], nuevosCampos[idx + 1]] = [
-        nuevosCampos[idx + 1],
-        nuevosCampos[idx],
-      ];
-      setCampos(normalizarOrdenes(nuevosCampos));
-    }
-  };
-
-  const actualizarCampo = (id: string, partial: Partial<CampoFormulario>) => {
-    const nuevosCampos = campos.map((c) =>
-      c.id === id ? { ...c, ...partial } : c
-    );
-    setCampos(nuevosCampos);
-  };
-
-  const handleGuardar = () => {
-    const erroresValidacion = validarCampos(campos);
-    if (Object.keys(erroresValidacion).length > 0) {
-      setErrores(erroresValidacion);
-      return;
-    }
-    onGuardar(campos);
-  };
+  const handleGuardar = () => onGuardar(campos, info);
 
   return (
-    <div className="space-y-6">
-      {/* Header con botones */}
-      <div className="flex items-center gap-4 mb-6">
+    <div className="max-w-4xl mx-auto space-y-4">
+      {/* Top bar */}
+      <div className="flex items-center justify-between mb-2">
         <button
           onClick={onCancelar}
-          className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
+          className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-800"
           type="button"
         >
-          <ChevronLeft size={18} />
-          Volver
+          <ChevronLeft size={16} /> Volver a formularios
         </button>
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900">
-            Editar campos: {formulario.programa}
-          </h2>
-        </div>
         <button
           onClick={handleGuardar}
-          className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition"
+          className="px-5 py-2 bg-[#2196F3] hover:bg-[#1976D2] text-white text-sm font-medium rounded transition-colors"
           type="button"
         >
-          <Settings size={18} />
-          Guardar campos
+          Guardar formulario
         </button>
       </div>
 
-      {/* Info banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-700">
-          <strong>ℹ️ Vista previa:</strong> El formulario que verá el ciudadano tendrá{' '}
-          <strong>{campos.length} campo(s)</strong> en el orden que configures aquí.
-        </p>
-      </div>
+      {/* Sección 1: Información */}
+      <Seccion titulo="Información del Formulario">
+        <FormRow label="Programa">
+          <div className="flex items-center border border-gray-300 rounded overflow-hidden">
+            <div className="px-2 py-1.5 bg-gray-100 border-r border-gray-300">
+              <Search size={14} className="text-gray-500" />
+            </div>
+            <select
+              value={info.programa}
+              onChange={(e) => setInfoField({ programa: e.target.value })}
+              className="flex-1 px-3 py-1.5 text-sm focus:outline-none bg-white"
+            >
+              <option value="">Seleccionar programa...</option>
+              {PROGRAMAS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+        </FormRow>
 
-      {/* Lista de campos o empty state */}
-      {campos.length === 0 ? (
-        <div className="bg-white border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-          <FileText size={48} className="mx-auto text-gray-400 mb-4" />
-          <p className="text-gray-600 font-medium mb-4">Sin campos configurados</p>
-          <p className="text-gray-500 text-sm mb-6">Agrega el primer campo para comenzar</p>
+        <FormRow label="Nombre">
+          <input
+            type="text"
+            value={info.nombre}
+            onChange={(e) => setInfoField({ nombre: e.target.value })}
+            className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-400"
+          />
+        </FormRow>
+
+        <FormRow>
+          <div className="space-y-2.5">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={info.personasFisicas}
+                onChange={(e) => setInfoField({ personasFisicas: e.target.checked })}
+                className="w-4 h-4 accent-blue-600"
+              />
+              <span className="text-sm text-gray-700">Formulario para Personas Físicas</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={info.personasJuridicas}
+                onChange={(e) => setInfoField({ personasJuridicas: e.target.checked })}
+                className="w-4 h-4 accent-blue-600"
+              />
+              <span className="text-sm text-gray-700">Formulario para Personas Jurídicas</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!info.activo}
+                onChange={(e) => setInfoField({ activo: !e.target.checked })}
+                className="w-4 h-4 accent-blue-600"
+              />
+              <span className="text-sm text-gray-700">Inactivo</span>
+            </label>
+          </div>
+        </FormRow>
+      </Seccion>
+
+      {/* Sección 2: Campos */}
+      <Seccion titulo="Campos del Formulario">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                {['Orden', 'Nombre', 'Campo', 'Tipo', 'Long. Máxima', 'Requerido', ''].map((h) => (
+                  <th key={h} className="text-left text-xs font-semibold text-gray-600 pb-2 pr-4 last:pr-0">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {campos.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-6 text-center text-sm text-gray-400">
+                    Sin campos. Hacé clic en "Nuevo Campo" para agregar.
+                  </td>
+                </tr>
+              ) : (
+                campos.map((c, idx) => (
+                  <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => abrirEditar(c)}>
+                    <td className="py-2.5 pr-4">
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => mover(c.id, -1)} disabled={idx === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-30 text-xs">▲</button>
+                        <span className="w-5 text-center text-gray-600">{c.orden}</span>
+                        <button onClick={() => mover(c.id, 1)} disabled={idx === campos.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-30 text-xs">▼</button>
+                      </div>
+                    </td>
+                    <td className="py-2.5 pr-4 font-medium text-gray-800">{c.label}</td>
+                    <td className="py-2.5 pr-4 text-gray-500 font-mono text-xs">{c.campo}</td>
+                    <td className="py-2.5 pr-4 text-gray-600">{TIPO_LABELS[c.tipo] ?? c.tipo}</td>
+                    <td className="py-2.5 pr-4 text-gray-500 text-center">{c.longitudMaxima ?? '—'}</td>
+                    <td className="py-2.5 pr-4">
+                      <input type="checkbox" checked={c.requerido} readOnly className="w-4 h-4 accent-blue-600 cursor-default" />
+                    </td>
+                    <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => eliminarCampo(c.id)} className="text-gray-400 hover:text-red-600 transition-colors">
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4">
           <button
-            onClick={agregarCampo}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            onClick={abrirNuevo}
             type="button"
+            className="px-4 py-2 bg-[#2196F3] hover:bg-[#1976D2] text-white text-sm font-medium rounded transition-colors"
           >
-            <Plus size={18} /> Agregar primer campo
+            Nuevo Campo
           </button>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {campos.map((campo, idx) => (
-            <CampoEditorRow
-              key={campo.id}
-              campo={campo}
-              isExpanded={campoExpandido === campo.id}
-              onToggleExpand={() =>
-                setCampoExpandido((prev) => (prev === campo.id ? null : campo.id))
-              }
-              onUpdate={(partial) => actualizarCampo(campo.id, partial)}
-              onEliminar={() => eliminarCampo(campo.id)}
-              onMoverArriba={() => moverCampoArriba(campo.id)}
-              onMoverAbajo={() => moverCampoAbajo(campo.id)}
-              error={errores[campo.id]}
-              esElPrimero={idx === 0}
-              esElUltimo={idx === campos.length - 1}
-            />
-          ))}
-        </div>
-      )}
+      </Seccion>
 
-      {/* Botón para agregar campo */}
-      <button
-        onClick={agregarCampo}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-blue-300 text-blue-700 font-medium rounded-lg hover:bg-blue-50 transition"
-        type="button"
-      >
-        <Plus size={20} /> Agregar campo
-      </button>
+      {/* Modal */}
+      {modalCampo !== null && (
+        <ModalCampo
+          campo={modalCampo === 'nuevo' ? null : modalCampo}
+          onGuardar={guardarCampo}
+          onCancelar={cerrarModal}
+        />
+      )}
     </div>
   );
 }

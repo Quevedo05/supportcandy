@@ -1,21 +1,21 @@
 import { useState } from 'react';
 import { useFormularios } from '../context/FormulariosContext';
-import { CheckCircle2, Circle, FileText, Settings } from 'lucide-react';
+import { FileText, Plus, Trash2 } from 'lucide-react';
 import { FormularioBuilder } from './FormularioBuilder';
 
 export function FormulariosPanel() {
-  const { formularios, activarFormulario, desactivarFormulario, actualizarCampos, obtenerCampos } = useFormularios();
+  const { formularios, actualizarCampos, actualizarInfo, crearFormulario, eliminarFormulario } = useFormularios();
   const [formularioEditando, setFormularioEditando] = useState<string | null>(null);
 
-  // Si estamos editando un formulario, mostrar el builder
   if (formularioEditando) {
     const formulario = formularios.find((f) => f.id === formularioEditando);
     if (!formulario) return null;
     return (
       <FormularioBuilder
         formulario={formulario}
-        onGuardar={(campos) => {
+        onGuardar={(campos, info) => {
           actualizarCampos(formulario.id, campos);
+          actualizarInfo(formulario.id, info);
           setFormularioEditando(null);
         }}
         onCancelar={() => setFormularioEditando(null)}
@@ -23,125 +23,87 @@ export function FormulariosPanel() {
     );
   }
 
-  const formatearFecha = (fecha: string): string => {
-    return new Date(fecha).toLocaleDateString('es-AR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const handleNuevo = () => {
+    const id = crearFormulario();
+    setFormularioEditando(id);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-3 rounded-xl">
-          <FileText size={32} className="text-white" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <FileText size={24} className="text-gray-600" />
+          <h2 className="text-xl font-semibold text-gray-800">Formularios</h2>
         </div>
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900">Gestión de Formularios</h2>
-          <p className="text-sm text-gray-600">Administra los formularios públicos para cada programa</p>
-        </div>
+        <button
+          onClick={handleNuevo}
+          className="flex items-center gap-2 px-4 py-2 bg-[#2196F3] hover:bg-[#1976D2] text-white text-sm font-medium rounded transition-colors"
+        >
+          <Plus size={15} /> Nuevo Formulario
+        </button>
       </div>
 
-      {/* Info box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-700">
-          <strong>ℹ️ Nota:</strong> Los formularios activos estarán disponibles en la landing pública.
-          Cuando los ciudadanos completen un formulario, se creará un ticket automáticamente en el sistema.
-        </p>
-      </div>
-
-      {/* Formularios */}
-      <div className="grid gap-4">
-        {formularios.map((formulario) => {
-          const cantidadCampos = obtenerCampos(formulario.id).length;
-          return (
-            <div
-              key={formulario.id}
-              className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition"
-            >
-              <div className="flex items-start justify-between">
-                {/* Información del formulario */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{formulario.programa}</h3>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        formulario.activo
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {formulario.activo ? '✓ Activo' : 'Inactivo'}
+      {/* Table */}
+      <div className="border border-gray-200 rounded overflow-hidden bg-white">
+        <div className="bg-gray-100 border-b border-gray-200 px-5 py-2.5">
+          <span className="text-sm font-medium text-gray-700">Lista de Formularios</span>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="text-left text-xs font-semibold text-gray-600 px-5 py-3">Nombre</th>
+              <th className="text-left text-xs font-semibold text-gray-600 px-4 py-3">Programa</th>
+              <th className="text-center text-xs font-semibold text-gray-600 px-4 py-3">Campos</th>
+              <th className="text-center text-xs font-semibold text-gray-600 px-4 py-3">Estado</th>
+              <th className="text-center text-xs font-semibold text-gray-600 px-4 py-3">P. Físicas</th>
+              <th className="text-center text-xs font-semibold text-gray-600 px-4 py-3">P. Jurídicas</th>
+              <th className="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {formularios.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-5 py-8 text-center text-sm text-gray-400">
+                  No hay formularios. Creá uno con "Nuevo Formulario".
+                </td>
+              </tr>
+            ) : (
+              formularios.map((f) => (
+                <tr
+                  key={f.id}
+                  className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => setFormularioEditando(f.id)}
+                >
+                  <td className="px-5 py-3 font-medium text-gray-800">{f.nombre || f.programa || '(sin nombre)'}</td>
+                  <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{f.programa || '—'}</td>
+                  <td className="px-4 py-3 text-center text-gray-600">{f.campos?.length ?? 0}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${f.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {f.activo ? 'Activo' : 'Inactivo'}
                     </span>
-                  </div>
-
-                  <p className="text-sm text-gray-600 mb-4">{formulario.descripcion}</p>
-
-                  <div className="text-xs text-gray-500 space-y-1 mb-2">
-                    <p>Creado: {formatearFecha(formulario.creadoEn)}</p>
-                    <p>Actualizado: {formatearFecha(formulario.actualizadoEn)}</p>
-                  </div>
-
-                  <p className="text-xs text-slate-600 mt-2">
-                    {cantidadCampos === 0
-                      ? '📋 Sin campos configurados'
-                      : `📋 ${cantidadCampos} campo(s) configurado(s)`}
-                  </p>
-                </div>
-
-              {/* Botones de acción */}
-              <div className="flex gap-2 ml-4">
-                <button
-                  onClick={() => setFormularioEditando(formulario.id)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition duration-200"
-                  title="Editar campos del formulario"
-                >
-                  <Settings size={18} />
-                  Editar campos
-                </button>
-                <button
-                  onClick={() => {
-                    if (formulario.activo) {
-                      desactivarFormulario(formulario.id);
-                    } else {
-                      activarFormulario(formulario.id);
-                    }
-                  }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition duration-200 ${
-                    formulario.activo
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {formulario.activo ? (
-                    <>
-                      <CheckCircle2 size={18} />
-                      Desactivar
-                    </>
-                  ) : (
-                    <>
-                      <Circle size={18} />
-                      Activar
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-          );
-        })}
-      </div>
-
-      {/* Resumen */}
-      <div className="bg-gradient-to-r from-slate-50 to-blue-50 border border-gray-200 rounded-lg p-4">
-        <p className="text-sm text-gray-700">
-          <strong>Resumen:</strong> {formularios.filter((f) => f.activo).length} de{' '}
-          {formularios.length} formularios activos
-        </p>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <input type="checkbox" checked={f.personasFisicas ?? false} readOnly className="w-4 h-4 accent-blue-600 cursor-default" />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <input type="checkbox" checked={f.personasJuridicas ?? false} readOnly className="w-4 h-4 accent-blue-600 cursor-default" />
+                  </td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('¿Eliminar este formulario?')) eliminarFormulario(f.id);
+                      }}
+                      className="text-gray-400 hover:text-red-600 transition-colors"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
