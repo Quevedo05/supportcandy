@@ -5,7 +5,7 @@
 
 import { httpClient } from './http-client';
 
-export type TipoPrograma = 'Microcréditos 2024' | 'Cosecha y Acarreo 2026' | 'Programa Aprender, Trabajar y Producir';
+export type TipoPrograma = string;
 
 export interface Formulario {
   id: string;
@@ -62,7 +62,7 @@ export class FormularioService {
 
   // Fallback para localStorage (desarrollo)
   private obtenerTodosLocal(): Promise<FormulariosResponse> {
-    const formulariosStr = localStorage.getItem('sc_formularios');
+    const formulariosStr = localStorage.getItem('sc_formularios_v2');
     const formularios = formulariosStr ? JSON.parse(formulariosStr) : [];
 
     return Promise.resolve({
@@ -71,7 +71,7 @@ export class FormularioService {
   }
 
   private obtenerActivosLocal(): Promise<FormulariosResponse> {
-    const formulariosStr = localStorage.getItem('sc_formularios');
+    const formulariosStr = localStorage.getItem('sc_formularios_v2');
     const formularios = formulariosStr ? JSON.parse(formulariosStr) : [];
 
     const activos = formularios.filter((f: Formulario) => f.activo);
@@ -82,7 +82,7 @@ export class FormularioService {
   }
 
   private toggleActivoLocal(formularioId: string): Promise<Formulario> {
-    const formulariosStr = localStorage.getItem('sc_formularios') || '[]';
+    const formulariosStr = localStorage.getItem('sc_formularios_v2') || '[]';
     const formularios = JSON.parse(formulariosStr);
 
     const formulario = formularios.find((f: Formulario) => f.id === formularioId);
@@ -93,7 +93,7 @@ export class FormularioService {
     formulario.activo = !formulario.activo;
     formulario.actualizadoEn = new Date().toISOString();
 
-    localStorage.setItem('sc_formularios', JSON.stringify(formularios));
+    localStorage.setItem('sc_formularios_v2', JSON.stringify(formularios));
 
     return Promise.resolve(formulario);
   }

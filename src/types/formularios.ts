@@ -1,7 +1,4 @@
-export type TipoPrograma =
-  | 'Microcréditos 2024'
-  | 'Cosecha y Acarreo 2026'
-  | 'Programa Aprender, Trabajar y Producir';
+export type TipoPrograma = string;
 
 export type TipoCampo = 'texto' | 'textarea' | 'numero' | 'fecha' | 'selector' | 'archivo';
 

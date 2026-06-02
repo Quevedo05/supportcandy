@@ -17,11 +17,7 @@ const TIPO_LABELS: Record<TipoCampo, string> = {
   archivo: 'Archivo',
 };
 
-const PROGRAMAS = [
-  'Microcréditos 2024',
-  'Cosecha y Acarreo 2026',
-  'Programa Aprender, Trabajar y Producir',
-];
+const PROGRAMAS = ['MICROCRÉDITOS'];
 
 function slugificar(label: string): string {
   return 'cf_' + label

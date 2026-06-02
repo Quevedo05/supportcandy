@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useReducer, useMemo, useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, List, CheckCircle, Trash2, Pencil, Users, UserCircle, Mail } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, List, CheckCircle, Trash2, Pencil, UserCircle } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useFormularios } from './context/FormulariosContext';
 import { FormularioDinamico } from './components/FormularioDinamico';
@@ -29,12 +29,8 @@ type VistaFiltro = 'todos' | 'no_resuelto' | 'sin_asignar' | 'mio' | 'cerrado' |
 
 type TicketPrioridad = 'Normal' | 'Alta' | 'Urgente';
 
-type TipoPrograma =
-  | 'Microcréditos 2024'
-  | 'Cosecha y Acarreo 2026'
-  | 'Programa Aprender, Trabajar y Producir';
-
-type TicketPrefix = 'PM' | 'PCA26' | 'ATPA';
+type TipoPrograma = string;
+type TicketPrefix = string;
 
 type CampoBusqueda = 'ID' | 'Asunto' | 'Beneficiario' | 'DNI';
 
@@ -81,12 +77,16 @@ interface Ticket {
   fechaActualizacion: Date;
   comentarios: Comentario[];
   telefono?: string;
+  tipoDocumento?: string;
   legajo?: string;
   tipoTramite?: string;
   datosAdicionales?: Record<string, string>;
   numeroActa?: string;
   agentes?: string[];
   emailSolicitante?: string;
+  importe?: number;
+  codigoExterno?: string;
+  observaciones?: string;
   eliminado?: boolean;
 }
 
@@ -104,7 +104,10 @@ interface ModalState {
   estado: TicketEstado | '';
   prioridad: TicketPrioridad | '';
   beneficiario: string;
+  tipoDocumento: string;
   dni: string;
+  telefono: string;
+  email: string;
   descripcion: string;
   errores: Record<string, string>;
   numeroActa: string;
@@ -152,7 +155,8 @@ type DashboardAction =
   | { type: 'AGREGAR_COMENTARIO'; payload: { autor: string; autorRol: string; adjuntos: Adjunto[] } }
   | { type: 'CAMBIAR_ESTADO_TICKET'; payload: { id: string; estado: TicketEstado; autor: string } }
   | { type: 'CAMBIAR_AGENTES_TICKET'; payload: { id: string; agentes: string[]; autor: string } }
-  | { type: 'ELIMINAR_TICKET'; payload: string };
+  | { type: 'ELIMINAR_TICKET'; payload: string }
+  | { type: 'ACTUALIZAR_TICKET'; payload: { id: string; fields: Partial<Ticket> } };
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SECTION 2: CONSTANTS & COLOR CONFIG
@@ -179,16 +183,10 @@ const PRIORIDAD_CONFIG: Record<TicketPrioridad, { color: string; bg: string }> =
 };
 
 const PROGRAMA_PREFIX_MAP: Record<TipoPrograma, TicketPrefix> = {
-  'Microcréditos 2024': 'PM',
-  'Cosecha y Acarreo 2026': 'PCA26',
-  'Programa Aprender, Trabajar y Producir': 'ATPA',
+  'MICROCRÉDITOS': 'MC',
 };
 
-const PROGRAMAS: TipoPrograma[] = [
-  'Microcréditos 2024',
-  'Cosecha y Acarreo 2026',
-  'Programa Aprender, Trabajar y Producir',
-];
+const PROGRAMAS: TipoPrograma[] = ['MICROCRÉDITOS'];
 
 const ESTADOS: TicketEstado[] = [
   'Solicitud inicial',
@@ -207,400 +205,10 @@ const ESTADOS: TicketEstado[] = [
 const PRIORIDADES: TicketPrioridad[] = ['Normal', 'Alta', 'Urgente'];
 
 // ═════════════════════════════════════════════════════════════════════════════
-// SECTION 3: MOCK DATA (15 TICKETS)
+// SECTION 3: MOCK DATA
 // ═════════════════════════════════════════════════════════════════════════════
 
-const MOCK_TICKETS: Ticket[] = [
-  {
-    id: 'PM 403 JIMENEZ VERA MARIA ANGELES',
-    prefix: 'PM',
-    numero: 403,
-    beneficiario: { apellido: 'JIMENEZ VERA', nombre: 'MARIA ANGELES', dni: '28741203' },
-    asunto: 'Solicitud de microcrédito para emprendimiento textil',
-    programa: 'Microcréditos 2024',
-    estado: 'Veraz',
-    prioridad: 'Normal',
-    descripcion: 'Emprendedora solicita financiamiento para taller de confección domiciliaria en Rawson.',
-    adjuntos: [{ nombre: 'dni_frente.pdf', tipo: 'application/pdf', tamano: 214000 }],
-    fechaCreacion: new Date('2025-01-08'),
-    fechaActualizacion: new Date('2025-01-15'),
-    telefono: '2644123456',
-    legajo: 'LEG-2024-001',
-    tipoTramite: 'Nuevo Microcrédito',
-    numeroActa: 'ACTA-001/2025',
-    agentes: ['Mario Ureta', 'Martina Oliver'],
-    emailSolicitante: 'maria.jimenez@gmail.com',
-    comentarios: [
-      {
-        id: '1',
-        tipo: 'comentario' as const,
-        autor: 'Mario Ureta',
-        email: 'mario@agencia.gob.ar',
-        fecha: new Date('2025-01-08T10:30:00'),
-        contenido: 'Ticket creado. Documentación inicial recibida correctamente.',
-        adjuntos: [],
-      },
-      {
-        id: '2',
-        tipo: 'evento_estado' as const,
-        autor: 'Mario Ureta',
-        email: 'mario@agencia.gob.ar',
-        fecha: new Date('2025-01-10T09:00:00'),
-        contenido: '',
-        estadoAnterior: 'Solicitud inicial',
-        estadoNuevo: 'Revisión de documentación',
-        adjuntos: [],
-      },
-      {
-        id: '3',
-        tipo: 'comentario' as const,
-        autor: 'Martina Oliver',
-        email: 'moliver@agencia.gob.ar',
-        fecha: new Date('2025-01-12T14:45:00'),
-        contenido: 'Se ha revisado la documentación. Requiere fotocopia de recibos de servicios.',
-        adjuntos: [],
-      },
-      {
-        id: '4',
-        tipo: 'evento_estado' as const,
-        autor: 'Martina Oliver',
-        email: 'moliver@agencia.gob.ar',
-        fecha: new Date('2025-01-15T11:20:00'),
-        contenido: '',
-        estadoAnterior: 'Revisión de documentación',
-        estadoNuevo: 'Veraz',
-        adjuntos: [],
-      },
-    ],
-  },
-  {
-    id: 'PM 217 RODRIGUEZ PABLO EZEQUIEL',
-    prefix: 'PM',
-    numero: 217,
-    beneficiario: { apellido: 'RODRIGUEZ', nombre: 'PABLO EZEQUIEL', dni: '33589012' },
-    asunto: 'Microcrédito para adquisición de herramientas carpintería',
-    programa: 'Microcréditos 2024',
-    estado: 'Transferencia',
-    prioridad: 'Alta',
-    descripcion: 'Carpintero independiente solicita ampliación de taller.',
-    adjuntos: [],
-    fechaCreacion: new Date('2025-01-10'),
-    fechaActualizacion: new Date('2025-01-20'),
-    telefono: '2645678901',
-    legajo: 'LEG-2024-002',
-    tipoTramite: 'Ampliación de Línea',
-    numeroActa: 'NOTA DEL 20/01/25',
-    agentes: ['Mario Ureta'],
-    emailSolicitante: 'pablo.rodriguez@hotmail.com',
-    comentarios: [
-      {
-        id: '1',
-        tipo: 'comentario' as const,
-        autor: 'Mario Ureta',
-        email: 'mario@agencia.gob.ar',
-        fecha: new Date('2025-01-10T09:00:00'),
-        contenido: 'Documentación completa recibida. Se inicia el proceso.',
-        adjuntos: [],
-      },
-      {
-        id: '2',
-        tipo: 'evento_agente' as const,
-        autor: 'Mario Ureta',
-        email: 'mario@agencia.gob.ar',
-        fecha: new Date('2025-01-18T10:05:00'),
-        contenido: '',
-        agenteAnterior: 'Mario Ureta, Martina Oliver',
-        agenteNuevo: 'Mario Ureta',
-        adjuntos: [],
-      },
-      {
-        id: '3',
-        tipo: 'evento_estado' as const,
-        autor: 'Mario Ureta',
-        email: 'mario@agencia.gob.ar',
-        fecha: new Date('2025-01-20T08:30:00'),
-        contenido: '',
-        estadoAnterior: 'Seguimiento de verificable',
-        estadoNuevo: 'Transferencia',
-        adjuntos: [],
-      },
-    ],
-  },
-  {
-    id: 'PM 512 CORREA SANDRA BEATRIZ',
-    prefix: 'PM',
-    numero: 512,
-    beneficiario: { apellido: 'CORREA', nombre: 'SANDRA BEATRIZ', dni: '25463891' },
-    asunto: 'Financiamiento para miniemprendimiento gastronómico',
-    programa: 'Microcréditos 2024',
-    estado: 'Firma de contrato',
-    prioridad: 'Normal',
-    descripcion: 'Productora de comidas caseras para venta en mercado local.',
-    adjuntos: [{ nombre: 'contrato_firmado.pdf', tipo: 'application/pdf', tamano: 520000 }],
-    fechaCreacion: new Date('2025-02-01'),
-    fechaActualizacion: new Date('2025-02-14'),
-    telefono: '2642891234',
-    legajo: 'LEG-2024-003',
-    tipoTramite: 'Nuevo Microcrédito',
-    numeroActa: 'CONTRATO-2024-003',
-    agentes: ['Martina Oliver'],
-    emailSolicitante: 'scorrea@tramitesonline.agenciacalidad.gob.ar',
-    comentarios: [],
-  },
-  {
-    id: 'PM 089 VARGAS HECTOR OMAR',
-    prefix: 'PM',
-    numero: 89,
-    beneficiario: { apellido: 'VARGAS', nombre: 'HECTOR OMAR', dni: '20134567' },
-    asunto: 'Solicitud de microcrédito — revisión de documentación pendiente',
-    programa: 'Microcréditos 2024',
-    estado: 'Revisión de documentación',
-    prioridad: 'Urgente',
-    descripcion: 'Documentación vencida. Requiere re-presentación de DNI y constancia AFIP.',
-    adjuntos: [],
-    fechaCreacion: new Date('2024-12-03'),
-    fechaActualizacion: new Date('2025-01-05'),
-    telefono: '2643456789',
-    legajo: 'LEG-2023-045',
-    tipoTramite: 'Renovación',
-    numeroActa: 'GASTO',
-    agentes: [],
-    emailSolicitante: 'hvargas@gmail.com',
-    comentarios: [],
-  },
-  {
-    id: 'PM 334 LUNA PATRICIA VIVIANA',
-    prefix: 'PM',
-    numero: 334,
-    beneficiario: { apellido: 'LUNA', nombre: 'PATRICIA VIVIANA', dni: '27890345' },
-    asunto: 'Microcrédito para compra de máquina de coser industrial — Cerrado',
-    programa: 'Microcréditos 2024',
-    estado: 'Cerrado',
-    prioridad: 'Normal',
-    descripcion: 'Crédito otorgado y pagado en su totalidad. Expediente cerrado.',
-    adjuntos: [{ nombre: 'comprobante_pago.pdf', tipo: 'application/pdf', tamano: 98000 }],
-    fechaCreacion: new Date('2024-09-15'),
-    fechaActualizacion: new Date('2025-01-30'),
-    telefono: '2644567890',
-    legajo: 'LEG-2024-004',
-    tipoTramite: 'Finalizado',
-    numeroActa: 'CIERRE-2025-001',
-    agentes: ['Martina Oliver'],
-    emailSolicitante: 'pluna@outlook.com',
-    comentarios: [],
-  },
-  {
-    id: 'PCA26 187 GUGLIEMINO RINA DANIELA',
-    prefix: 'PCA26',
-    numero: 187,
-    beneficiario: { apellido: 'GUGLIEMINO', nombre: 'RINA DANIELA', dni: '31204567' },
-    asunto: 'Inscripción cosecha temporada uva 2026 — Zona Valle de Tulum',
-    programa: 'Cosecha y Acarreo 2026',
-    estado: 'Solicitud inicial',
-    prioridad: 'Normal',
-    descripcion: 'Trabajadora temporaria. Primera inscripción al programa.',
-    adjuntos: [{ nombre: 'formulario_inscripcion.pdf', tipo: 'application/pdf', tamano: 310000 }],
-    fechaCreacion: new Date('2025-03-01'),
-    fechaActualizacion: new Date('2025-03-05'),
-    telefono: '2645891234',
-    legajo: 'LEG-2026-001',
-    tipoTramite: 'Inscripción Cosecha',
-    numeroActa: 'INSCRIPCION-2026-001',
-    agentes: [],
-    emailSolicitante: 'rina.gugliemino@gmail.com',
-    comentarios: [],
-  },
-  {
-    id: 'PCA26 044 ARAYA JUAN CARLOS',
-    prefix: 'PCA26',
-    numero: 44,
-    beneficiario: { apellido: 'ARAYA', nombre: 'JUAN CARLOS', dni: '18765432' },
-    asunto: 'Transferencia de beneficio cosecha y acarreo',
-    programa: 'Cosecha y Acarreo 2026',
-    estado: 'Seguimiento de verificable',
-    prioridad: 'Alta',
-    descripcion: 'Trabajador verificado. Pendiente acreditación bancaria Cuenta ANSES.',
-    adjuntos: [],
-    fechaCreacion: new Date('2025-03-10'),
-    fechaActualizacion: new Date('2025-03-18'),
-    telefono: '2646123456',
-    legajo: 'LEG-2026-002',
-    tipoTramite: 'Transferencia Bancaria',
-    numeroActa: 'NOTA DEL 18/03/25',
-    agentes: ['Mario Ureta', 'Ana Salinas'],
-    emailSolicitante: 'juancarlos.araya@hotmail.com',
-    comentarios: [],
-  },
-  {
-    id: 'PCA26 302 FLORES MARTA ELENA',
-    prefix: 'PCA26',
-    numero: 302,
-    beneficiario: { apellido: 'FLORES', nombre: 'MARTA ELENA', dni: '29567843' },
-    asunto: 'Comité de análisis — verificación de datos en padrón',
-    programa: 'Cosecha y Acarreo 2026',
-    estado: 'Comité de análisis',
-    prioridad: 'Urgente',
-    descripcion: 'Beneficiaria aparece duplicada en padrón. Requiere depuración de base.',
-    adjuntos: [{ nombre: 'captura_padron.png', tipo: 'image/png', tamano: 87000 }],
-    fechaCreacion: new Date('2025-02-20'),
-    fechaActualizacion: new Date('2025-03-01'),
-    telefono: '2647234567',
-    legajo: 'LEG-2026-003',
-    tipoTramite: 'Duplicado en Padrón',
-    agentes: ['Mario Ureta'],
-    emailSolicitante: 'mflores@tramitesonline.agenciacalidad.gob.ar',
-    comentarios: [],
-  },
-  {
-    id: 'PCA26 259 MERCADO CARLOS ALBERTO',
-    prefix: 'PCA26',
-    numero: 259,
-    beneficiario: { apellido: 'MERCADO', nombre: 'CARLOS ALBERTO', dni: '22456789' },
-    asunto: 'Firma de contrato cosecha — zona Pocito',
-    programa: 'Cosecha y Acarreo 2026',
-    estado: 'Firma de contrato',
-    prioridad: 'Normal',
-    descripcion: 'Contrato de trabajo temporario emitido. Aguarda firma en sede.',
-    adjuntos: [{ nombre: 'contrato_cosecha.pdf', tipo: 'application/pdf', tamano: 430000 }],
-    fechaCreacion: new Date('2025-03-12'),
-    fechaActualizacion: new Date('2025-03-14'),
-    telefono: '2648345678',
-    legajo: 'LEG-2026-004',
-    tipoTramite: 'Firma de Contrato',
-    numeroActa: 'CONTRATO-COS-2026-004',
-    agentes: ['Ana Salinas'],
-    emailSolicitante: 'carlos.mercado@gmail.com',
-    comentarios: [],
-  },
-  {
-    id: 'PCA26 118 PEREZ NATALIA SOLEDAD',
-    prefix: 'PCA26',
-    numero: 118,
-    beneficiario: { apellido: 'PEREZ', nombre: 'NATALIA SOLEDAD', dni: '35678901' },
-    asunto: 'Expediente cosecha 2026 cerrado — beneficio acreditado',
-    programa: 'Cosecha y Acarreo 2026',
-    estado: 'Cerrado',
-    prioridad: 'Normal',
-    descripcion: 'Beneficio transferido correctamente. Expediente archivado.',
-    adjuntos: [],
-    fechaCreacion: new Date('2025-01-25'),
-    fechaActualizacion: new Date('2025-02-28'),
-    telefono: '2649456789',
-    legajo: 'LEG-2026-005',
-    tipoTramite: 'Cerrado',
-    numeroActa: 'CIERRE-COS-2026-005',
-    agentes: ['Mario Ureta'],
-    emailSolicitante: 'nperez@gmail.com',
-    comentarios: [],
-  },
-  {
-    id: 'ATPA 076 CASTRO LORENA BEATRIZ',
-    prefix: 'ATPA',
-    numero: 76,
-    beneficiario: { apellido: 'CASTRO', nombre: 'LORENA BEATRIZ', dni: '30234567' },
-    asunto: 'Inscripción capacitación en oficios — costura y serigrafía',
-    programa: 'Programa Aprender, Trabajar y Producir',
-    estado: 'Contrato',
-    prioridad: 'Normal',
-    descripcion: 'Joven de 24 años inscripta en módulo textil del programa ATP.',
-    adjuntos: [{ nombre: 'formulario_atp.pdf', tipo: 'application/pdf', tamano: 275000 }],
-    fechaCreacion: new Date('2025-02-10'),
-    fechaActualizacion: new Date('2025-02-12'),
-    telefono: '2640567890',
-    legajo: 'LEG-ATP-001',
-    tipoTramite: 'Inscripción ATP',
-    numeroActa: 'ATP-INS-2025-001',
-    agentes: ['Martina Oliver'],
-    emailSolicitante: 'lorena.castro@gmail.com',
-    comentarios: [],
-  },
-  {
-    id: 'ATPA 155 GOMEZ RAUL FERNANDO',
-    prefix: 'ATPA',
-    numero: 155,
-    beneficiario: { apellido: 'GOMEZ', nombre: 'RAUL FERNANDO', dni: '26789012' },
-    asunto: 'Subsidio ATP — transferencia pendiente verificación CBU',
-    programa: 'Programa Aprender, Trabajar y Producir',
-    estado: 'Simulador',
-    prioridad: 'Alta',
-    descripcion: 'CBU declarado difiere del registrado en ANSES. Requiere corrección.',
-    adjuntos: [{ nombre: 'constancia_cbu.pdf', tipo: 'application/pdf', tamano: 145000 }],
-    fechaCreacion: new Date('2025-02-18'),
-    fechaActualizacion: new Date('2025-03-02'),
-    telefono: '2641678901',
-    legajo: 'LEG-ATP-002',
-    tipoTramite: 'Transferencia Subsidio',
-    numeroActa: 'NOTA DEL 02/03/25',
-    agentes: ['Mario Ureta', 'Ana Salinas'],
-    emailSolicitante: 'raul.gomez@hotmail.com',
-    comentarios: [],
-  },
-  {
-    id: 'ATPA 201 SOTO MIRIAM ALEJANDRA',
-    prefix: 'ATPA',
-    numero: 201,
-    beneficiario: { apellido: 'SOTO', nombre: 'MIRIAM ALEJANDRA', dni: '24123456' },
-    asunto: 'Contrato ATP firmado — modalidad producción agroalimentaria',
-    programa: 'Programa Aprender, Trabajar y Producir',
-    estado: 'Firma de contrato',
-    prioridad: 'Normal',
-    descripcion: 'Productora rural. Contrato de capacitación con compromiso de producción.',
-    adjuntos: [
-      { nombre: 'contrato_atp.pdf', tipo: 'application/pdf', tamano: 610000 },
-      { nombre: 'acta_compromiso.pdf', tipo: 'application/pdf', tamano: 200000 },
-    ],
-    fechaCreacion: new Date('2025-03-05'),
-    fechaActualizacion: new Date('2025-03-15'),
-    telefono: '2642789012',
-    legajo: 'LEG-ATP-003',
-    tipoTramite: 'Contrato Firmado',
-    numeroActa: 'CONTRATO-ATP-2025-003',
-    agentes: ['Martina Oliver'],
-    emailSolicitante: 'msoto@tramitesonline.agenciacalidad.gob.ar',
-    comentarios: [],
-  },
-  {
-    id: 'ATPA 033 DIAZ OSCAR GUILLERMO',
-    prefix: 'ATPA',
-    numero: 33,
-    beneficiario: { apellido: 'DIAZ', nombre: 'OSCAR GUILLERMO', dni: '19345678' },
-    asunto: 'Caso ATP sin resolver — falta documentación laboral',
-    programa: 'Programa Aprender, Trabajar y Producir',
-    estado: 'Certificación de firma',
-    prioridad: 'Urgente',
-    descripcion: 'Beneficiario no presentó historial laboral requerido por normativa ATP-2025.',
-    adjuntos: [],
-    fechaCreacion: new Date('2024-11-20'),
-    fechaActualizacion: new Date('2025-01-08'),
-    telefono: '2643890123',
-    legajo: 'LEG-ATP-004',
-    tipoTramite: 'Pendiente Documentación',
-    agentes: ['Mario Ureta'],
-    emailSolicitante: 'odiaz@gmail.com',
-    comentarios: [],
-  },
-  {
-    id: 'ATPA 412 HERRERA CLAUDIA NOEMI',
-    prefix: 'ATPA',
-    numero: 412,
-    beneficiario: { apellido: 'HERRERA', nombre: 'CLAUDIA NOEMI', dni: '27456789' },
-    asunto: 'Expediente ATP cerrado — capacitación completada con certificación',
-    programa: 'Programa Aprender, Trabajar y Producir',
-    estado: 'Cerrado',
-    prioridad: 'Normal',
-    descripcion: 'Beneficiaria completó 120 horas. Certificado emitido. Expediente cerrado.',
-    adjuntos: [{ nombre: 'certificado_atp.pdf', tipo: 'application/pdf', tamano: 330000 }],
-    fechaCreacion: new Date('2024-10-01'),
-    fechaActualizacion: new Date('2025-02-20'),
-    telefono: '2644901234',
-    legajo: 'LEG-ATP-005',
-    tipoTramite: 'Finalizado',
-    numeroActa: 'CIERRE-ATP-2025-005',
-    agentes: ['Ana Salinas'],
-    emailSolicitante: 'claudia.herrera@outlook.com',
-    comentarios: [],
-  },
-];
+const MOCK_TICKETS: Ticket[] = [];
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SECTION 4: PURE HELPER FUNCTIONS
@@ -1038,14 +646,48 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                DNI
+                Teléfono móvil
+              </label>
+              <input
+                type="text"
+                value={modal.telefono}
+                onChange={(e) => onUpdateField('telefono', e.target.value)}
+                placeholder="Ej: 2645123456"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Tipo de Documento
+              </label>
+              <select
+                value={modal.tipoDocumento}
+                onChange={(e) => onUpdateField('tipoDocumento', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+              >
+                <option value="">Seleccionar...</option>
+                <option value="DNI">DNI</option>
+                <option value="CUIT">CUIT</option>
+                <option value="CUIL">CUIL</option>
+                <option value="LC">LC</option>
+                <option value="LE">LE</option>
+                <option value="CE">CE</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                N° de Documento
               </label>
               <input
                 type="text"
                 value={modal.dni}
                 onChange={(e) => onUpdateField('dni', e.target.value)}
                 placeholder="Ej: 12345678"
-                maxLength={8}
+                maxLength={11}
                 className={`w-full px-3 py-2 border rounded-md text-sm ${
                   modal.errores.dni
                     ? 'border-red-400 bg-red-50'
@@ -1109,7 +751,7 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
                 type="text"
                 value={modal.agentes}
                 onChange={(e) => onUpdateField('agentes', e.target.value)}
-                placeholder="Ej: Mario Ureta, Ana Salinas"
+                placeholder="Ej: Juan Pérez, María García"
                 className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
               />
             </div>
@@ -1240,6 +882,7 @@ interface TicketDetailModalProps {
   onChangeAgentes: (id: string, agentes: string[]) => void;
   onEliminarTicket: (id: string) => void;
   onNuevoTicket: () => void;
+  onActualizarTicket: (id: string, fields: Partial<Ticket>) => void;
 }
 
 const ROL_LABELS: Record<string, string> = {
@@ -1263,18 +906,55 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   onChangeAgentes,
   onEliminarTicket,
   onNuevoTicket,
+  onActualizarTicket,
 }) => {
   const { usuario } = useAuth();
+  const { formularios, obtenerCampos } = useFormularios();
   const [editandoEstado, setEditandoEstado] = useState(false);
   const [estadoTmp, setEstadoTmp] = useState<TicketEstado | ''>('');
   const [editandoAgentes, setEditandoAgentes] = useState(false);
   const [agentesTmp, setAgentesTmp] = useState('');
   const [derivarAbierto, setDerivarAbierto] = useState(false);
+  const [editandoLegajo, setEditandoLegajo] = useState(false);
+  const [legajoTmp, setLegajoTmp] = useState({ legajo: '', numeroActa: '', importe: '', codigoExterno: '' });
+  const [editandoObservaciones, setEditandoObservaciones] = useState(false);
+  const [observacionesTmp, setObservacionesTmp] = useState('');
+  const [seccionesAbiertas, setSeccionesAbiertas] = useState<Record<string, boolean>>({
+    solicitud: true, campos: true, legajo: true, asignaciones: true, observaciones: true, auditoria: false,
+  });
   const adjuntosRef = React.useRef<HTMLInputElement>(null);
 
   if (!ticket) return null;
 
   const autorRol = usuario ? (ROL_LABELS[usuario.rol] ?? usuario.rol) : '';
+
+  const toggleSeccion = (key: string) =>
+    setSeccionesAbiertas((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const camposFormulario = (() => {
+    const form = formularios.find((f) => f.programa === ticket.programa);
+    if (!form) return [] as import('./types/formularios').CampoFormulario[];
+    return obtenerCampos(form.id);
+  })();
+
+  const campoLabelMap = Object.fromEntries(camposFormulario.map((c) => [c.id, c.label]));
+
+  const InfoRow = ({ label, children, value }: { label: string; children?: React.ReactNode; value?: string }) => (
+    <div className="flex gap-2 py-0.5">
+      <span className="text-slate-500 text-xs min-w-[100px] flex-shrink-0">{label}:</span>
+      {children ? <span className="text-xs">{children}</span> : <span className="text-slate-800 text-xs font-medium break-words">{value ?? '—'}</span>}
+    </div>
+  );
+
+  const SeccionHeader = ({ title, sKey }: { title: string; sKey: string }) => (
+    <button
+      onClick={() => toggleSeccion(sKey)}
+      className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 hover:bg-slate-100 transition-colors"
+    >
+      <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">{title}</span>
+      <ChevronDown size={14} className={`text-slate-400 transition-transform ${seccionesAbiertas[sKey] ? 'rotate-180' : ''}`} />
+    </button>
+  );
 
   const handleAgregarArchivos = (files: FileList | null) => {
     if (!files) return;
@@ -1528,201 +1208,276 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         </div>
 
         {/* Panel derecho */}
-        <div className="w-72 border-l border-slate-200 bg-white overflow-y-auto">
-          {/* Estado */}
-          <div className="border-b border-slate-200 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-                ● Estado
-              </span>
-              <button
-                onClick={() => { setEditandoEstado(true); setEstadoTmp(ticket.estado); }}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <Pencil size={13} />
-              </button>
-            </div>
-            {editandoEstado ? (
-              <div className="space-y-2">
-                <select
-                  value={estadoTmp}
-                  onChange={(e) => setEstadoTmp(e.target.value as TicketEstado)}
-                  className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
-                >
-                  {ESTADOS.map((e) => (
-                    <option key={e} value={e}>{e}</option>
-                  ))}
-                </select>
-                <div className="flex gap-2">
-                  <button onClick={handleGuardarEstado} className="flex-1 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Guardar</button>
-                  <button onClick={() => setEditandoEstado(false)} className="flex-1 py-1 text-xs border border-slate-300 rounded hover:bg-slate-50">Cancelar</button>
+        <div className="w-80 border-l border-slate-200 bg-white overflow-y-auto">
+
+          {/* Información de la Solicitud */}
+          <SeccionHeader title="Información de la Solicitud" sKey="solicitud" />
+          {seccionesAbiertas.solicitud && (
+            <div className="p-4 border-b border-slate-100">
+              {editandoEstado ? (
+                <div className="space-y-2 mb-3">
+                  <label className="text-xs text-slate-500">Estado:</label>
+                  <select
+                    value={estadoTmp}
+                    onChange={(e) => setEstadoTmp(e.target.value as TicketEstado)}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
+                  >
+                    {ESTADOS.map((e) => (
+                      <option key={e} value={e}>{e}</option>
+                    ))}
+                  </select>
+                  <div className="flex gap-2">
+                    <button onClick={handleGuardarEstado} className="flex-1 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Guardar</button>
+                    <button onClick={() => setEditandoEstado(false)} className="flex-1 py-1 text-xs border border-slate-300 rounded hover:bg-slate-50">Cancelar</button>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div>
-                  <span className="text-xs text-slate-500">Estado: </span>
+              ) : (
+                <div className="flex items-center gap-2 mb-3">
                   <EstadoBadge estado={ticket.estado} />
+                  <button onClick={() => { setEditandoEstado(true); setEstadoTmp(ticket.estado); }} className="text-slate-400 hover:text-slate-600 ml-auto">
+                    <Pencil size={12} />
+                  </button>
                 </div>
-                <div>
-                  <span className="text-xs text-slate-500">Categoría: </span>
-                  <span className="text-xs font-medium text-slate-700">{ticket.programa}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-500">Prioridad: </span>
-                  <PrioridadBadge prioridad={ticket.prioridad} />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Elevado por */}
-          <div className="border-b border-slate-200 p-4">
-            <div className="flex items-center gap-1.5 mb-3">
-              <UserCircle size={15} className="text-slate-500" />
-              <span className="text-sm font-semibold text-slate-700">Elevado por</span>
-            </div>
-            <div className="flex items-center gap-2 bg-slate-100 rounded px-3 py-2">
-              <div className="w-7 h-7 rounded-full bg-slate-300 flex items-center justify-center flex-shrink-0">
-                <UserCircle size={18} className="text-slate-500" />
-              </div>
-              <span className="text-sm text-slate-700 font-medium">
-                {ticket.beneficiario.apellido} {ticket.beneficiario.nombre}
-              </span>
-            </div>
-          </div>
-
-          {/* Asignar agente */}
-          <div className="border-b border-slate-200 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5">
-                <Users size={15} className="text-slate-500" />
-                <span className="text-sm font-semibold text-slate-700">Asignar agente</span>
-              </div>
-              <button
-                onClick={() => { setEditandoAgentes(true); setAgentesTmp((ticket.agentes ?? []).join(', ')); }}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <Pencil size={13} />
-              </button>
-            </div>
-            {editandoAgentes ? (
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={agentesTmp}
-                  onChange={(e) => setAgentesTmp(e.target.value)}
-                  placeholder="Ej: Mario Ureta, Ana Salinas"
-                  className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
-                />
-                <p className="text-xs text-slate-400">Separar con comas para múltiples agentes</p>
-                <div className="flex gap-2">
-                  <button onClick={handleGuardarAgentes} className="flex-1 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Guardar</button>
-                  <button onClick={() => setEditandoAgentes(false)} className="flex-1 py-1 text-xs border border-slate-300 rounded hover:bg-slate-50">Cancelar</button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {(ticket.agentes ?? []).length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">Sin agente asignado</p>
-                ) : (
-                  (ticket.agentes ?? []).map((agente, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
-                        <UserCircle size={14} className="text-slate-500" />
-                      </div>
-                      <span className="text-sm text-slate-700">{agente}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Archivos del ticket */}
-          {ticket.adjuntos.length > 0 && (
-            <div className="border-b border-slate-200 p-4">
-              <div className="flex items-center gap-1.5 mb-3">
-                <File size={15} className="text-slate-500" />
-                <span className="text-sm font-semibold text-slate-700">Archivos adjuntos</span>
-                <span className="text-xs bg-slate-100 text-slate-500 rounded-full px-1.5 py-0.5 ml-auto">{ticket.adjuntos.length}</span>
-              </div>
-              <div className="space-y-1.5">
-                {ticket.adjuntos.map((adj, i) =>
-                  adj.contenido ? (
-                    <a
-                      key={i}
-                      href={adj.contenido}
-                      download={adj.nombre}
-                      className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded px-2 py-1.5 transition-colors"
-                    >
-                      <File size={13} className="flex-shrink-0" />
-                      <span className="flex-1 truncate">{adj.nombre}</span>
-                      <span className="text-slate-400 flex-shrink-0">{formatBytes(adj.tamano)}</span>
-                    </a>
-                  ) : (
-                    <div key={i} className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 rounded px-2 py-1.5">
-                      <File size={13} className="flex-shrink-0" />
-                      <span className="flex-1 truncate">{adj.nombre}</span>
-                    </div>
-                  )
-                )}
-              </div>
+              )}
+              <InfoRow label="Programa" value={ticket.programa} />
+              <InfoRow label="Prioridad"><PrioridadBadge prioridad={ticket.prioridad} /></InfoRow>
+              <InfoRow label="Nombre" value={`${ticket.beneficiario.apellido} ${ticket.beneficiario.nombre}`} />
+              <InfoRow label="Tipo Doc." value={ticket.tipoDocumento ?? '—'} />
+              <InfoRow label="N° Documento" value={ticket.beneficiario.dni} />
+              <InfoRow label="Email" value={ticket.emailSolicitante ?? '—'} />
+              <InfoRow label="Teléfono" value={ticket.telefono ?? '—'} />
+              <InfoRow label="Fecha ingreso" value={formatearFecha(ticket.fechaCreacion)} />
+              <InfoRow label="Últ. edición" value={formatearFecha(ticket.fechaActualizacion)} />
             </div>
           )}
 
-          {/* Campos del Ticket */}
-          <div className="border-b border-slate-200 p-4">
-            <div className="flex items-center gap-1.5 mb-3">
-              <File size={15} className="text-slate-500" />
-              <span className="text-sm font-semibold text-slate-700">Campos del Ticket</span>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex gap-1">
-                <span className="text-slate-500 min-w-fit">DNI del solicitante:</span>
-                <span className="text-slate-800 font-medium">{ticket.beneficiario.dni}</span>
-              </div>
-              {ticket.telefono && (
-                <div className="flex gap-1">
-                  <span className="text-slate-500 min-w-fit">Teléfono:</span>
-                  <span className="text-slate-800">{ticket.telefono}</span>
+          {/* Campos de la Solicitud */}
+          {ticket.datosAdicionales && Object.keys(ticket.datosAdicionales).length > 0 && (
+            <>
+              <SeccionHeader title="Campos de la Solicitud" sKey="campos" />
+              {seccionesAbiertas.campos && (
+                <div className="p-4 border-b border-slate-100 space-y-1">
+                  {Object.entries(ticket.datosAdicionales).map(([k, v]) => {
+                    const label = campoLabelMap[k] ?? k;
+                    if (typeof v === 'string' && v.startsWith('data:')) {
+                      return (
+                        <div key={k} className="flex gap-2 py-0.5">
+                          <span className="text-slate-500 text-xs min-w-[100px] flex-shrink-0">{label}:</span>
+                          <a href={v} download={label} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                            <File size={11} /> Descargar
+                          </a>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={k} className="flex gap-2 py-0.5">
+                        <span className="text-slate-500 text-xs min-w-[100px] flex-shrink-0">{label}:</span>
+                        <span className="text-slate-800 text-xs font-medium break-words">{v || '—'}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-              {ticket.tipoTramite && (
-                <div className="flex gap-1">
-                  <span className="text-slate-500 min-w-fit">Tipo de trámite:</span>
-                  <span className="text-slate-800">{ticket.tipoTramite}</span>
-                </div>
-              )}
-              {ticket.legajo && (
-                <div className="flex gap-1">
-                  <span className="text-slate-500 min-w-fit">Número de legajo:</span>
-                  <span className="text-slate-800">{ticket.legajo}</span>
-                </div>
-              )}
-              {ticket.datosAdicionales &&
-                Object.entries(ticket.datosAdicionales).map(([k, v]) => (
-                  <div key={k} className="flex gap-1">
-                    <span className="text-slate-500 min-w-fit">{k}:</span>
-                    <span className="text-slate-800 break-words">{v}</span>
-                  </div>
-                ))}
-            </div>
-          </div>
+            </>
+          )}
 
-          {/* Destinatarios */}
-          <div className="p-4">
-            <div className="flex items-center gap-1.5 mb-3">
-              <Mail size={15} className="text-slate-500" />
-              <span className="text-sm font-semibold text-slate-700">Destinatarios</span>
+          {/* Información del Legajo */}
+          <SeccionHeader title="Información del Legajo" sKey="legajo" />
+          {seccionesAbiertas.legajo && (
+            <div className="p-4 border-b border-slate-100">
+              {editandoLegajo ? (
+                <div className="space-y-2">
+                  {[
+                    { key: 'legajo', label: 'Nro. Legajo', placeholder: 'Ej: LEG-2024-001' },
+                    { key: 'numeroActa', label: 'Nro. Acta', placeholder: 'Ej: ACTA-001/2026' },
+                    { key: 'importe', label: 'Importe ($)', placeholder: 'Ej: 150000' },
+                    { key: 'codigoExterno', label: 'Código', placeholder: 'Auto-generado' },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key}>
+                      <label className="text-xs text-slate-500">{label}</label>
+                      <input
+                        type={key === 'importe' ? 'number' : 'text'}
+                        value={(legajoTmp as Record<string, string>)[key]}
+                        onChange={(e) => setLegajoTmp((prev) => ({ ...prev, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded text-xs mt-0.5"
+                      />
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => {
+                        onActualizarTicket(ticket.id, {
+                          legajo: legajoTmp.legajo || undefined,
+                          numeroActa: legajoTmp.numeroActa || undefined,
+                          importe: legajoTmp.importe ? Number(legajoTmp.importe) : undefined,
+                          codigoExterno: legajoTmp.codigoExterno || undefined,
+                        });
+                        setEditandoLegajo(false);
+                      }}
+                      className="flex-1 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                    >Guardar</button>
+                    <button onClick={() => setEditandoLegajo(false)} className="flex-1 py-1 text-xs border border-slate-300 rounded hover:bg-slate-50">Cancelar</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  <div className="flex justify-end mb-1">
+                    <button
+                      onClick={() => {
+                        setLegajoTmp({
+                          legajo: ticket.legajo ?? '',
+                          numeroActa: ticket.numeroActa ?? '',
+                          importe: ticket.importe ? String(ticket.importe) : '',
+                          codigoExterno: ticket.codigoExterno ?? '',
+                        });
+                        setEditandoLegajo(true);
+                      }}
+                      className="text-slate-400 hover:text-slate-600"
+                    ><Pencil size={12} /></button>
+                  </div>
+                  <InfoRow label="Nro. Legajo" value={ticket.legajo} />
+                  <InfoRow label="Nro. Acta" value={ticket.numeroActa} />
+                  <InfoRow label="Importe" value={ticket.importe ? `$ ${ticket.importe.toLocaleString('es-AR')}` : undefined} />
+                  <InfoRow label="Código" value={ticket.codigoExterno} />
+                </div>
+              )}
             </div>
-            <div className="text-sm">
-              <p className="text-xs text-slate-500 mb-1">Emails:</p>
-              <p className={ticket.emailSolicitante ? 'text-blue-600 text-xs' : 'text-slate-400 text-xs italic'}>
-                {ticket.emailSolicitante ?? 'Ninguno'}
-              </p>
+          )}
+
+          {/* Información de Asignaciones */}
+          <SeccionHeader title="Información de Asignaciones" sKey="asignaciones" />
+          {seccionesAbiertas.asignaciones && (
+            <div className="p-4 border-b border-slate-100">
+              {editandoAgentes ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={agentesTmp}
+                    onChange={(e) => setAgentesTmp(e.target.value)}
+                    placeholder="Ej: Agente 1, Agente 2"
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
+                  />
+                  <p className="text-xs text-slate-400">Separar con comas</p>
+                  <div className="flex gap-2">
+                    <button onClick={handleGuardarAgentes} className="flex-1 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Guardar</button>
+                    <button onClick={() => setEditandoAgentes(false)} className="flex-1 py-1 text-xs border border-slate-300 rounded hover:bg-slate-50">Cancelar</button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex justify-end mb-1">
+                    <button
+                      onClick={() => { setEditandoAgentes(true); setAgentesTmp((ticket.agentes ?? []).join(', ')); }}
+                      className="text-slate-400 hover:text-slate-600"
+                    ><Pencil size={12} /></button>
+                  </div>
+                  {(ticket.agentes ?? []).length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">Sin agente asignado</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {(ticket.agentes ?? []).map((agente, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                            <UserCircle size={14} className="text-slate-500" />
+                          </div>
+                          <span className="text-xs text-slate-700">{agente}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {ticket.adjuntos.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <p className="text-xs font-medium text-slate-600 mb-1.5">Archivos adjuntos:</p>
+                  <div className="space-y-1">
+                    {ticket.adjuntos.map((adj, i) =>
+                      adj.contenido ? (
+                        <a key={i} href={adj.contenido} download={adj.nombre}
+                          className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline">
+                          <File size={11} className="flex-shrink-0" />
+                          <span className="flex-1 truncate">{adj.nombre}</span>
+                        </a>
+                      ) : (
+                        <div key={i} className="flex items-center gap-1.5 text-xs text-slate-500">
+                          <File size={11} className="flex-shrink-0" />
+                          <span className="flex-1 truncate">{adj.nombre}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          )}
+
+          {/* Observaciones */}
+          <SeccionHeader title="Observaciones" sKey="observaciones" />
+          {seccionesAbiertas.observaciones && (
+            <div className="p-4 border-b border-slate-100">
+              {editandoObservaciones ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={observacionesTmp}
+                    onChange={(e) => setObservacionesTmp(e.target.value)}
+                    rows={4}
+                    placeholder="Escribir observaciones..."
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded text-xs resize-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        onActualizarTicket(ticket.id, { observaciones: observacionesTmp });
+                        setEditandoObservaciones(false);
+                      }}
+                      className="flex-1 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                    >Guardar</button>
+                    <button onClick={() => setEditandoObservaciones(false)} className="flex-1 py-1 text-xs border border-slate-300 rounded hover:bg-slate-50">Cancelar</button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex justify-end mb-1">
+                    <button
+                      onClick={() => { setObservacionesTmp(ticket.observaciones ?? ''); setEditandoObservaciones(true); }}
+                      className="text-slate-400 hover:text-slate-600"
+                    ><Pencil size={12} /></button>
+                  </div>
+                  {ticket.observaciones ? (
+                    <p className="text-xs text-slate-700 whitespace-pre-wrap">{ticket.observaciones}</p>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">Sin observaciones</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Información de Auditoría */}
+          <SeccionHeader title="Información de Auditoría" sKey="auditoria" />
+          {seccionesAbiertas.auditoria && (
+            <div className="p-4">
+              {ticket.comentarios.filter((c) => c.tipo === 'evento_estado' || c.tipo === 'evento_agente').length === 0 ? (
+                <p className="text-xs text-slate-400 italic">Sin eventos registrados</p>
+              ) : (
+                <div className="space-y-2">
+                  {ticket.comentarios
+                    .filter((c) => c.tipo === 'evento_estado' || c.tipo === 'evento_agente')
+                    .map((c) => (
+                      <div key={c.id} className="text-xs text-slate-600 bg-slate-50 rounded p-2">
+                        <span className="font-medium">{c.autor}</span>{' '}
+                        {c.tipo === 'evento_estado'
+                          ? <>cambió estado: <span className="font-medium">{c.estadoAnterior}</span> → <span className="font-medium">{c.estadoNuevo}</span></>
+                          : <>cambió agente: <span className="font-medium">{c.agenteAnterior}</span> → <span className="font-medium">{c.agenteNuevo}</span></>
+                        }
+                        <div className="text-slate-400 mt-0.5">{formatearFechaHora(c.fecha)}</div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1838,7 +1593,10 @@ function dashboardReducer(
           estado: '',
           prioridad: '',
           beneficiario: '',
+          tipoDocumento: '',
           dni: '',
+          telefono: '',
+          email: '',
           descripcion: '',
           errores: {},
           numeroActa: '',
@@ -1878,7 +1636,10 @@ function dashboardReducer(
           estado: '',
           prioridad: '',
           beneficiario: '',
+          tipoDocumento: '',
           dni: '',
+          telefono: '',
+          email: '',
           descripcion: '',
           errores: {},
           numeroActa: '',
@@ -1886,6 +1647,19 @@ function dashboardReducer(
           emailSolicitante: '',
           adjuntos: [],
         },
+      };
+    }
+    case 'ACTUALIZAR_TICKET': {
+      if (!state.ticketAbierto) return state;
+      const ticketActualizado = {
+        ...state.ticketAbierto,
+        ...action.payload.fields,
+        fechaActualizacion: new Date(),
+      };
+      return {
+        ...state,
+        tickets: state.tickets.map((t) => t.id === action.payload.id ? ticketActualizado : t),
+        ticketAbierto: ticketActualizado,
       };
     }
     case 'ABRIR_TICKET_DETAIL':
@@ -2000,7 +1774,7 @@ function reviveDates(_key: string, value: unknown): unknown {
   return value;
 }
 
-const STORAGE_KEY_TICKETS = 'sc_tickets_dashboard';
+const STORAGE_KEY_TICKETS = 'sc_tickets_v2';
 
 function saveTickets(tickets: Ticket[]) {
   try {
@@ -2033,7 +1807,10 @@ const getInitialState = (): DashboardState => {
       estado: '',
       prioridad: '',
       beneficiario: '',
+      tipoDocumento: '',
       dni: '',
+      telefono: '',
+      email: '',
       descripcion: '',
       errores: {},
       numeroActa: '',
@@ -2137,6 +1914,8 @@ export default function AgenciaCalidadDashboard() {
       fechaCreacion: new Date(),
       fechaActualizacion: new Date(),
       comentarios: [],
+      tipoDocumento: state.modal.tipoDocumento || undefined,
+      telefono: state.modal.telefono || undefined,
       datosAdicionales: datosAdicionales && Object.keys(datosAdicionales).length > 0 ? datosAdicionales : undefined,
       numeroActa: state.modal.numeroActa || undefined,
       agentes: state.modal.agentes ? state.modal.agentes.split(',').map((s) => s.trim()).filter(Boolean) : undefined,
@@ -2174,6 +1953,7 @@ export default function AgenciaCalidadDashboard() {
         }
         onEliminarTicket={(id) => dispatch({ type: 'ELIMINAR_TICKET', payload: id })}
         onNuevoTicket={() => dispatch({ type: 'CERRAR_TICKET_DETAIL' })}
+        onActualizarTicket={(id, fields) => dispatch({ type: 'ACTUALIZAR_TICKET', payload: { id, fields } })}
       />
     );
   }
