@@ -2,8 +2,14 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 export default defineConfig({
     plugins: [react()],
+    base: '/',
     server: {
         port: 5173,
         open: true,
+        allowedHosts: ['sistema.agenciacalidadsanjuan.com.ar'],
+    },
+    preview: {
+        port: 4173,
+        allowedHosts: ['sistema.agenciacalidadsanjuan.com.ar'],
     },
 });
