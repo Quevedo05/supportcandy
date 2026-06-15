@@ -42,12 +42,16 @@ CREATE TABLE IF NOT EXISTS usuarios (
 -- formularios
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS formularios (
-  formularioId    VARCHAR(36)   NOT NULL,
-  programa        VARCHAR(255)  NOT NULL,
-  descripcion     VARCHAR(500)  NOT NULL DEFAULT '',
-  activo          TINYINT(1)    NOT NULL DEFAULT 1,
-  creado_en       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  actualizado_en  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  formularioId      VARCHAR(36)   NOT NULL,
+  nombre            VARCHAR(255)  NOT NULL DEFAULT '',
+  programa          VARCHAR(255)  NOT NULL,
+  descripcion       VARCHAR(500)  NOT NULL DEFAULT '',
+  activo            TINYINT(1)    NOT NULL DEFAULT 1,
+  campos            JSON          NULL,
+  personas_fisicas  TINYINT(1)    NOT NULL DEFAULT 1,
+  personas_juridicas TINYINT(1)   NOT NULL DEFAULT 0,
+  creado_en         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (formularioId),
   INDEX idx_formularios_activo (activo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

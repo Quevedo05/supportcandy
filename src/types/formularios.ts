@@ -41,12 +41,13 @@ export interface InfoFormulario {
 
 export interface FormulariosContextType {
   formularios: Formulario[];
-  activarFormulario: (id: string) => void;
-  desactivarFormulario: (id: string) => void;
+  loading: boolean;
+  activarFormulario: (id: string) => Promise<void>;
+  desactivarFormulario: (id: string) => Promise<void>;
   obtenerFormulariosActivos: () => Formulario[];
-  actualizarCampos: (formularioId: string, campos: CampoFormulario[]) => void;
-  actualizarInfo: (formularioId: string, info: InfoFormulario) => void;
-  crearFormulario: () => string;
-  eliminarFormulario: (id: string) => void;
+  actualizarCampos: (formularioId: string, campos: CampoFormulario[]) => Promise<void>;
+  actualizarInfo: (formularioId: string, info: InfoFormulario) => Promise<void>;
+  crearFormulario: () => Promise<string>;
+  eliminarFormulario: (id: string) => Promise<void>;
   obtenerCampos: (formularioId: string) => CampoFormulario[];
 }

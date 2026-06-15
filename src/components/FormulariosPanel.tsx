@@ -13,9 +13,9 @@ export function FormulariosPanel() {
     return (
       <FormularioBuilder
         formulario={formulario}
-        onGuardar={(campos, info) => {
-          actualizarCampos(formulario.id, campos);
-          actualizarInfo(formulario.id, info);
+        onGuardar={async (campos, info) => {
+          await actualizarCampos(formulario.id, campos);
+          await actualizarInfo(formulario.id, info);
           setFormularioEditando(null);
         }}
         onCancelar={() => setFormularioEditando(null)}
@@ -23,8 +23,8 @@ export function FormulariosPanel() {
     );
   }
 
-  const handleNuevo = () => {
-    const id = crearFormulario();
+  const handleNuevo = async () => {
+    const id = await crearFormulario();
     setFormularioEditando(id);
   };
 
@@ -91,8 +91,8 @@ export function FormulariosPanel() {
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <button
-                      onClick={() => {
-                        if (window.confirm('¿Eliminar este formulario?')) eliminarFormulario(f.id);
+                      onClick={async () => {
+                        if (window.confirm('¿Eliminar este formulario?')) await eliminarFormulario(f.id);
                       }}
                       className="text-gray-400 hover:text-red-600 transition-colors"
                     >
