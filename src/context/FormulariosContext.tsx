@@ -7,7 +7,6 @@ const FormulariosContext = createContext<FormulariosContextType | undefined>(und
 function normalizar(f: any): Formulario {
   return {
     id: f.id || f.formularioId,
-    formularioId: f.formularioId || f.id,
     programa: f.programa ?? '',
     nombre: f.nombre ?? f.programa ?? '',
     activo: Boolean(f.activo),
