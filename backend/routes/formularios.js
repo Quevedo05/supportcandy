@@ -22,7 +22,7 @@ function formatFormulario(row) {
 router.get('/publicos/activos', async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT formularioId, programa, descripcion
+      `SELECT formularioId, programa, descripcion, activo
        FROM formularios
        WHERE activo = 1
        ORDER BY creado_en ASC`
@@ -34,7 +34,7 @@ router.get('/publicos/activos', async (_req, res) => {
         nombre: row.programa,
         programa: row.programa,
         descripcion: row.descripcion,
-        activo: true,
+        activo: Boolean(row.activo),
       })),
     });
   } catch (err) {
