@@ -34,11 +34,18 @@ router.post('/crear-desde-formulario', async (req, res) => {
   try {
     const {
       formularioId,
-      nombreCiudadano,
-      emailCiudadano,
-      telefonoCiudadano,
+      nombreCiudadano: _nombreA,
+      ciudadanoNombre: _nombreB,
+      emailCiudadano: _emailA,
+      ciudadanoEmail: _emailB,
+      telefonoCiudadano: _telA,
+      ciudadanoTelefono: _telB,
       descripcion,
     } = req.body;
+
+    const nombreCiudadano = _nombreA || _nombreB;
+    const emailCiudadano = _emailA || _emailB;
+    const telefonoCiudadano = _telA || _telB;
 
     const errores = {};
     if (!formularioId || typeof formularioId !== 'string') {

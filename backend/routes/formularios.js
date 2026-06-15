@@ -29,9 +29,12 @@ router.get('/publicos/activos', async (_req, res) => {
     );
     return res.status(200).json({
       formularios: rows.map((row) => ({
+        id: row.formularioId,
         formularioId: row.formularioId,
+        nombre: row.programa,
         programa: row.programa,
         descripcion: row.descripcion,
+        activo: true,
       })),
     });
   } catch (err) {
