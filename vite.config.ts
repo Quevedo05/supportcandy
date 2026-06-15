@@ -7,10 +7,10 @@ export default defineConfig({
   server: {
     port: 5173,
     open: true,
-    allowedHosts: ['sistema.agenciacalidadsanjuan.com.ar'],
+    allowedHosts: true,
   },
   preview: {
     port: 4173,
-    allowedHosts: ['sistema.agenciacalidadsanjuan.com.ar'],
+    allowedHosts: true,
   },
 })
