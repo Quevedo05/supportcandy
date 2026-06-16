@@ -1,7 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { X, Plus, Trash2, Eye, EyeOff, Users, FileText, Mail, CheckCircle2 } from 'lucide-react';
+import { X, Plus, Trash2, Eye, EyeOff, Users, FileText, Mail, CheckCircle2, ClipboardList } from 'lucide-react';
 import { FormulariosPanel } from './FormulariosPanel';
+
+const ESTADOS_TICKET = [
+  'Solicitud inicial',
+  'Revisión de documentación',
+  'Veraz',
+  'Comité de análisis',
+  'Contrato',
+  'Simulador',
+  'Firma de contrato',
+  'Certificación de firma',
+  'Transferencia',
+  'Seguimiento de verificable',
+  'Cerrado',
+] as const;
 
 interface UsuarioDB {
   usuarioId: string;
@@ -10,6 +24,7 @@ interface UsuarioDB {
   rol: string;
   modulo: string;
   activo: boolean;
+  estadosAsignados: string[];
   creadoEn: string;
 }
 
@@ -29,6 +44,8 @@ export function AdminPanel() {
   const [erroresForm, setErroresForm] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
   const [invitacionEnviada, setInvitacionEnviada] = useState(false);
+  const [modalEstados, setModalEstados] = useState<{ usuarioId: string; nombre: string; estados: string[] } | null>(null);
+  const [guardandoEstados, setGuardandoEstados] = useState(false);
 
   const fetchUsuarios = useCallback(async () => {
     const token = localStorage.getItem('sc_token');
@@ -109,13 +126,24 @@ export function AdminPanel() {
     fetchUsuarios();
   };
 
-  const formatearFecha = (fecha: string): string => {
-    return new Date(fecha).toLocaleDateString('es-AR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
+  const handleGuardarEstados = async () => {
+    if (!modalEstados) return;
+    setGuardandoEstados(true);
+    const token = localStorage.getItem('sc_token');
+    try {
+      await fetch(`${apiUrl}/usuarios/${modalEstados.usuarioId}/estados-asignados`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ estados: modalEstados.estados }),
+      });
+      await fetchUsuarios();
+      setModalEstados(null);
+    } finally {
+      setGuardandoEstados(false);
+    }
   };
+
+
 
   return (
     <div className="space-y-6">
@@ -179,8 +207,8 @@ export function AdminPanel() {
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Módulo</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Rol</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Etapas asignadas</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Fecha Creación</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
             </tr>
           </thead>
@@ -214,6 +242,28 @@ export function AdminPanel() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm">
+                  {u.modulo === 'tickets' ? (
+                    <div className="flex flex-wrap gap-1 max-w-xs">
+                      {(u.estadosAsignados ?? []).length === 0 ? (
+                        <span className="text-xs text-gray-400 italic">Sin etapas</span>
+                      ) : (
+                        (u.estadosAsignados ?? []).map((e) => (
+                          <span key={e} className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs">{e}</span>
+                        ))
+                      )}
+                      <button
+                        onClick={() => setModalEstados({ usuarioId: u.usuarioId, nombre: u.nombre, estados: u.estadosAsignados ?? [] })}
+                        className="p-0.5 text-gray-400 hover:text-blue-600 transition"
+                        title="Editar etapas"
+                      >
+                        <ClipboardList size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">—</span>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-sm">
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-medium ${
                       u.activo
@@ -224,7 +274,6 @@ export function AdminPanel() {
                     {u.activo ? 'Activo' : 'Inactivo'}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600">{formatearFecha(u.creadoEn)}</td>
                 <td className="px-6 py-4 text-sm">
                   <div className="flex gap-2">
                     <button
@@ -372,6 +421,45 @@ export function AdminPanel() {
         </>
       ) : (
         <FormulariosPanel />
+      )}
+
+      {/* Modal asignación de etapas */}
+      {modalEstados && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Etapas de {modalEstados.nombre}</h3>
+              <button onClick={() => setModalEstados(null)} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Seleccioná las etapas del ticket que maneja este usuario. Cuando se le asigne un ticket, se moverá a esa etapa automáticamente.</p>
+            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {ESTADOS_TICKET.map((estado) => (
+                <label key={estado} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={modalEstados.estados.includes(estado)}
+                    onChange={(e) => {
+                      const nuevos = e.target.checked
+                        ? [...modalEstados.estados, estado]
+                        : modalEstados.estados.filter((s) => s !== estado);
+                      setModalEstados({ ...modalEstados, estados: nuevos });
+                    }}
+                    className="w-4 h-4 text-blue-600 rounded"
+                  />
+                  <span className="text-sm text-gray-800">{estado}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setModalEstados(null)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm">
+                Cancelar
+              </button>
+              <button onClick={handleGuardarEstados} disabled={guardandoEstados} className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium rounded-lg transition text-sm">
+                {guardandoEstados ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

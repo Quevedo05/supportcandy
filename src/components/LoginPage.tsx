@@ -117,30 +117,6 @@ export function LoginPage() {
               </button>
             </form>
 
-            {/* Información de demo */}
-            <div className="mt-8 pt-8 border-t border-slate-200">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
-                Credenciales de Demostración
-              </p>
-              <div className="space-y-3 text-sm">
-                <div className="bg-slate-50 p-3 rounded-lg">
-                  <p className="text-slate-600">
-                    <span className="font-semibold">Email:</span>{' '}
-                    <code className="bg-white px-2 py-1 rounded text-slate-700 font-mono">
-                      admin@agenciacalidad.gob.ar
-                    </code>
-                  </p>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-lg">
-                  <p className="text-slate-600">
-                    <span className="font-semibold">Contraseña:</span>{' '}
-                    <code className="bg-white px-2 py-1 rounded text-slate-700 font-mono">
-                      admin123
-                    </code>
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Footer */}

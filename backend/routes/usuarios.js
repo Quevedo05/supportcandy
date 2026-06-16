@@ -21,6 +21,7 @@ function formatUsuario(row) {
     rol: row.rol,
     modulo: row.modulo || 'tickets',
     activo: Boolean(row.activo),
+    estadosAsignados: row.estados_asignados ? JSON.parse(row.estados_asignados) : [],
     creadoEn: row.creado_en instanceof Date ? row.creado_en.toISOString() : row.creado_en,
     actualizadoEn: row.actualizado_en instanceof Date ? row.actualizado_en.toISOString() : row.actualizado_en,
   };
@@ -30,7 +31,7 @@ function formatUsuario(row) {
 router.get('/', async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT usuarioId, nombre, email, rol, modulo, activo, creado_en, actualizado_en FROM usuarios ORDER BY creado_en ASC'
+      'SELECT usuarioId, nombre, email, rol, modulo, activo, estados_asignados, creado_en, actualizado_en FROM usuarios ORDER BY creado_en ASC'
     );
     return res.status(200).json({
       usuarios: rows.map(formatUsuario),
@@ -87,6 +88,27 @@ router.post('/', async (req, res) => {
     return res.status(201).json({ ...formatUsuario(newRows[0]), invitacionEnviada: true });
   } catch (err) {
     console.error('[POST /usuarios]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PATCH /api/usuarios/:usuarioId/estados-asignados
+router.patch('/:usuarioId/estados-asignados', async (req, res) => {
+  try {
+    const { usuarioId } = req.params;
+    const { estados } = req.body;
+
+    if (!Array.isArray(estados)) {
+      return res.status(400).json({ error: 'estados debe ser un array' });
+    }
+
+    const [rows] = await pool.query('SELECT usuarioId FROM usuarios WHERE usuarioId = ?', [usuarioId]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    await pool.query('UPDATE usuarios SET estados_asignados = ? WHERE usuarioId = ?', [JSON.stringify(estados), usuarioId]);
+    return res.status(200).json({ usuarioId, estadosAsignados: estados });
+  } catch (err) {
+    console.error('[PATCH /usuarios/:id/estados-asignados]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

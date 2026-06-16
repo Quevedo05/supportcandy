@@ -885,6 +885,7 @@ interface TicketDetailModalProps {
   onEliminarTicket: (id: string) => void;
   onNuevoTicket: () => void;
   onActualizarTicket: (id: string, fields: Partial<Ticket>) => void;
+  usuariosConEstados: { usuarioId: string; nombre: string; estadosAsignados: string[] }[];
 }
 
 const ROL_LABELS: Record<string, string> = {
@@ -909,13 +910,12 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   onEliminarTicket,
   onNuevoTicket,
   onActualizarTicket,
+  usuariosConEstados,
 }) => {
   const { usuario } = useAuth();
   const { formularios, obtenerCampos } = useFormularios();
   const [editandoEstado, setEditandoEstado] = useState(false);
   const [estadoTmp, setEstadoTmp] = useState<TicketEstado | ''>('');
-  const [editandoAgentes, setEditandoAgentes] = useState(false);
-  const [agentesTmp, setAgentesTmp] = useState('');
   const [derivarAbierto, setDerivarAbierto] = useState(false);
   const [editandoLegajo, setEditandoLegajo] = useState(false);
   const [legajoTmp, setLegajoTmp] = useState({ legajo: '', numeroActa: '', importe: '', codigoExterno: '' });
@@ -985,13 +985,6 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }
     setEditandoEstado(false);
     setEstadoTmp('');
-  };
-
-  const handleGuardarAgentes = () => {
-    const lista = agentesTmp.split(',').map((s) => s.trim()).filter(Boolean);
-    onChangeAgentes(ticket.id, lista);
-    setEditandoAgentes(false);
-    setAgentesTmp('');
   };
 
   return (
@@ -1365,44 +1358,56 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
           <SeccionHeader title="Información de Asignaciones" sKey="asignaciones" />
           {seccionesAbiertas.asignaciones && (
             <div className="p-4 border-b border-slate-100">
-              {editandoAgentes ? (
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={agentesTmp}
-                    onChange={(e) => setAgentesTmp(e.target.value)}
-                    placeholder="Ej: Agente 1, Agente 2"
-                    className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
-                  />
-                  <p className="text-xs text-slate-400">Separar con comas</p>
-                  <div className="flex gap-2">
-                    <button onClick={handleGuardarAgentes} className="flex-1 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Guardar</button>
-                    <button onClick={() => setEditandoAgentes(false)} className="flex-1 py-1 text-xs border border-slate-300 rounded hover:bg-slate-50">Cancelar</button>
+              {/* Asignado actualmente */}
+              {(ticket.agentes ?? []).length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs font-medium text-slate-500 mb-1">Asignado a:</p>
+                  <div className="space-y-1">
+                    {(ticket.agentes ?? []).map((agente, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                          <UserCircle size={14} className="text-slate-500" />
+                        </div>
+                        <span className="text-xs text-slate-700">{agente}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Picker de personas */}
+              {usuariosConEstados.length > 0 ? (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 mb-2">
+                    {(ticket.agentes ?? []).length === 0 ? 'Asignar a:' : 'Reasignar a:'}
+                  </p>
+                  <div className="space-y-1">
+                    {usuariosConEstados.map((u) =>
+                      u.estadosAsignados.map((estado) => (
+                        <button
+                          key={`${u.usuarioId}-${estado}`}
+                          onClick={() => {
+                            onChangeEstado(ticket.id, estado as TicketEstado);
+                            onChangeAgentes(ticket.id, [u.nombre]);
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                              <UserCircle size={13} className="text-slate-500" />
+                            </div>
+                            <span className="text-xs font-medium text-slate-700">{u.nombre}</span>
+                          </div>
+                          <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full">{estado}</span>
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
               ) : (
-                <div>
-                  <div className="flex justify-end mb-1">
-                    <button
-                      onClick={() => { setEditandoAgentes(true); setAgentesTmp((ticket.agentes ?? []).join(', ')); }}
-                      className="text-slate-400 hover:text-slate-600"
-                    ><Pencil size={12} /></button>
-                  </div>
-                  {(ticket.agentes ?? []).length === 0 ? (
-                    <p className="text-xs text-slate-400 italic">Sin agente asignado</p>
-                  ) : (
-                    <div className="space-y-1">
-                      {(ticket.agentes ?? []).map((agente, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
-                            <UserCircle size={14} className="text-slate-500" />
-                          </div>
-                          <span className="text-xs text-slate-700">{agente}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <p className="text-xs text-slate-400 italic">
+                  {(ticket.agentes ?? []).length === 0 ? 'Sin agente asignado' : ''}
+                  {usuariosConEstados.length === 0 && ' — Asigná etapas a usuarios desde el panel de administración'}
+                </p>
               )}
               {ticket.adjuntos.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-slate-100">
@@ -1872,6 +1877,7 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
 
   const estadoApi = String(t.estado ?? 'abierto');
   const estadoMapped: TicketEstado =
+    t.etapa ? (t.etapa as TicketEstado) :
     estadoApi === 'cerrado' ? 'Cerrado' :
     estadoApi === 'en_progreso' ? 'Revisión de documentación' :
     'Solicitud inicial';
@@ -1893,6 +1899,7 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
     descripcion: String(t.descripcion ?? ''),
     datosAdicionales: parsearDescripcion(String(t.descripcion ?? '')),
     adjuntos: [],
+    agentes: Array.isArray(t.agentes) ? (t.agentes as string[]) : [],
     fechaCreacion: new Date(String(t.fechaCreacion ?? t.fecha_creacion ?? new Date())),
     fechaActualizacion: new Date(String(t.fechaCreacion ?? t.fecha_creacion ?? new Date())),
     comentarios: [],
@@ -1901,10 +1908,17 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
   };
 }
 
+interface UsuarioConEstados {
+  usuarioId: string;
+  nombre: string;
+  estadosAsignados: string[];
+}
+
 export default function AgenciaCalidadDashboard() {
   const { usuario, usuarios } = useAuth();
   const { formularios } = useFormularios();
   const [state, dispatch] = useReducer(dashboardReducer, undefined, getInitialState);
+  const [usuariosConEstados, setUsuariosConEstados] = useState<UsuarioConEstados[]>([]);
 
   // Fetch tickets from API on mount and on focus
   useEffect(() => {
@@ -1928,6 +1942,24 @@ export default function AgenciaCalidadDashboard() {
     fetchTickets();
     window.addEventListener('focus', fetchTickets);
     return () => window.removeEventListener('focus', fetchTickets);
+  }, []);
+
+  // Fetch usuarios con estados asignados
+  useEffect(() => {
+    const fetchUsuarios = async () => {
+      const token = localStorage.getItem('sc_token');
+      const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+      if (!token || !apiUrl) return;
+      try {
+        const res = await fetch(`${apiUrl}/usuarios`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return;
+        const data = await res.json();
+        setUsuariosConEstados(
+          (data.usuarios as UsuarioConEstados[]).filter((u) => (u.estadosAsignados ?? []).length > 0)
+        );
+      } catch { /* silencioso */ }
+    };
+    fetchUsuarios();
   }, []);
 
   // Persist tickets to localStorage whenever they change
@@ -2049,12 +2081,31 @@ export default function AgenciaCalidadDashboard() {
         onAddComment={(autorRol, adjuntos) =>
           dispatch({ type: 'AGREGAR_COMENTARIO', payload: { autor: usuario?.nombre || 'Usuario', autorRol, adjuntos } })
         }
-        onChangeEstado={(id, estado) =>
-          dispatch({ type: 'CAMBIAR_ESTADO_TICKET', payload: { id, estado, autor: usuario?.nombre || 'Usuario' } })
-        }
-        onChangeAgentes={(id, agentes) =>
-          dispatch({ type: 'CAMBIAR_AGENTES_TICKET', payload: { id, agentes, autor: usuario?.nombre || 'Usuario' } })
-        }
+        onChangeEstado={async (id, estado) => {
+          dispatch({ type: 'CAMBIAR_ESTADO_TICKET', payload: { id, estado, autor: usuario?.nombre || 'Usuario' } });
+          const token = localStorage.getItem('sc_token');
+          const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+          if (token && apiUrl) {
+            await fetch(`${apiUrl}/tickets/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ etapa: estado }),
+            }).catch(() => {});
+          }
+        }}
+        onChangeAgentes={async (id, agentes) => {
+          dispatch({ type: 'CAMBIAR_AGENTES_TICKET', payload: { id, agentes, autor: usuario?.nombre || 'Usuario' } });
+          const token = localStorage.getItem('sc_token');
+          const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+          if (token && apiUrl) {
+            await fetch(`${apiUrl}/tickets/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ agentes }),
+            }).catch(() => {});
+          }
+        }}
+        usuariosConEstados={usuariosConEstados}
         onEliminarTicket={async (id) => {
           const token = localStorage.getItem('sc_token');
           const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;

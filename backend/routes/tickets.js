@@ -15,6 +15,8 @@ function formatTicket(row) {
     titulo: row.titulo,
     descripcion: row.descripcion,
     estado: row.estado,
+    etapa: row.etapa || null,
+    agentes: row.agentes ? JSON.parse(row.agentes) : [],
     prioridad: row.prioridad,
     asignadoA: row.asignado_a || null,
     formularioId: row.formularioId || null,
@@ -156,7 +158,7 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
     const total = countRows[0].total;
 
     const [rows] = await pool.query(
-      `SELECT ticketId, numero, titulo, descripcion, estado, prioridad,
+      `SELECT ticketId, numero, titulo, descripcion, estado, etapa, agentes, prioridad,
               asignado_a, formularioId, ciudadano_nombre, ciudadano_email,
               ciudadano_telefono, fecha_creacion, fecha_cierre
        FROM tickets
@@ -182,7 +184,7 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
 router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { estado, prioridad, asignadoA } = req.body;
+    const { estado, prioridad, asignadoA, etapa, agentes } = req.body;
 
     const [rows] = await pool.query(
       'SELECT ticketId FROM tickets WHERE ticketId = ?',
@@ -234,6 +236,16 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
       }
     }
 
+    if (etapa !== undefined) {
+      setClauses.push('etapa = ?');
+      params.push(etapa || null);
+    }
+
+    if (agentes !== undefined) {
+      setClauses.push('agentes = ?');
+      params.push(Array.isArray(agentes) ? JSON.stringify(agentes) : null);
+    }
+
     if (setClauses.length === 0) {
       return res.status(400).json({ error: 'Debe proporcionar al menos un campo para actualizar' });
     }
@@ -245,7 +257,7 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
     );
 
     const [updatedRows] = await pool.query(
-      `SELECT ticketId, numero, titulo, descripcion, estado, prioridad,
+      `SELECT ticketId, numero, titulo, descripcion, estado, etapa, agentes, prioridad,
               asignado_a, formularioId, ciudadano_nombre, ciudadano_email,
               ciudadano_telefono, fecha_creacion, fecha_cierre
        FROM tickets WHERE ticketId = ?`,
