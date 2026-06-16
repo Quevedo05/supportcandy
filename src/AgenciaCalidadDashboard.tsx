@@ -130,6 +130,7 @@ interface DashboardState {
 }
 
 type DashboardAction =
+  | { type: 'SET_TICKETS'; payload: Ticket[] }
   | { type: 'SET_BUSQUEDA'; payload: string }
   | { type: 'SET_CAMPO_BUSQUEDA'; payload: CampoBusqueda }
   | { type: 'SET_VISTA'; payload: VistaFiltro }
@@ -568,7 +569,7 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
                 }`}
               >
                 <option value="">Seleccionar...</option>
-                {PROGRAMAS.map((p) => (
+                {programasDisponibles.map((p) => (
                   <option key={p} value={p}>
                     {p}
                   </option>
@@ -1758,6 +1759,8 @@ function dashboardReducer(
         ),
         ticketAbierto: null,
       };
+    case 'SET_TICKETS':
+      return { ...state, tickets: action.payload };
     default:
       return state;
   }
@@ -1828,13 +1831,83 @@ const getInitialState = (): DashboardState => {
 // SECTION 8: MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════════════════
 
+function mapApiTicket(t: Record<string, unknown>): Ticket {
+  const titulo = String(t.titulo ?? '');
+  const partesTitulo = titulo.split(' - ');
+  const programa = partesTitulo.length > 1 ? partesTitulo[partesTitulo.length - 1] : 'Sin programa';
+
+  const nombreCompleto = String(t.ciudadanoNombre ?? '');
+  const partesNombre = nombreCompleto.trim().split(' ');
+  const apellido = partesNombre.length > 1 ? partesNombre[partesNombre.length - 1] : '';
+  const nombre = partesNombre.length > 1 ? partesNombre.slice(0, -1).join(' ') : nombreCompleto;
+
+  const estadoApi = String(t.estado ?? 'abierto');
+  const estadoMapped: TicketEstado =
+    estadoApi === 'cerrado' ? 'Cerrado' :
+    estadoApi === 'en_progreso' ? 'Revisión de documentación' :
+    'Solicitud inicial';
+
+  const prioridadApi = String(t.prioridad ?? 'media');
+  const prioridadMapped: TicketPrioridad =
+    prioridadApi === 'alta' || prioridadApi === 'critica' ? 'Alta' :
+    prioridadApi === 'baja' ? 'Normal' : 'Normal';
+
+  return {
+    id: String(t.ticketId ?? t.id ?? ''),
+    prefix: programa.slice(0, 2).toUpperCase(),
+    numero: Number(t.numero ?? 0),
+    beneficiario: { apellido, nombre, dni: '' },
+    asunto: titulo,
+    programa,
+    estado: estadoMapped,
+    prioridad: prioridadMapped,
+    descripcion: String(t.descripcion ?? ''),
+    adjuntos: [],
+    fechaCreacion: new Date(String(t.fechaCreacion ?? t.fecha_creacion ?? new Date())),
+    fechaActualizacion: new Date(String(t.fechaCreacion ?? t.fecha_creacion ?? new Date())),
+    comentarios: [],
+    telefono: String(t.ciudadanoTelefono ?? ''),
+    emailSolicitante: String(t.ciudadanoEmail ?? ''),
+  };
+}
+
 export default function AgenciaCalidadDashboard() {
   const { usuario, usuarios } = useAuth();
   const [state, dispatch] = useReducer(dashboardReducer, undefined, getInitialState);
 
+  // Fetch tickets from API on mount and on focus
+  useEffect(() => {
+    const fetchTickets = async () => {
+      const token = localStorage.getItem('sc_token');
+      const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+      if (!token || !apiUrl) return;
+      try {
+        const res = await fetch(`${apiUrl}/tickets?limit=200`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const mapped = (data.tickets as Record<string, unknown>[]).map(mapApiTicket);
+        dispatch({ type: 'SET_TICKETS', payload: mapped });
+        saveTickets(mapped);
+      } catch {
+        // fallback: keep localStorage tickets
+      }
+    };
+    fetchTickets();
+    window.addEventListener('focus', fetchTickets);
+    return () => window.removeEventListener('focus', fetchTickets);
+  }, []);
+
   // Persist tickets to localStorage whenever they change
   useEffect(() => {
     saveTickets(state.tickets);
+  }, [state.tickets]);
+
+  // Programas únicos presentes en los tickets cargados
+  const programasDisponibles = useMemo(() => {
+    const set = new Set(state.tickets.map((t) => t.programa).filter(Boolean));
+    return Array.from(set).sort();
   }, [state.tickets]);
 
   // For contribuidores, restrict visible tickets to their assigned stages
@@ -2093,7 +2166,7 @@ export default function AgenciaCalidadDashboard() {
                   />
                   <span className="text-sm text-slate-700">Todos</span>
                 </label>
-                {PROGRAMAS.map((p) => (
+                {programasDisponibles.map((p) => (
                   <label key={p} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
