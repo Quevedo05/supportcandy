@@ -1832,6 +1832,19 @@ const getInitialState = (): DashboardState => {
 // SECTION 8: MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════════════════
 
+function parsearDescripcion(descripcion: string): Record<string, string> {
+  if (!descripcion || descripcion === 'Sin información adicional') return {};
+  const resultado: Record<string, string> = {};
+  descripcion.split('\n').forEach((linea) => {
+    const idx = linea.indexOf(': ');
+    if (idx === -1) return;
+    const label = linea.slice(0, idx).trim();
+    const valor = linea.slice(idx + 2).trim();
+    if (label) resultado[label] = valor;
+  });
+  return resultado;
+}
+
 function mapApiTicket(t: Record<string, unknown>): Ticket {
   const titulo = String(t.titulo ?? '');
   const partesTitulo = titulo.split(' - ');
@@ -1863,6 +1876,7 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
     estado: estadoMapped,
     prioridad: prioridadMapped,
     descripcion: String(t.descripcion ?? ''),
+    datosAdicionales: parsearDescripcion(String(t.descripcion ?? '')),
     adjuntos: [],
     fechaCreacion: new Date(String(t.fechaCreacion ?? t.fecha_creacion ?? new Date())),
     fechaActualizacion: new Date(String(t.fechaCreacion ?? t.fecha_creacion ?? new Date())),
