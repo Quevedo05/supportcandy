@@ -46,7 +46,7 @@ export function SaveanProvider({ children }: { children: ReactNode }) {
   const obtenerGuiaPorNumero = (numero: string) =>
     guias.find((g) => g.numero.toLowerCase() === numero.toLowerCase().trim());
 
-  const agregarBarrerista = async (b: Omit<Barrerista, 'id'>): Promise<void> => {
+  const agregarBarrerista = async (b: Omit<Barrerista, 'id'> & { contrasena?: string }): Promise<void> => {
     const nuevo = await httpClient.post<Barrerista>('/savean/barreristas', b);
     setBarreristas((prev) => [...prev, nuevo]);
   };

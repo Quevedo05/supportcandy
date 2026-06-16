@@ -112,6 +112,8 @@ export function SaveanAdmin() {
 
   const [formBr, setFormBr] = useState({ nombre: '', usuario: '', contrasena: '' });
   const [errBr, setErrBr] = useState('');
+  const [migrando, setMigrando] = useState(false);
+  const [migResult, setMigResult] = useState<{ creados: { nombre: string; usuario: string; contrasena: string }[]; saltados: string[] } | null>(null);
 
   const [saveanUsers, setSaveanUsers] = useState<SaveanUser[]>([]);
   const [formAdmin, setFormAdmin] = useState({ nombre: '', username: '', password: '' });
@@ -206,12 +208,33 @@ export function SaveanAdmin() {
   const barreristaMostrados = verTodosBarreristas ? barreristasActivos : barreristasActivos.slice(0, 7);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
-  const handleAddBarrerista = () => {
+  const handleAddBarrerista = async () => {
     if (!formBr.nombre.trim() || !formBr.usuario.trim()) { setErrBr('Nombre y usuario son obligatorios.'); return; }
-    if (barreristas.some(b => b.usuario === formBr.usuario.trim())) { setErrBr('El usuario ya existe.'); return; }
-    agregarBarrerista({ nombre: formBr.nombre.trim(), usuario: formBr.usuario.trim(), activo: true });
-    setFormBr({ nombre: '', usuario: '', contrasena: '' });
-    setErrBr('');
+    if (!formBr.contrasena.trim() || formBr.contrasena.length < 4) { setErrBr('La contraseña debe tener al menos 4 caracteres.'); return; }
+    try {
+      await agregarBarrerista({ nombre: formBr.nombre.trim(), usuario: formBr.usuario.trim().toLowerCase(), contrasena: formBr.contrasena, activo: true });
+      setFormBr({ nombre: '', usuario: '', contrasena: '' });
+      setErrBr('');
+    } catch (err: any) {
+      setErrBr(err?.message || 'Error al crear el barrerista.');
+    }
+  };
+
+  const handleMigrarInspectores = async () => {
+    setMigrando(true);
+    setMigResult(null);
+    try {
+      const res = await fetch(`${API_URL}/savean/barreristas/migrar-inspectores`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json();
+      setMigResult(data);
+    } catch {
+      setErrBr('Error de conexión al migrar.');
+    } finally {
+      setMigrando(false);
+    }
   };
 
   const handleAddInspector = async () => {
@@ -515,12 +538,58 @@ export function SaveanAdmin() {
       <div className="bg-white border border-gray-200 rounded-xl p-4">
         <SectionHeader title="Gestión de Barreristas" icon={<Users size={15} />} />
 
+        {/* Migración masiva */}
+        <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
+          <p className="text-xs text-orange-800 font-semibold mb-1">Crear cuentas de inspector para barreristas existentes</p>
+          <p className="text-xs text-orange-700 mb-2">
+            Asigna una cuenta de acceso al sistema a cada barrerista usando su usuario como contraseña inicial.
+          </p>
+          <button
+            onClick={handleMigrarInspectores}
+            disabled={migrando}
+            className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 text-white text-xs font-semibold px-4 py-1.5 rounded-md transition"
+          >
+            {migrando ? 'Creando cuentas...' : '⚡ Crear cuentas para todos los barreristas'}
+          </button>
+          {migResult && (
+            <div className="mt-3 space-y-2">
+              {migResult.creados.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-green-700 mb-1">✓ Cuentas creadas ({migResult.creados.length}):</p>
+                  <div className="bg-white border border-green-200 rounded p-2 max-h-40 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead><tr className="text-gray-400 border-b"><th className="text-left pb-1">Nombre</th><th className="text-left pb-1">Usuario</th><th className="text-left pb-1">Contraseña inicial</th></tr></thead>
+                      <tbody>
+                        {migResult.creados.map(c => (
+                          <tr key={c.usuario} className="border-b border-gray-50">
+                            <td className="py-1 text-gray-800">{c.nombre}</td>
+                            <td className="py-1 font-mono text-gray-600">{c.usuario}</td>
+                            <td className="py-1 font-mono text-orange-700 font-semibold">{c.contrasena}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              {migResult.saltados.length > 0 && (
+                <p className="text-xs text-gray-500">
+                  Ya tenían cuenta: {migResult.saltados.join(', ')}
+                </p>
+              )}
+              {migResult.creados.length === 0 && migResult.saltados.length > 0 && (
+                <p className="text-xs text-green-700 font-semibold">✓ Todos los barreristas ya tienen cuenta de inspector.</p>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Add form */}
-        <p className="text-xs text-gray-500 mb-2 font-medium">Agregar nuevo barrerista</p>
+        <p className="text-xs text-gray-500 mb-2 font-medium">Agregar nuevo barrerista (se crea con cuenta de inspector)</p>
         <div className="flex flex-wrap gap-2 mb-1">
-          <input type="text" placeholder="Nombre" value={formBr.nombre} onChange={e => setFormBr({ ...formBr, nombre: e.target.value })}
+          <input type="text" placeholder="Nombre completo" value={formBr.nombre} onChange={e => setFormBr({ ...formBr, nombre: e.target.value })}
             className="flex-1 min-w-28 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <input type="text" placeholder="Usuario" value={formBr.usuario} onChange={e => setFormBr({ ...formBr, usuario: e.target.value.toLowerCase() })}
+          <input type="text" placeholder="Usuario" value={formBr.usuario} onChange={e => setFormBr({ ...formBr, usuario: e.target.value.toLowerCase().replace(/\s/g, '') })}
             className="flex-1 min-w-24 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
           <input type="password" placeholder="Contraseña" value={formBr.contrasena} onChange={e => setFormBr({ ...formBr, contrasena: e.target.value })}
             className="flex-1 min-w-24 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
@@ -539,7 +608,6 @@ export function SaveanAdmin() {
                 <tr className="text-gray-500">
                   <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Nombre</th>
                   <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Usuario</th>
-                  <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Contraseña</th>
                   <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Acción</th>
                 </tr>
               </thead>
@@ -548,7 +616,6 @@ export function SaveanAdmin() {
                   <tr key={b.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className="px-3 py-2 text-gray-800 font-medium">{b.nombre}</td>
                     <td className="px-3 py-2 text-gray-500 font-mono">{b.usuario}</td>
-                    <td className="px-3 py-2 text-gray-400 tracking-widest">••••••••</td>
                     <td className="px-3 py-2">
                       <button onClick={() => eliminarBarrerista(b.id)} className={btnRed}>
                         <Trash2 size={11} /> Eliminar

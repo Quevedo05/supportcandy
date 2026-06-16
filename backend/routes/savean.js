@@ -331,15 +331,62 @@ router.get('/barreristas', autenticar, soloSavean, async (_req, res) => {
   }
 });
 
+// POST /api/savean/barreristas/migrar-inspectores — AUTH + admin
+// Crea cuentas de login para todos los barreristas que no las tienen aún
+router.post('/barreristas/migrar-inspectores', autenticar, soloSavean, soloAdmin, async (req, res) => {
+  try {
+    const [barreristas] = await pool.query('SELECT * FROM barreristas_savean WHERE activo = 1');
+    const creados = [];
+    const saltados = [];
+
+    for (const b of barreristas) {
+      const usuarioClean = b.usuario.trim().toLowerCase();
+      const email = `${usuarioClean}@savean.local`;
+      const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [email]);
+      if (existing.length > 0) { saltados.push(usuarioClean); continue; }
+
+      const passwordHash = await bcrypt.hash(usuarioClean, 10);
+      const usuarioId = uuidv4();
+      await pool.query(
+        `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, modulo, activo) VALUES (?, ?, ?, ?, 'inspector', 'savean', 1)`,
+        [usuarioId, b.nombre, email, passwordHash]
+      );
+      creados.push({ nombre: b.nombre, usuario: usuarioClean, contrasena: usuarioClean });
+    }
+
+    return res.json({ creados, saltados });
+  } catch (err) {
+    console.error('[POST /savean/barreristas/migrar-inspectores]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // POST /api/savean/barreristas — AUTH + admin
 router.post('/barreristas', autenticar, soloSavean, soloAdmin, async (req, res) => {
   try {
-    const { nombre, usuario, activo = true } = req.body;
+    const { nombre, usuario, contrasena, activo = true } = req.body;
     if (!nombre || !usuario) return res.status(400).json({ error: 'nombre y usuario son obligatorios' });
+    if (!contrasena || contrasena.length < 4) return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+
+    const usuarioClean = usuario.trim().toLowerCase();
+
+    // Crear cuenta de login inspector
+    const email = `${usuarioClean}@savean.local`;
+    const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [email]);
+    if (existing.length > 0) return res.status(409).json({ error: 'El nombre de usuario ya existe' });
+
+    const passwordHash = await bcrypt.hash(contrasena, 10);
+    const usuarioId = uuidv4();
+    await pool.query(
+      `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, modulo, activo) VALUES (?, ?, ?, ?, 'inspector', 'savean', 1)`,
+      [usuarioId, nombre.trim(), email, passwordHash]
+    );
+
+    // Crear entrada en barreristas_savean
     const barreristId = uuidv4();
     await pool.query(
       'INSERT INTO barreristas_savean (barreristId, nombre, usuario, activo) VALUES (?, ?, ?, ?)',
-      [barreristId, nombre, usuario, activo ? 1 : 0]
+      [barreristId, nombre.trim(), usuarioClean, activo ? 1 : 0]
     );
     const [[row]] = await pool.query('SELECT * FROM barreristas_savean WHERE barreristId = ?', [barreristId]);
     return res.status(201).json(formatBarrerista(row));

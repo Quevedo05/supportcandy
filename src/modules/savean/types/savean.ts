@@ -73,7 +73,7 @@ export interface SaveanContextType {
   modificarYVerificarGuia: (id: string, barreraId: string, cambios: Partial<GuiaSavean>) => Promise<void>;
   obtenerGuia: (id: string) => GuiaSavean | undefined;
   obtenerGuiaPorNumero: (numero: string) => GuiaSavean | undefined;
-  agregarBarrerista: (b: Omit<Barrerista, 'id'>) => Promise<void>;
+  agregarBarrerista: (b: Omit<Barrerista, 'id'> & { contrasena?: string }) => Promise<void>;
   desactivarBarrerista: (id: string) => Promise<void>;
   eliminarBarrerista: (id: string) => Promise<void>;
   agregarBarrera: (b: Omit<Barrera, 'id'>) => Promise<void>;
