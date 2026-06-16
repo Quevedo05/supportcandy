@@ -108,6 +108,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     setError(null);
+
+    // Try real backend auth first
+    try {
+      const apiUrl = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
+      const res = await fetch(`${apiUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('sc_token', data.token);
+        const sesion: SesionActiva = {
+          usuarioId: data.usuario.usuarioId,
+          email: data.usuario.email,
+          nombre: data.usuario.nombre,
+          rol: data.usuario.rol,
+          modulo: 'tickets',
+        };
+        setUsuario(sesion);
+        localStorage.setItem(STORAGE_KEY_SESION, JSON.stringify(sesion));
+        return;
+      }
+
+      if (res.status === 401) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Email o contraseña incorrectos');
+        throw new Error('invalid');
+      }
+    } catch (err: any) {
+      if (err.message === 'invalid') throw err;
+      // Backend unavailable — fall through to local auth
+    }
+
+    // Local auth fallback (dev / savean users not in DB)
     const found = usuarios.find((u) => u.email === email && u.activo);
 
     if (!found) {
@@ -115,9 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('invalid');
     }
     if (!found.activado) {
-      setError(
-        'Tu cuenta no fue activada aún. Revisá tu email para completar el registro.',
-      );
+      setError('Tu cuenta no fue activada aún. Revisá tu email para completar el registro.');
       throw new Error('not-activated');
     }
     if (found.password !== password) {
@@ -139,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUsuario(null);
     localStorage.removeItem(STORAGE_KEY_SESION);
+    localStorage.removeItem('sc_token');
   };
 
   const crearUsuario = (data: Omit<Usuario, 'id' | 'creadoEn'>) => {
