@@ -570,7 +570,7 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
                 }`}
               >
                 <option value="">Seleccionar...</option>
-                {programasDisponibles.map((p) => (
+                {programas.map((p: string) => (
                   <option key={p} value={p}>
                     {p}
                   </option>
