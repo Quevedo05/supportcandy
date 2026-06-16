@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useReducer, useMemo, useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, List, CheckCircle, Trash2, Pencil, UserCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, List, CheckCircle, Trash2, Pencil, UserCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useFormularios } from './context/FormulariosContext';
 import { FormularioDinamico } from './components/FormularioDinamico';
@@ -999,16 +999,16 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       {/* Header granate */}
       <div className="bg-[#7F1D1D] px-4 py-2 flex items-center gap-2">
         <button
+          onClick={onClose}
+          className="flex items-center gap-1.5 bg-white text-[#7F1D1D] text-xs font-bold px-3 py-1.5 rounded hover:bg-gray-100 transition-colors"
+        >
+          <ArrowLeft size={14} /> Volver
+        </button>
+        <button
           onClick={onNuevoTicket}
           className="flex items-center gap-1.5 bg-[#FF9500] hover:bg-[#E67E00] text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
         >
           <Plus size={13} /> Nuevo ticket
-        </button>
-        <button
-          onClick={onClose}
-          className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
-        >
-          <List size={13} /> Lista de Ticket
         </button>
         <button className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors">
           <RefreshCw size={13} /> Refrescar
@@ -1258,16 +1258,30 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             <>
               <SeccionHeader title="Campos de la Solicitud" sKey="campos" />
               {seccionesAbiertas.campos && (
-                <div className="p-4 border-b border-slate-100 space-y-1">
+                <div className="p-4 border-b border-slate-100 space-y-2">
                   {Object.entries(ticket.datosAdicionales).map(([k, v]) => {
                     const label = campoLabelMap[k] ?? k;
                     if (typeof v === 'string' && v.startsWith('data:')) {
+                      const esImagen = v.startsWith('data:image/');
                       return (
-                        <div key={k} className="flex gap-2 py-0.5">
-                          <span className="text-slate-500 text-xs min-w-[100px] flex-shrink-0">{label}:</span>
-                          <a href={v} download={label} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                            <File size={11} /> Descargar
-                          </a>
+                        <div key={k} className="py-0.5">
+                          <span className="text-slate-500 text-xs block mb-1">{label}:</span>
+                          {esImagen ? (
+                            <div className="space-y-1">
+                              <img
+                                src={v}
+                                alt={label}
+                                className="max-w-full rounded border border-slate-200 max-h-48 object-contain"
+                              />
+                              <a href={v} download={`${label}.jpg`} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                <File size={11} /> Descargar imagen
+                              </a>
+                            </div>
+                          ) : (
+                            <a href={v} download={label} className="inline-flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded transition-colors">
+                              <File size={12} /> Descargar archivo
+                            </a>
+                          )}
                         </div>
                       );
                     }
@@ -1839,7 +1853,8 @@ function parsearDescripcion(descripcion: string): Record<string, string> {
     const idx = linea.indexOf(': ');
     if (idx === -1) return;
     const label = linea.slice(0, idx).trim();
-    const valor = linea.slice(idx + 2).trim();
+    let valor = linea.slice(idx + 2).trim();
+    if (valor.startsWith('[Adjunto]')) valor = valor.slice(9);
     if (label) resultado[label] = valor;
   });
   return resultado;
