@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useReducer, useMemo, useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, List, CheckCircle, Trash2, Pencil, UserCircle, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, CheckCircle, Trash2, Pencil, UserCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useFormularios } from './context/FormulariosContext';
 import { FormularioDinamico } from './components/FormularioDinamico';
