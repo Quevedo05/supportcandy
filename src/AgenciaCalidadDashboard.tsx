@@ -187,7 +187,6 @@ const PROGRAMA_PREFIX_MAP: Record<TipoPrograma, TicketPrefix> = {
   'MICROCRÉDITOS': 'MC',
 };
 
-const PROGRAMAS: TipoPrograma[] = ['MICROCRÉDITOS'];
 
 const ESTADOS: TicketEstado[] = [
   'Solicitud inicial',
@@ -478,6 +477,7 @@ interface NuevoTicketModalProps {
   onAdjuntosChange: (adjuntos: Adjunto[]) => void;
   onSubmit: (datosAdicionales?: Record<string, string>) => void;
   asuntoGenerado: string;
+  programas: string[];
 }
 
 const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
@@ -488,6 +488,7 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
   onAdjuntosChange,
   onSubmit,
   asuntoGenerado,
+  programas,
 }) => {
   const { formularios, obtenerCampos } = useFormularios();
   const [valoresCampos, setValoresCampos] = useState<ValoresCampos>({});
@@ -2355,6 +2356,7 @@ export default function AgenciaCalidadDashboard() {
         }
         onSubmit={handleSubmitTicket}
         asuntoGenerado={asuntoGenerado}
+        programas={programasDisponibles}
       />
     </div>
   );
