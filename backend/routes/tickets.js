@@ -63,8 +63,6 @@ router.post('/crear-desde-formulario', async (req, res) => {
     }
     if (!descripcion || descripcion.trim().length === 0) {
       errores.descripcion = 'La descripción es requerida';
-    } else if (descripcion.trim().length > 5000) {
-      errores.descripcion = 'La descripción no puede superar 5000 caracteres';
     }
 
     if (Object.keys(errores).length > 0) {
