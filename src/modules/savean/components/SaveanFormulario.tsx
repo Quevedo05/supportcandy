@@ -49,6 +49,7 @@ export function SaveanFormulario({ onVolver }: { onVolver?: () => void }) {
   const [items, setItems] = useState<ItemForm[]>([itemVacio()]);
   const [transporte, setTransporte] = useState({ conductor: '', empresa: '', camionPatente: '', acopladoPatente: '', tipo: '' });
   const [confirmando, setConfirmando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
   const [guiaCreada, setGuiaCreada] = useState<GuiaSavean | null>(null);
   const [errores, setErrores] = useState<string[]>([]);
 
@@ -96,37 +97,45 @@ export function SaveanFormulario({ onVolver }: { onVolver?: () => void }) {
     setConfirmando(true);
   };
 
-  const confirmar = () => {
-    const nueva = crearGuia({
-      remitenteNombre: remitente.nombre,
-      remitenteRenspa: remitente.renspa,
-      remitenteTipo: remitente.tipo,
-      destinatarioNombre: destinatario.nombre,
-      destinoTipo: destinatario.tipoDestino as 'externo' | 'interno',
-      destinoPais: destinatario.pais,
-      destinoPuntoSalida: destinatario.puntoSalida,
-      destinoMercadoInterno: destinatario.mercadoInterno,
-      destinoProvincia: destinatario.provincia,
-      emailContacto: email,
-      items: items.map(it => ({
-        id: it.id,
-        lugarEmpaque: it.lugarEmpaque,
-        especie: it.especie === 'Otro' ? it.especieNombre : it.especie,
-        variedad: it.variedad,
-        vidDestino: it.vidDestino,
-        vidInv: it.vidInv,
-        tipoEnvase: it.tipoEnvase,
-        cantidadBultos: it.cantidadBultos ? Number(it.cantidadBultos) : undefined,
-        cantidadKg: it.cantidadKg ? Number(it.cantidadKg) : undefined,
-      })),
-      transporteConductor: transporte.conductor,
-      transporteEmpresa: transporte.empresa,
-      transporteCamionPatente: transporte.camionPatente,
-      transporteAcopladoPatente: transporte.acopladoPatente,
-      transporteTipo: transporte.tipo,
-    });
-    setConfirmando(false);
-    setGuiaCreada(nueva);
+  const confirmar = async () => {
+    setEnviando(true);
+    try {
+      const nueva = await crearGuia({
+        remitenteNombre: remitente.nombre,
+        remitenteRenspa: remitente.renspa,
+        remitenteTipo: remitente.tipo,
+        destinatarioNombre: destinatario.nombre,
+        destinoTipo: destinatario.tipoDestino as 'externo' | 'interno',
+        destinoPais: destinatario.pais,
+        destinoPuntoSalida: destinatario.puntoSalida,
+        destinoMercadoInterno: destinatario.mercadoInterno,
+        destinoProvincia: destinatario.provincia,
+        emailContacto: email,
+        items: items.map(it => ({
+          id: it.id,
+          lugarEmpaque: it.lugarEmpaque,
+          especie: it.especie === 'Otro' ? it.especieNombre : it.especie,
+          variedad: it.variedad,
+          vidDestino: it.vidDestino,
+          vidInv: it.vidInv,
+          tipoEnvase: it.tipoEnvase,
+          cantidadBultos: it.cantidadBultos ? Number(it.cantidadBultos) : undefined,
+          cantidadKg: it.cantidadKg ? Number(it.cantidadKg) : undefined,
+        })),
+        transporteConductor: transporte.conductor,
+        transporteEmpresa: transporte.empresa,
+        transporteCamionPatente: transporte.camionPatente,
+        transporteAcopladoPatente: transporte.acopladoPatente,
+        transporteTipo: transporte.tipo,
+      });
+      setConfirmando(false);
+      setGuiaCreada(nueva);
+    } catch {
+      setErrores(['Error al registrar la guía. Por favor, intentá de nuevo.']);
+      setConfirmando(false);
+    } finally {
+      setEnviando(false);
+    }
   };
 
   if (guiaCreada) {
@@ -444,8 +453,8 @@ export function SaveanFormulario({ onVolver }: { onVolver?: () => void }) {
               <button onClick={() => setConfirmando(false)} className="flex-1 border border-gray-300 rounded-lg py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">
                 Cancelar
               </button>
-              <button onClick={confirmar} className="flex-1 bg-orange-600 text-white rounded-lg py-2 text-sm font-semibold hover:bg-orange-700">
-                Confirmar
+              <button onClick={confirmar} disabled={enviando} className="flex-1 bg-orange-600 text-white rounded-lg py-2 text-sm font-semibold hover:bg-orange-700 disabled:opacity-60">
+                {enviando ? 'Registrando...' : 'Confirmar'}
               </button>
             </div>
           </div>

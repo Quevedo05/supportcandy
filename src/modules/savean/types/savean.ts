@@ -66,14 +66,15 @@ export interface SaveanContextType {
   guias: GuiaSavean[];
   barreras: Barrera[];
   barreristas: Barrerista[];
-  crearGuia: (data: Omit<GuiaSavean, 'id' | 'numero' | 'token' | 'estado' | 'fechaEmision' | 'fechaVencimiento'>) => GuiaSavean;
-  verificarGuia: (id: string, barreraId: string, inspectorUsuario: string, inspectorNombre: string) => void;
-  denegarGuia: (id: string, barreraId: string, inspectorUsuario: string, inspectorNombre: string, motivo: string) => void;
-  modificarYVerificarGuia: (id: string, barreraId: string, inspectorUsuario: string, inspectorNombre: string, cambios: Partial<GuiaSavean>) => void;
+  loading: boolean;
+  crearGuia: (data: Omit<GuiaSavean, 'id' | 'numero' | 'token' | 'estado' | 'fechaEmision' | 'fechaVencimiento'>) => Promise<GuiaSavean>;
+  verificarGuia: (id: string, barreraId: string) => Promise<void>;
+  denegarGuia: (id: string, barreraId: string, motivo: string) => Promise<void>;
+  modificarYVerificarGuia: (id: string, barreraId: string, cambios: Partial<GuiaSavean>) => Promise<void>;
   obtenerGuia: (id: string) => GuiaSavean | undefined;
   obtenerGuiaPorNumero: (numero: string) => GuiaSavean | undefined;
-  agregarBarrerista: (b: Omit<Barrerista, 'id'>) => void;
-  desactivarBarrerista: (id: string) => void;
-  eliminarBarrerista: (id: string) => void;
-  agregarBarrera: (b: Omit<Barrera, 'id'>) => void;
+  agregarBarrerista: (b: Omit<Barrerista, 'id'>) => Promise<void>;
+  desactivarBarrerista: (id: string) => Promise<void>;
+  eliminarBarrerista: (id: string) => Promise<void>;
+  agregarBarrera: (b: Omit<Barrera, 'id'>) => Promise<void>;
 }

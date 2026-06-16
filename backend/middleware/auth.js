@@ -16,8 +16,10 @@ function autenticar(req, res, next) {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     req.usuario = {
       usuarioId: payload.usuarioId,
+      nombre: payload.nombre,
       email: payload.email,
       rol: payload.rol,
+      modulo: payload.modulo,
     };
     next();
   } catch (err) {

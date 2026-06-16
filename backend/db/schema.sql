@@ -23,12 +23,14 @@ USE agencia_calidad;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- usuarios
 -- ─────────────────────────────────────────────────────────────────────────────
+-- Migration for existing installs: ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS modulo VARCHAR(50) NOT NULL DEFAULT 'tickets';
 CREATE TABLE IF NOT EXISTS usuarios (
   usuarioId       VARCHAR(36)   NOT NULL,
   nombre          VARCHAR(100)  NOT NULL,
   email           VARCHAR(255)  NOT NULL,
   password_hash   VARCHAR(255)  NOT NULL,
   rol             ENUM('admin', 'contribuidor') NOT NULL DEFAULT 'contribuidor',
+  modulo          VARCHAR(50)   NOT NULL DEFAULT 'tickets',
   activo          TINYINT(1)    NOT NULL DEFAULT 1,
   creado_en       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   actualizado_en  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -88,6 +90,70 @@ CREATE TABLE IF NOT EXISTS tickets (
     FOREIGN KEY (asignado_a) REFERENCES usuarios(usuarioId) ON DELETE SET NULL,
   CONSTRAINT fk_tickets_formulario
     FOREIGN KEY (formularioId) REFERENCES formularios(formularioId) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SAVEAN — Guías de origen fitosanitario
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS barreras_savean (
+  barreraId     VARCHAR(36)   NOT NULL,
+  nombre        VARCHAR(255)  NOT NULL,
+  ruta          VARCHAR(100)  NULL,
+  kilometro     VARCHAR(50)   NULL,
+  departamento  VARCHAR(100)  NULL,
+  activa        TINYINT(1)    NOT NULL DEFAULT 1,
+  PRIMARY KEY (barreraId),
+  INDEX idx_barreras_activa (activa)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS barreristas_savean (
+  barreristId  VARCHAR(36)   NOT NULL,
+  nombre       VARCHAR(255)  NOT NULL,
+  usuario      VARCHAR(100)  NOT NULL,
+  activo       TINYINT(1)    NOT NULL DEFAULT 1,
+  PRIMARY KEY (barreristId),
+  INDEX idx_barreristas_activo (activo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS guias_savean (
+  guiaId                    VARCHAR(36)                                       NOT NULL,
+  numero                    VARCHAR(30)                                       NOT NULL,
+  token                     VARCHAR(64)                                       NOT NULL,
+  estado                    ENUM('pendiente','verificada','vencida','denegada') NOT NULL DEFAULT 'pendiente',
+  fecha_emision             DATETIME                                          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_vencimiento         DATETIME                                          NOT NULL,
+  fecha_verificacion        DATETIME                                          NULL,
+  remitente_nombre          VARCHAR(255)                                      NOT NULL,
+  remitente_renspa          VARCHAR(100)                                      NULL,
+  remitente_inv             VARCHAR(100)                                      NULL,
+  remitente_tipo            VARCHAR(100)                                      NULL,
+  destinatario_nombre       VARCHAR(255)                                      NOT NULL,
+  destino_tipo              ENUM('externo','interno')                         NOT NULL,
+  destino_pais              VARCHAR(100)                                      NULL,
+  destino_punto_salida      VARCHAR(255)                                      NULL,
+  destino_mercado_interno   VARCHAR(100)                                      NULL,
+  destino_provincia         VARCHAR(100)                                      NULL,
+  items                     JSON                                              NOT NULL,
+  transporte_empresa        VARCHAR(255)                                      NULL,
+  transporte_conductor      VARCHAR(255)                                      NOT NULL,
+  transporte_tipo           VARCHAR(50)                                       NULL,
+  transporte_camion_patente VARCHAR(20)                                       NOT NULL,
+  transporte_acoplado_patente VARCHAR(20)                                     NULL,
+  transporte_precintos      VARCHAR(255)                                      NULL,
+  barrera_id                VARCHAR(36)                                       NULL,
+  barrera_nombre            VARCHAR(255)                                      NULL,
+  inspector_usuario         VARCHAR(255)                                      NULL,
+  inspector_nombre          VARCHAR(255)                                      NULL,
+  motivo_denegacion         TEXT                                              NULL,
+  email_contacto            VARCHAR(255)                                      NULL,
+  creado_en                 DATETIME                                          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en            DATETIME                                          NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (guiaId),
+  UNIQUE KEY uq_guias_numero (numero),
+  UNIQUE KEY uq_guias_token (token),
+  INDEX idx_guias_estado (estado),
+  INDEX idx_guias_fecha_emision (fecha_emision)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─────────────────────────────────────────────────────────────────────────────

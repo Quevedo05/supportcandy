@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: data.usuario.email,
           nombre: data.usuario.nombre,
           rol: data.usuario.rol,
-          modulo: 'tickets',
+          modulo: data.usuario.modulo ?? 'tickets',
         };
         setUsuario(sesion);
         localStorage.setItem(STORAGE_KEY_SESION, JSON.stringify(sesion));

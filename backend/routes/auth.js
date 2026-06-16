@@ -20,7 +20,7 @@ router.post('/login', async (req, res) => {
     const emailNorm = email.trim().toLowerCase();
 
     const [rows] = await pool.query(
-      'SELECT usuarioId, nombre, email, password_hash, rol, activo FROM usuarios WHERE email = ?',
+      'SELECT usuarioId, nombre, email, password_hash, rol, modulo, activo FROM usuarios WHERE email = ?',
       [emailNorm]
     );
 
@@ -44,8 +44,10 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       {
         usuarioId: usuario.usuarioId,
+        nombre: usuario.nombre,
         email: usuario.email,
         rol: usuario.rol,
+        modulo: usuario.modulo || 'tickets',
       },
       process.env.JWT_SECRET,
       { expiresIn }
@@ -70,6 +72,7 @@ router.post('/login', async (req, res) => {
         nombre: usuario.nombre,
         email: usuario.email,
         rol: usuario.rol,
+        modulo: usuario.modulo || 'tickets',
       },
       expiresIn: expiresInSeconds,
     });

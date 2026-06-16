@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
 import { useSavean } from '../context/SaveanContext';
 import { GuiaSavean, EstadoGuia } from '../types/savean';
 import {
@@ -53,7 +52,6 @@ interface GuiaDetalleProps {
 }
 
 function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
-  const { usuario } = useAuth();
   const { barreras, verificarGuia, denegarGuia, modificarYVerificarGuia, obtenerGuia } = useSavean();
 
   const [barreraId, setBarreraId] = useState(guia.barreraId ?? '');
@@ -73,31 +71,46 @@ function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
   const guiaActual = obtenerGuia(guia.id) ?? guia;
   const puedeActuar = guiaActual.estado === 'pendiente';
 
-  const handleVerificar = () => {
+  const handleVerificar = async () => {
     if (!barreraId) { setAccion('err'); setAccionMsg('Seleccioná una barrera antes de verificar.'); return; }
     const barrera = barreras.find((b) => b.id === barreraId);
-    verificarGuia(guiaActual.id, barreraId, usuario!.email, usuario!.nombre);
-    setAccion('ok');
-    setAccionMsg(`Guía verificada en ${barrera?.nombre ?? barreraId}`);
+    try {
+      await verificarGuia(guiaActual.id, barreraId);
+      setAccion('ok');
+      setAccionMsg(`Guía verificada en ${barrera?.nombre ?? barreraId}`);
+    } catch {
+      setAccion('err');
+      setAccionMsg('Error al verificar la guía. Intentá de nuevo.');
+    }
   };
 
-  const handleDenegar = () => {
+  const handleDenegar = async () => {
     if (!barreraId) { setAccion('err'); setAccionMsg('Seleccioná una barrera antes de denegar.'); return; }
     if (!motivo.trim()) return;
     const barrera = barreras.find((b) => b.id === barreraId);
-    denegarGuia(guiaActual.id, barreraId, usuario!.email, usuario!.nombre, motivo.trim());
-    setShowDenegarModal(false);
-    setAccion('ok');
-    setAccionMsg(`Guía denegada en ${barrera?.nombre ?? barreraId}`);
+    try {
+      await denegarGuia(guiaActual.id, barreraId, motivo.trim());
+      setShowDenegarModal(false);
+      setAccion('ok');
+      setAccionMsg(`Guía denegada en ${barrera?.nombre ?? barreraId}`);
+    } catch {
+      setAccion('err');
+      setAccionMsg('Error al denegar la guía. Intentá de nuevo.');
+    }
   };
 
-  const handleModificarVerificar = () => {
+  const handleModificarVerificar = async () => {
     if (!barreraId) { setAccion('err'); setAccionMsg('Seleccioná una barrera.'); return; }
     const barrera = barreras.find((b) => b.id === barreraId);
-    modificarYVerificarGuia(guiaActual.id, barreraId, usuario!.email, usuario!.nombre, cambios);
-    setShowModificarModal(false);
-    setAccion('ok');
-    setAccionMsg(`Guía modificada y verificada en ${barrera?.nombre ?? barreraId}`);
+    try {
+      await modificarYVerificarGuia(guiaActual.id, barreraId, cambios);
+      setShowModificarModal(false);
+      setAccion('ok');
+      setAccionMsg(`Guía modificada y verificada en ${barrera?.nombre ?? barreraId}`);
+    } catch {
+      setAccion('err');
+      setAccionMsg('Error al modificar la guía. Intentá de nuevo.');
+    }
   };
 
   return (
