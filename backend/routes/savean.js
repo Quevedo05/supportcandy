@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../db/connection');
@@ -96,7 +97,7 @@ router.post('/guias', async (req, res) => {
       emailContacto,
     } = req.body;
 
-    if (!remitenteNombre || !destinatarioNombre || !destinoTipo || !transporteConductor || !transporteCamionPatente) {
+    if (!remitenteNombre || !destinatarioNombre || !destinoTipo || !transporteConductor) {
       await conn.rollback();
       conn.release();
       return res.status(400).json({ error: 'Faltan campos obligatorios' });
@@ -135,7 +136,7 @@ router.post('/guias', async (req, res) => {
         destinoMercadoInterno || null, destinoProvincia || null,
         JSON.stringify(items),
         transporteEmpresa || null, transporteConductor, transporteTipo || null,
-        transporteCamionPatente,
+        transporteCamionPatente || '',
         transporteAcopladoPatente || null, transportePrecintos || null,
         emailContacto || null,
       ]
@@ -379,6 +380,89 @@ router.delete('/barreristas/:id', autenticar, soloSavean, soloAdmin, async (req,
     return res.status(204).send();
   } catch (err) {
     console.error('[DELETE /savean/barreristas/:id]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─── usuarios savean ──────────────────────────────────────────────────────────
+
+// GET /api/savean/usuarios — AUTH + admin (list savean module users)
+router.get('/usuarios', autenticar, soloSavean, soloAdmin, async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT usuarioId, nombre, email, rol, activo FROM usuarios WHERE modulo = 'savean' ORDER BY creado_en ASC`
+    );
+    return res.json({
+      usuarios: rows.map(r => ({
+        usuarioId: r.usuarioId,
+        nombre: r.nombre,
+        email: r.email,
+        username: r.email.replace('@savean.local', ''),
+        rol: r.rol,
+        activo: Boolean(r.activo),
+      })),
+    });
+  } catch (err) {
+    console.error('[GET /savean/usuarios]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST /api/savean/usuarios — AUTH + admin (create inspector user with username+password)
+router.post('/usuarios', autenticar, soloSavean, soloAdmin, async (req, res) => {
+  try {
+    const { nombre, username, password } = req.body;
+    if (!nombre?.trim() || !username?.trim() || !password) {
+      return res.status(400).json({ error: 'nombre, username y password son obligatorios' });
+    }
+    if (password.length < 4) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+    }
+    const usernameClean = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+    if (!usernameClean) {
+      return res.status(400).json({ error: 'El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos' });
+    }
+    const email = `${usernameClean}@savean.local`;
+    const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [email]);
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'El nombre de usuario ya existe' });
+    }
+    const usuarioId = uuidv4();
+    const passwordHash = await bcrypt.hash(password, 10);
+    await pool.query(
+      `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, modulo, activo) VALUES (?, ?, ?, ?, 'inspector', 'savean', 1)`,
+      [usuarioId, nombre.trim(), email, passwordHash]
+    );
+    return res.status(201).json({
+      usuarioId,
+      nombre: nombre.trim(),
+      email,
+      username: usernameClean,
+      rol: 'inspector',
+      activo: true,
+    });
+  } catch (err) {
+    console.error('[POST /savean/usuarios]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// DELETE /api/savean/usuarios/:id — AUTH + admin
+router.delete('/usuarios/:id', autenticar, soloSavean, soloAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (req.usuario.usuarioId === id) {
+      return res.status(403).json({ error: 'No puede eliminar su propia cuenta' });
+    }
+    const [rows] = await pool.query(
+      `SELECT usuarioId FROM usuarios WHERE usuarioId = ? AND modulo = 'savean'`,
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+    await pool.query('DELETE FROM usuarios WHERE usuarioId = ?', [id]);
+    return res.status(204).send();
+  } catch (err) {
+    console.error('[DELETE /savean/usuarios/:id]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useSavean } from '../context/SaveanContext';
 import {
   Users, MapPin, Plus, RefreshCw, Clock,
   FileText, Shield, Trash2, UserPlus,
 } from 'lucide-react';
+
+const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
+function getToken() { return localStorage.getItem('sc_token') || ''; }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 function hoyISO() { return new Date().toISOString().slice(0, 10); }
@@ -85,8 +88,17 @@ const btnOrange = 'flex items-center justify-center gap-1.5 bg-orange-600 hover:
 const btnRed = 'flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1 rounded-md transition';
 
 // ─── main component ──────────────────────────────────────────────────────────
+interface SaveanUser {
+  usuarioId: string;
+  nombre: string;
+  email: string;
+  username: string;
+  rol: string;
+  activo: boolean;
+}
+
 export function SaveanAdmin() {
-  const { usuario, usuarios, crearUsuario, eliminarUsuario } = useAuth();
+  const { usuario } = useAuth();
   const { guias, barreras, barreristas, agregarBarrerista, eliminarBarrerista } = useSavean();
 
   const [fechaFiltro, setFechaFiltro] = useState(hoyISO());
@@ -98,8 +110,18 @@ export function SaveanAdmin() {
   const [formBr, setFormBr] = useState({ nombre: '', usuario: '', contrasena: '' });
   const [errBr, setErrBr] = useState('');
 
-  const [formAdmin, setFormAdmin] = useState({ nombre: '', email: '', password: '' });
+  const [saveanUsers, setSaveanUsers] = useState<SaveanUser[]>([]);
+  const [formAdmin, setFormAdmin] = useState({ nombre: '', username: '', password: '' });
   const [errAdmin, setErrAdmin] = useState('');
+
+  useEffect(() => {
+    fetch(`${API_URL}/savean/usuarios`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => setSaveanUsers(data.usuarios ?? []))
+      .catch(() => {});
+  }, []);
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
   const hoy = hoyISO();
@@ -180,9 +202,6 @@ export function SaveanAdmin() {
   const barreristasActivos = barreristas.filter(b => b.activo);
   const barreristaMostrados = verTodosBarreristas ? barreristasActivos : barreristasActivos.slice(0, 7);
 
-  // ── Admin users (savean) ──────────────────────────────────────────────────
-  const adminUsers = usuarios.filter(u => u.modulo === 'savean');
-
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleAddBarrerista = () => {
     if (!formBr.nombre.trim() || !formBr.usuario.trim()) { setErrBr('Nombre y usuario son obligatorios.'); return; }
@@ -192,11 +211,35 @@ export function SaveanAdmin() {
     setErrBr('');
   };
 
-  const handleAddAdmin = () => {
-    if (!formAdmin.nombre.trim() || !formAdmin.email.trim() || !formAdmin.password.trim()) { setErrAdmin('Todos los campos son obligatorios.'); return; }
-    crearUsuario({ nombre: formAdmin.nombre.trim(), email: formAdmin.email.trim(), password: formAdmin.password, rol: 'admin', modulo: 'savean', activo: true, activado: true });
-    setFormAdmin({ nombre: '', email: '', password: '' });
-    setErrAdmin('');
+  const handleAddInspector = async () => {
+    if (!formAdmin.nombre.trim() || !formAdmin.username.trim() || !formAdmin.password.trim()) {
+      setErrAdmin('Todos los campos son obligatorios.');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/savean/usuarios`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ nombre: formAdmin.nombre.trim(), username: formAdmin.username.trim(), password: formAdmin.password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErrAdmin(data.error ?? 'Error al crear usuario.'); return; }
+      setSaveanUsers(prev => [...prev, data]);
+      setFormAdmin({ nombre: '', username: '', password: '' });
+      setErrAdmin('');
+    } catch {
+      setErrAdmin('Error de conexión.');
+    }
+  };
+
+  const handleDeleteUser = async (usuarioId: string) => {
+    try {
+      await fetch(`${API_URL}/savean/usuarios/${usuarioId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      setSaveanUsers(prev => prev.filter(u => u.usuarioId !== usuarioId));
+    } catch { /* ignore */ }
   };
 
   return (
@@ -511,20 +554,20 @@ export function SaveanAdmin() {
         </div>
       </div>
 
-      {/* ── 12. GESTIÓN DE USUARIOS ADMINISTRADORES ── */}
+      {/* ── 12. GESTIÓN DE INSPECTORES ── */}
       <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <SectionHeader title="Gestión de Usuarios Administradores" icon={<UserPlus size={15} />} />
+        <SectionHeader title="Gestión de Inspectores" icon={<UserPlus size={15} />} />
 
         {/* Add form */}
-        <p className="text-xs text-gray-500 mb-2 font-medium">Agregar nuevo administrador</p>
+        <p className="text-xs text-gray-500 mb-2 font-medium">Agregar nuevo inspector (acceso con usuario y contraseña)</p>
         <div className="flex flex-wrap gap-2 mb-1">
-          <input type="text" placeholder="Nombre" value={formAdmin.nombre} onChange={e => setFormAdmin({ ...formAdmin, nombre: e.target.value })}
+          <input type="text" placeholder="Nombre completo" value={formAdmin.nombre} onChange={e => setFormAdmin({ ...formAdmin, nombre: e.target.value })}
             className="flex-1 min-w-28 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <input type="email" placeholder="Email (usuario)" value={formAdmin.email} onChange={e => setFormAdmin({ ...formAdmin, email: e.target.value })}
-            className="flex-1 min-w-32 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <input type="text" placeholder="Nombre de usuario" value={formAdmin.username} onChange={e => setFormAdmin({ ...formAdmin, username: e.target.value.toLowerCase().replace(/\s/g, '') })}
+            className="flex-1 min-w-28 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
           <input type="password" placeholder="Contraseña" value={formAdmin.password} onChange={e => setFormAdmin({ ...formAdmin, password: e.target.value })}
             className="flex-1 min-w-24 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <button onClick={handleAddAdmin} className={btnOrange}>
+          <button onClick={handleAddInspector} className={btnOrange}>
             <Plus size={12} /> Agregar
           </button>
         </div>
@@ -532,43 +575,43 @@ export function SaveanAdmin() {
 
         {/* Table */}
         <div className="mt-4">
-          <p className="text-xs font-semibold text-gray-600 mb-2">Usuarios activos</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
-              <thead className="bg-orange-50">
-                <tr className="text-gray-500">
-                  <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Nombre</th>
-                  <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Usuario</th>
-                  <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Contraseña</th>
-                  <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {adminUsers.map((u, i) => (
-                  <tr key={u.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-3 py-2 text-gray-800 font-medium">{u.nombre}</td>
-                    <td className="px-3 py-2 text-gray-500 font-mono text-xs">{u.email}</td>
-                    <td className="px-3 py-2 text-gray-400 tracking-widest">••••••••</td>
-                    <td className="px-3 py-2">
-                      <div className="flex gap-1.5 flex-wrap">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${u.rol === 'admin' ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
-                          Director
+          <p className="text-xs font-semibold text-gray-600 mb-2">Inspectores registrados</p>
+          {saveanUsers.length === 0 ? (
+            <p className="text-gray-400 text-xs py-2">Sin inspectores registrados.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
+                <thead className="bg-orange-50">
+                  <tr className="text-gray-500">
+                    <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Nombre</th>
+                    <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Usuario</th>
+                    <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Rol</th>
+                    <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {saveanUsers.map((u, i) => (
+                    <tr key={u.usuarioId} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-3 py-2 text-gray-800 font-medium">{u.nombre}</td>
+                      <td className="px-3 py-2 text-gray-500 font-mono">{u.username || u.email.replace('@savean.local', '')}</td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${u.rol === 'admin' ? 'bg-orange-600 text-white' : 'bg-blue-100 text-blue-700'}`}>
+                          {u.rol === 'admin' ? 'Director' : 'Inspector'}
                         </span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${u.rol === 'inspector' ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
-                          Inspector
-                        </span>
-                        {u.id !== usuario?.usuarioId && (
-                          <button onClick={() => eliminarUsuario(u.id)} className={btnRed}>
+                      </td>
+                      <td className="px-3 py-2">
+                        {u.usuarioId !== usuario?.usuarioId && (
+                          <button onClick={() => handleDeleteUser(u.usuarioId)} className={btnRed}>
                             <Trash2 size={11} /> Eliminar
                           </button>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

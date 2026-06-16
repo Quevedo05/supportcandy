@@ -53,19 +53,19 @@ export function LoginPage() {
           {/* Contenido del formulario */}
           <div className="px-8 py-10">
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email */}
+              {/* Email / usuario */}
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-3">
-                  Correo Electrónico
+                  Correo Electrónico o Usuario
                 </label>
                 <div className="relative">
                   <Mail size={18} className="absolute left-3 top-3.5 text-slate-400" />
                   <input
                     id="email"
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tu.email@agenciacalidad.gob.ar"
+                    placeholder="tu.email@agencia.gob.ar o tu_usuario"
                     className="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition"
                     required
                     disabled={isLoading}

@@ -17,7 +17,9 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'La contraseña es requerida' });
     }
 
-    const emailNorm = email.trim().toLowerCase();
+    // Support username-only login for savean users (no @)
+    const raw = email.trim().toLowerCase();
+    const emailNorm = raw.includes('@') ? raw : `${raw}@savean.local`;
 
     const [rows] = await pool.query(
       'SELECT usuarioId, nombre, email, password_hash, rol, modulo, activo FROM usuarios WHERE email = ?',
