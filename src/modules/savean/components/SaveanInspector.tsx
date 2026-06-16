@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import jsQR from 'jsqr';
 import { useSavean } from '../context/SaveanContext';
 import { GuiaSavean, EstadoGuia } from '../types/savean';
 import {
@@ -17,6 +18,7 @@ interface QRScannerProps {
 function QRScanner({ onClose, onFound }: QRScannerProps) {
   const { guias, obtenerGuiaPorNumero } = useSavean();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number>(0);
   const [scanning, setScanning] = useState(false);
@@ -24,10 +26,8 @@ function QRScanner({ onClose, onFound }: QRScannerProps) {
   const [manual, setManual] = useState('');
   const [buscando, setBuscando] = useState(false);
 
-  const hasBarcodeDetector = 'BarcodeDetector' in window;
-
   useEffect(() => {
-    if (hasBarcodeDetector) startCamera();
+    startCamera();
     return () => stopCamera();
   }, []);
 
@@ -44,13 +44,9 @@ function QRScanner({ onClose, onFound }: QRScannerProps) {
     const token = extractToken(raw);
     const numero = raw.trim();
 
-    // Search by token
     let encontrada = token ? guias.find(g => g.token === token) : undefined;
-
-    // Search by number
     if (!encontrada) encontrada = obtenerGuiaPorNumero(numero);
 
-    // Fetch by token from API (newly submitted guide)
     if (!encontrada && token) {
       try {
         setBuscando(true);
@@ -79,25 +75,31 @@ function QRScanner({ onClose, onFound }: QRScannerProps) {
         await videoRef.current.play();
       }
       setScanning(true);
-      const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
-      const loop = async () => {
-        if (!videoRef.current || videoRef.current.readyState < 2) {
+
+      const loop = () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        if (!video || !canvas || video.readyState < 2) {
           rafRef.current = requestAnimationFrame(loop);
           return;
         }
-        try {
-          const results = await detector.detect(videoRef.current);
-          if (results.length > 0) {
-            stopCamera();
-            await handleInput(results[0].rawValue as string);
-            return;
-          }
-        } catch { /* continue */ }
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { rafRef.current = requestAnimationFrame(loop); return; }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code?.data) {
+          stopCamera();
+          handleInput(code.data);
+          return;
+        }
         rafRef.current = requestAnimationFrame(loop);
       };
       rafRef.current = requestAnimationFrame(loop);
     } catch {
-      setErr('No se pudo acceder a la cámara. Usá el ingreso manual o una foto del QR.');
+      setErr('No se pudo acceder a la cámara. Usá el ingreso manual.');
     }
   };
 
@@ -111,12 +113,18 @@ function QRScanner({ onClose, onFound }: QRScannerProps) {
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!hasBarcodeDetector) { setErr('Tu navegador no soporta lectura automática. Ingresá el número manualmente.'); return; }
+    setErr('');
     try {
-      const bitmap = await createImageBitmap(file);
-      const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
-      const results = await detector.detect(bitmap);
-      if (results.length > 0) { await handleInput(results[0].rawValue as string); return; }
+      const img = await createImageBitmap(file);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code?.data) { await handleInput(code.data); return; }
       setErr('No se encontró un QR válido en la imagen.');
     } catch { setErr('Error al procesar la imagen.'); }
   };
@@ -131,35 +139,33 @@ function QRScanner({ onClose, onFound }: QRScannerProps) {
           <button onClick={() => { stopCamera(); onClose(); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
 
-        {hasBarcodeDetector ? (
-          <div className="relative w-full aspect-square bg-black rounded-xl overflow-hidden">
-            <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div
-                className="w-52 h-52 border-2 border-orange-400 rounded-xl"
-                style={{ boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)' }}
-              />
+        {/* Cámara — funciona en todos los navegadores con jsQR */}
+        <div className="relative w-full aspect-square bg-black rounded-xl overflow-hidden">
+          <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
+          <canvas ref={canvasRef} className="hidden" />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div
+              className="w-52 h-52 border-2 border-orange-400 rounded-xl"
+              style={{ boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)' }}
+            />
+          </div>
+          {scanning && (
+            <div className="absolute bottom-3 left-0 right-0 text-center">
+              <span className="text-white text-xs bg-black/50 px-3 py-1 rounded-full">Apuntá al código QR de la guía</span>
             </div>
-            {scanning && (
-              <div className="absolute bottom-3 left-0 right-0 text-center">
-                <span className="text-white text-xs bg-black/50 px-3 py-1 rounded-full">Apuntá al código QR de la guía</span>
-              </div>
-            )}
-            {buscando && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                <div className="animate-spin rounded-full h-8 w-8 border-4 border-orange-400 border-t-transparent" />
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 text-center space-y-3">
-            <p className="text-sm text-gray-500">Tu navegador no soporta escáner QR automático.</p>
-            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg text-sm">
-              <Camera size={15} /> Tomar foto del QR
-              <input type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
-            </label>
-          </div>
-        )}
+          )}
+          {buscando && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+              <div className="animate-spin rounded-full h-8 w-8 border-4 border-orange-400 border-t-transparent" />
+            </div>
+          )}
+        </div>
+
+        {/* Opción alternativa: foto del QR */}
+        <label className="cursor-pointer flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+          <Camera size={15} /> O tomá una foto del QR
+          <input type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
+        </label>
 
         {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
 
