@@ -1094,19 +1094,27 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     <ChevronDown size={12} className={`transition-transform ${derivarAbierto ? 'rotate-180' : ''}`} />
                   </button>
                   {derivarAbierto && (
-                    <div className="absolute left-0 bottom-full mb-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1 min-w-[220px]">
-                      {ESTADOS.filter(e => e !== ticket.estado).map((e) => (
-                        <button
-                          key={e}
-                          onClick={() => {
-                            onChangeEstado(ticket.id, e);
-                            setDerivarAbierto(false);
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF9500] transition-colors"
-                        >
-                          {e}
-                        </button>
-                      ))}
+                    <div className="absolute left-0 bottom-full mb-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1 min-w-[240px]">
+                      {usuariosConEstados.length === 0 ? (
+                        <p className="px-4 py-3 text-xs text-slate-400 italic">Sin agentes asignados a etapas</p>
+                      ) : (
+                        usuariosConEstados.flatMap((u) =>
+                          u.estadosAsignados.map((estado) => (
+                            <button
+                              key={`${u.usuarioId}-${estado}`}
+                              onClick={() => {
+                                onChangeEstado(ticket.id, estado as TicketEstado);
+                                onChangeAgentes(ticket.id, [u.nombre]);
+                                setDerivarAbierto(false);
+                              }}
+                              className="w-full flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF9500] transition-colors"
+                            >
+                              <span className="font-medium">{u.nombre}</span>
+                              <span className="text-xs text-slate-400 ml-2">{estado}</span>
+                            </button>
+                          ))
+                        )
+                      )}
                     </div>
                   )}
                 </div>
