@@ -259,6 +259,22 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
   }
 });
 
+// DELETE /api/tickets/:ticketId — JWT required
+router.delete('/:ticketId', autenticar, soloTickets, async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const [rows] = await pool.query('SELECT ticketId FROM tickets WHERE ticketId = ?', [ticketId]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+    await pool.query('DELETE FROM tickets WHERE ticketId = ?', [ticketId]);
+    return res.status(200).json({ mensaje: 'Ticket eliminado' });
+  } catch (err) {
+    console.error('[DELETE /tickets/:id]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // POST /api/tickets/:ticketId/comentarios — JWT required
 router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) => {
   try {

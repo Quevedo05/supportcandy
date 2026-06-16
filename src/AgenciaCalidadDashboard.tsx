@@ -1903,6 +1903,7 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
 
 export default function AgenciaCalidadDashboard() {
   const { usuario, usuarios } = useAuth();
+  const { formularios } = useFormularios();
   const [state, dispatch] = useReducer(dashboardReducer, undefined, getInitialState);
 
   // Fetch tickets from API on mount and on focus
@@ -1934,11 +1935,11 @@ export default function AgenciaCalidadDashboard() {
     saveTickets(state.tickets);
   }, [state.tickets]);
 
-  // Programas únicos presentes en los tickets cargados
+  // Programas de formularios activos (fuente de verdad para el filtro)
   const programasDisponibles = useMemo(() => {
-    const set = new Set(state.tickets.map((t) => t.programa).filter(Boolean));
+    const set = new Set(formularios.filter(f => f.activo).map(f => f.programa).filter(Boolean));
     return Array.from(set).sort();
-  }, [state.tickets]);
+  }, [formularios]);
 
   // For contribuidores, restrict visible tickets to their assigned stages
   const etapasAsignadas = useMemo(() => {
@@ -2054,7 +2055,19 @@ export default function AgenciaCalidadDashboard() {
         onChangeAgentes={(id, agentes) =>
           dispatch({ type: 'CAMBIAR_AGENTES_TICKET', payload: { id, agentes, autor: usuario?.nombre || 'Usuario' } })
         }
-        onEliminarTicket={(id) => dispatch({ type: 'ELIMINAR_TICKET', payload: id })}
+        onEliminarTicket={async (id) => {
+          const token = localStorage.getItem('sc_token');
+          const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+          try {
+            if (token && apiUrl) {
+              await fetch(`${apiUrl}/tickets/${id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+              });
+            }
+          } catch { /* si falla el API igual elimina del estado local */ }
+          dispatch({ type: 'ELIMINAR_TICKET', payload: id });
+        }}
         onNuevoTicket={() => dispatch({ type: 'CERRAR_TICKET_DETAIL' })}
         onActualizarTicket={(id, fields) => dispatch({ type: 'ACTUALIZAR_TICKET', payload: { id, fields } })}
       />
