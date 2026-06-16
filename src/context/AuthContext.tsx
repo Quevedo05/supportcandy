@@ -133,11 +133,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (res.status === 401) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Email o contraseña incorrectos');
-        throw new Error('invalid');
-      }
+      // 401 means either wrong password for a DB user OR user not in DB (savean/dev seeds)
+      // Fall through to local auth in both cases
     } catch (err: any) {
       if (err.message === 'invalid') throw err;
       // Backend unavailable — fall through to local auth
