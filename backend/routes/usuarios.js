@@ -4,11 +4,12 @@ const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../db/connection');
 const { autenticar } = require('../middleware/auth');
 const { soloAdmin } = require('../middleware/adminOnly');
+const { soloModulo } = require('../middleware/soloModulo');
 
 const router = express.Router();
 
-// All routes in this file require JWT + admin role
-router.use(autenticar, soloAdmin);
+// Todas las rutas de usuarios son exclusivas del módulo tickets
+router.use(autenticar, soloModulo('tickets'), soloAdmin);
 
 function formatUsuario(row) {
   return {

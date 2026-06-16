@@ -4,6 +4,9 @@ const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../db/connection');
 const { autenticar } = require('../middleware/auth');
 const { soloAdmin } = require('../middleware/adminOnly');
+const { soloModulo } = require('../middleware/soloModulo');
+
+const soloSavean = soloModulo('savean');
 
 const router = express.Router();
 
@@ -152,7 +155,7 @@ router.post('/guias', async (req, res) => {
 });
 
 // GET /api/savean/guias — AUTH (inspector/admin)
-router.get('/guias', autenticar, async (_req, res) => {
+router.get('/guias', autenticar, soloSavean, async (_req, res) => {
   try {
     // Auto-expire overdue pending guias
     await pool.query(
@@ -180,7 +183,7 @@ router.get('/guias/token/:token', async (req, res) => {
 });
 
 // PATCH /api/savean/guias/:id/verificar — AUTH
-router.patch('/guias/:id/verificar', autenticar, async (req, res) => {
+router.patch('/guias/:id/verificar', autenticar, soloSavean, async (req, res) => {
   try {
     const { id } = req.params;
     const { barreraId } = req.body;
@@ -212,7 +215,7 @@ router.patch('/guias/:id/verificar', autenticar, async (req, res) => {
 });
 
 // PATCH /api/savean/guias/:id/denegar — AUTH
-router.patch('/guias/:id/denegar', autenticar, async (req, res) => {
+router.patch('/guias/:id/denegar', autenticar, soloSavean, async (req, res) => {
   try {
     const { id } = req.params;
     const { barreraId, motivo } = req.body;
@@ -245,7 +248,7 @@ router.patch('/guias/:id/denegar', autenticar, async (req, res) => {
 });
 
 // PATCH /api/savean/guias/:id/modificar-verificar — AUTH
-router.patch('/guias/:id/modificar-verificar', autenticar, async (req, res) => {
+router.patch('/guias/:id/modificar-verificar', autenticar, soloSavean, async (req, res) => {
   try {
     const { id } = req.params;
     const { barreraId, cambios = {} } = req.body;
@@ -297,7 +300,7 @@ router.get('/barreras', async (_req, res) => {
 });
 
 // POST /api/savean/barreras — AUTH + admin
-router.post('/barreras', autenticar, soloAdmin, async (req, res) => {
+router.post('/barreras', autenticar, soloSavean, soloAdmin, async (req, res) => {
   try {
     const { nombre, ruta, kilometro, departamento, activa = true } = req.body;
     if (!nombre) return res.status(400).json({ error: 'nombre es obligatorio' });
@@ -317,7 +320,7 @@ router.post('/barreras', autenticar, soloAdmin, async (req, res) => {
 // ─── barreristas ──────────────────────────────────────────────────────────────
 
 // GET /api/savean/barreristas — AUTH
-router.get('/barreristas', autenticar, async (_req, res) => {
+router.get('/barreristas', autenticar, soloSavean, async (_req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM barreristas_savean ORDER BY nombre ASC');
     return res.json({ barreristas: rows.map(formatBarrerista) });
@@ -328,7 +331,7 @@ router.get('/barreristas', autenticar, async (_req, res) => {
 });
 
 // POST /api/savean/barreristas — AUTH + admin
-router.post('/barreristas', autenticar, soloAdmin, async (req, res) => {
+router.post('/barreristas', autenticar, soloSavean, soloAdmin, async (req, res) => {
   try {
     const { nombre, usuario, activo = true } = req.body;
     if (!nombre || !usuario) return res.status(400).json({ error: 'nombre y usuario son obligatorios' });
@@ -346,7 +349,7 @@ router.post('/barreristas', autenticar, soloAdmin, async (req, res) => {
 });
 
 // PATCH /api/savean/barreristas/:id — AUTH + admin
-router.patch('/barreristas/:id', autenticar, soloAdmin, async (req, res) => {
+router.patch('/barreristas/:id', autenticar, soloSavean, soloAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, usuario, activo } = req.body;
@@ -368,7 +371,7 @@ router.patch('/barreristas/:id', autenticar, soloAdmin, async (req, res) => {
 });
 
 // DELETE /api/savean/barreristas/:id — AUTH + admin
-router.delete('/barreristas/:id', autenticar, soloAdmin, async (req, res) => {
+router.delete('/barreristas/:id', autenticar, soloSavean, soloAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const [result] = await pool.query('DELETE FROM barreristas_savean WHERE barreristId = ?', [id]);

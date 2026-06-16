@@ -46,26 +46,6 @@ async function seed() {
     modulo: 'savean',
   });
 
-  // ── Formularios ─────────────────────────────────────────────────────────────
-  const formularios = [
-    { programa: 'Microcréditos 2024', descripcion: 'Formulario para solicitar microcréditos 2024' },
-    { programa: 'Cosecha y Acarreo 2026', descripcion: 'Formulario para beneficiarios de Cosecha y Acarreo 2026' },
-    { programa: 'Programa Aprender, Trabajar y Producir', descripcion: 'Formulario para el programa Aprender, Trabajar y Producir' },
-  ];
-
-  for (const f of formularios) {
-    const [existing] = await pool.query('SELECT formularioId FROM formularios WHERE programa = ?', [f.programa]);
-    if (existing.length === 0) {
-      await pool.query(
-        `INSERT INTO formularios (formularioId, programa, descripcion, activo) VALUES (?, ?, ?, 1)`,
-        [uuidv4(), f.programa, f.descripcion]
-      );
-      console.log(`Formulario creado: ${f.programa}`);
-    } else {
-      console.log(`Formulario ya existe: ${f.programa}`);
-    }
-  }
-
   // ── Barreras SAVEAN ─────────────────────────────────────────────────────────
   const barreras = [
     { nombre: 'San Carlos',  ruta: 'Ruta Nac. 40',   kilometro: 'km 3379', departamento: 'Sarmiento' },

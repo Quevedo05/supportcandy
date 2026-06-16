@@ -2,6 +2,9 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../db/connection');
 const { autenticar } = require('../middleware/auth');
+const { soloModulo } = require('../middleware/soloModulo');
+
+const soloTickets = soloModulo('tickets');
 
 const router = express.Router();
 
@@ -116,7 +119,7 @@ router.post('/crear-desde-formulario', async (req, res) => {
 });
 
 // GET /api/tickets — JWT required
-router.get('/', autenticar, async (req, res) => {
+router.get('/', autenticar, soloTickets, async (req, res) => {
   try {
     const { estado, formularioId, asignadoA } = req.query;
     const skip = Math.max(0, parseInt(req.query.skip || '0', 10));
@@ -178,7 +181,7 @@ router.get('/', autenticar, async (req, res) => {
 });
 
 // PATCH /api/tickets/:ticketId — JWT required
-router.patch('/:ticketId', autenticar, async (req, res) => {
+router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
     const { estado, prioridad, asignadoA } = req.body;
@@ -259,7 +262,7 @@ router.patch('/:ticketId', autenticar, async (req, res) => {
 });
 
 // POST /api/tickets/:ticketId/comentarios — JWT required
-router.post('/:ticketId/comentarios', autenticar, async (req, res) => {
+router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
     const { contenido } = req.body;

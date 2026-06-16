@@ -3,6 +3,9 @@ const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../db/connection');
 const { autenticar } = require('../middleware/auth');
 const { soloAdmin } = require('../middleware/adminOnly');
+const { soloModulo } = require('../middleware/soloModulo');
+
+const soloTickets = soloModulo('tickets');
 
 const router = express.Router();
 
@@ -47,7 +50,7 @@ router.get('/publicos/activos', async (_req, res) => {
 });
 
 // GET /api/formularios — JWT required
-router.get('/', autenticar, async (_req, res) => {
+router.get('/', autenticar, soloTickets, async (_req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT formularioId, nombre, programa, descripcion, activo, campos, personas_fisicas, personas_juridicas, creado_en, actualizado_en
@@ -62,7 +65,7 @@ router.get('/', autenticar, async (_req, res) => {
 });
 
 // POST /api/formularios — JWT + admin required
-router.post('/', autenticar, soloAdmin, async (req, res) => {
+router.post('/', autenticar, soloTickets, soloAdmin, async (req, res) => {
   try {
     const {
       nombre = '',
@@ -103,7 +106,7 @@ router.post('/', autenticar, soloAdmin, async (req, res) => {
 });
 
 // PATCH /api/formularios/:formularioId/toggle-activo — JWT + admin required
-router.patch('/:formularioId/toggle-activo', autenticar, soloAdmin, async (req, res) => {
+router.patch('/:formularioId/toggle-activo', autenticar, soloTickets, soloAdmin, async (req, res) => {
   try {
     const { formularioId } = req.params;
     const [rows] = await pool.query(
@@ -128,7 +131,7 @@ router.patch('/:formularioId/toggle-activo', autenticar, soloAdmin, async (req, 
 });
 
 // PATCH /api/formularios/:formularioId — update info and/or campos — JWT + admin required
-router.patch('/:formularioId', autenticar, soloAdmin, async (req, res) => {
+router.patch('/:formularioId', autenticar, soloTickets, soloAdmin, async (req, res) => {
   try {
     const { formularioId } = req.params;
     const [rows] = await pool.query(
@@ -167,7 +170,7 @@ router.patch('/:formularioId', autenticar, soloAdmin, async (req, res) => {
 });
 
 // DELETE /api/formularios/:formularioId — JWT + admin required
-router.delete('/:formularioId', autenticar, soloAdmin, async (req, res) => {
+router.delete('/:formularioId', autenticar, soloTickets, soloAdmin, async (req, res) => {
   try {
     const { formularioId } = req.params;
     const [rows] = await pool.query(
