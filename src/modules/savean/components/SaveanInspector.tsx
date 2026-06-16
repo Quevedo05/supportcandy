@@ -233,7 +233,7 @@ interface GuiaDetalleProps {
   onVolver: () => void;
 }
 
-function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
+export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
   const { barreras, verificarGuia, denegarGuia, modificarYVerificarGuia, obtenerGuia } = useSavean();
 
   const [barreraId, setBarreraId] = useState(guia.barreraId ?? '');

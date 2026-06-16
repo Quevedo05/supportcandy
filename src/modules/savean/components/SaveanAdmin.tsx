@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useSavean } from '../context/SaveanContext';
+import { GuiaDetalle } from './SaveanInspector';
+import { GuiaSavean } from '../types/savean';
 import {
   Users, MapPin, Plus, RefreshCw, Clock,
-  FileText, Shield, Trash2, UserPlus,
+  FileText, Shield, Trash2, UserPlus, Eye,
 } from 'lucide-react';
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
@@ -101,6 +103,7 @@ export function SaveanAdmin() {
   const { usuario } = useAuth();
   const { guias, barreras, barreristas, agregarBarrerista, eliminarBarrerista } = useSavean();
 
+  const [guiaVista, setGuiaVista] = useState<GuiaSavean | null>(null);
   const [fechaFiltro, setFechaFiltro] = useState(hoyISO());
   const [busquedaPendientes, setBusquedaPendientes] = useState('');
   const [verTodasGuias, setVerTodasGuias] = useState(false);
@@ -241,6 +244,10 @@ export function SaveanAdmin() {
       setSaveanUsers(prev => prev.filter(u => u.usuarioId !== usuarioId));
     } catch { /* ignore */ }
   };
+
+  if (guiaVista) {
+    return <GuiaDetalle guia={guiaVista} onVolver={() => setGuiaVista(null)} />;
+  }
 
   return (
     <div className="space-y-6 text-sm max-w-5xl">
@@ -400,15 +407,17 @@ export function SaveanAdmin() {
                   <th className="text-left pb-1 font-medium">Estado</th>
                   <th className="text-left pb-1 font-medium">Barrera</th>
                   <th className="text-left pb-1 font-medium">Inspector</th>
+                  <th className="pb-1" />
                 </tr>
               </thead>
               <tbody>
                 {registroHoy.map(g => (
-                  <tr key={g.id} className="border-b border-gray-50">
+                  <tr key={g.id} className="border-b border-gray-50 hover:bg-orange-50 transition cursor-pointer" onClick={() => setGuiaVista(g)}>
                     <td className="py-1.5 font-mono font-semibold text-orange-700">{g.numero}</td>
                     <td className="py-1.5"><EstadoBadge estado={g.estado} /></td>
                     <td className="py-1.5 text-gray-600">{g.barrieraNombre ?? '—'}</td>
                     <td className="py-1.5 text-gray-600">{g.inspectorNombre ?? '—'}</td>
+                    <td className="py-1.5 text-right pr-1"><Eye size={13} className="text-orange-400" /></td>
                   </tr>
                 ))}
               </tbody>
@@ -432,15 +441,17 @@ export function SaveanAdmin() {
                     <th className="text-left pb-1 font-medium">Estado</th>
                     <th className="text-left pb-1 font-medium">Remitente</th>
                     <th className="text-left pb-1 font-medium">Inspector</th>
+                    <th className="pb-1" />
                   </tr>
                 </thead>
                 <tbody>
                   {guiasMostradas.map(g => (
-                    <tr key={g.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                    <tr key={g.id} className="border-b border-gray-50 hover:bg-orange-50 transition cursor-pointer" onClick={() => setGuiaVista(g)}>
                       <td className="py-1.5 font-mono font-semibold text-orange-700">{g.numero}</td>
                       <td className="py-1.5"><EstadoBadge estado={g.estado} /></td>
                       <td className="py-1.5 text-gray-700">{g.remitenteNombre}</td>
                       <td className="py-1.5 text-gray-500">{g.inspectorUsuario ?? '—'}</td>
+                      <td className="py-1.5 text-right pr-1"><Eye size={13} className="text-orange-400" /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -476,14 +487,16 @@ export function SaveanAdmin() {
                     <th className="text-left pb-1 font-medium">N° Guía</th>
                     <th className="text-left pb-1 font-medium">Remitente</th>
                     <th className="text-left pb-1 font-medium">Vencimiento</th>
+                    <th className="pb-1" />
                   </tr>
                 </thead>
                 <tbody>
                   {pendientesMostradas.map(g => (
-                    <tr key={g.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                    <tr key={g.id} className="border-b border-gray-50 hover:bg-orange-50 transition cursor-pointer" onClick={() => setGuiaVista(g)}>
                       <td className="py-1.5 font-mono font-semibold text-orange-700">{g.numero}</td>
                       <td className="py-1.5 text-gray-700">{g.remitenteNombre}</td>
                       <td className="py-1.5 text-gray-500">{formatFechaCorta(g.fechaVencimiento)}</td>
+                      <td className="py-1.5 text-right pr-1"><Eye size={13} className="text-orange-400" /></td>
                     </tr>
                   ))}
                 </tbody>
