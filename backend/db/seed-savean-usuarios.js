@@ -8,14 +8,23 @@ async function seed() {
   const inspectorHash = await bcrypt.hash('savean123',   10);
 
   const usuarios = [
-    { id: uuidv4(), nombre: 'Director SAVEAN',  email: 'director@savean.gob.ar',  hash: directorHash,  rol: 'admin',        modulo: 'savean' },
-    { id: uuidv4(), nombre: 'Inspector SAVEAN', email: 'inspector@savean.gob.ar', hash: inspectorHash, rol: 'contribuidor', modulo: 'savean' },
+    { id: uuidv4(), nombre: 'Director SAVEAN',  email: 'director@savean.gob.ar',  hash: directorHash,  rol: 'admin',     modulo: 'savean' },
+    { id: uuidv4(), nombre: 'Inspector SAVEAN', email: 'inspector@savean.gob.ar', hash: inspectorHash, rol: 'inspector', modulo: 'savean' },
   ];
 
   for (const u of usuarios) {
-    const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [u.email]);
+    const [existing] = await pool.query('SELECT usuarioId, password_hash FROM usuarios WHERE email = ?', [u.email]);
     if (existing.length > 0) {
-      console.log(`Ya existe: ${u.email} — saltando`);
+      // Si existe pero sin contraseña (pendiente activación), le seteamos la contraseña
+      if (!existing[0].password_hash) {
+        await pool.query(
+          'UPDATE usuarios SET password_hash = ?, rol = ?, modulo = ?, activo = 1, invitation_token = NULL, invitation_expires_at = NULL WHERE email = ?',
+          [u.hash, u.rol, u.modulo, u.email]
+        );
+        console.log(`Actualizado: ${u.email} — contraseña seteada`);
+      } else {
+        console.log(`Ya existe con contraseña: ${u.email} — saltando`);
+      }
       continue;
     }
     await pool.query(
