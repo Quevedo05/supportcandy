@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import jsQR from 'jsqr';
 import { useSavean } from '../context/SaveanContext';
-import { GuiaSavean, EstadoGuia } from '../types/savean';
+import { GuiaSavean, EstadoGuia, ItemMercaderia } from '../types/savean';
 import {
   CheckCircle2, XCircle, Clock, AlertCircle, Search, ChevronLeft,
   Package, Truck, User, MapPin, Edit3, X, Shield, Eye, Camera,
@@ -234,6 +234,14 @@ function formatFecha(iso: string) {
 }
 
 // ───────────────────────────── Detail view ────────────────────────────────
+const TIPOS_REMITENTE_OPT = ['Galpón de Empaque', 'Cámara de Frío', 'Productor', 'Industria'];
+const MERCADOS_INT_OPT = ['Depósito Mayorista', 'Mercado Concentrador', 'Supermercado', 'Industria'];
+const TIPOS_ENVASE_OPT = ['Cajón', 'Bolsa', 'Bins', 'Granel', 'Bandeja', 'Otro'];
+
+const fld = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none';
+const lbl = 'block text-xs font-semibold text-gray-600 mb-1';
+const sec = 'text-xs font-bold text-orange-600 uppercase tracking-wide border-b border-orange-200 pb-1 mb-3';
+
 interface GuiaDetalleProps {
   guia: GuiaSavean;
   onVolver: () => void;
@@ -247,17 +255,32 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
   const [motivo, setMotivo] = useState('');
   const [showModificarModal, setShowModificarModal] = useState(false);
   const [cambios, setCambios] = useState({
+    remitenteNombre: guia.remitenteNombre,
+    remitenteRenspa: guia.remitenteRenspa ?? '',
+    remitenteTipo: guia.remitenteTipo ?? '',
+    destinatarioNombre: guia.destinatarioNombre,
+    destinoTipo: guia.destinoTipo as 'externo' | 'interno',
+    destinoPais: guia.destinoPais ?? '',
+    destinoPuntoSalida: guia.destinoPuntoSalida ?? '',
+    destinoMercadoInterno: guia.destinoMercadoInterno ?? '',
+    destinoProvincia: guia.destinoProvincia ?? '',
+    transporteEmpresa: guia.transporteEmpresa ?? '',
     transporteConductor: guia.transporteConductor,
     transporteCamionPatente: guia.transporteCamionPatente,
     transporteAcopladoPatente: guia.transporteAcopladoPatente ?? '',
     transportePrecintos: guia.transportePrecintos ?? '',
   });
+  const [itemsCambios, setItemsCambios] = useState<ItemMercaderia[]>([...guia.items]);
   const [accion, setAccion] = useState<'ok' | 'err' | null>(null);
   const [accionMsg, setAccionMsg] = useState('');
 
   const barrerasActivas = barreras.filter((b) => b.activa);
   const guiaActual = obtenerGuia(guia.id) ?? guia;
   const puedeActuar = guiaActual.estado === 'pendiente';
+
+  const actualizarItem = (idx: number, campo: keyof ItemMercaderia, valor: string | number) => {
+    setItemsCambios(prev => prev.map((it, i) => i === idx ? { ...it, [campo]: valor } : it));
+  };
 
   const handleVerificar = async () => {
     if (!barreraId) { setAccion('err'); setAccionMsg('Seleccioná una barrera antes de verificar.'); return; }
@@ -266,6 +289,7 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
       await verificarGuia(guiaActual.id, barreraId);
       setAccion('ok');
       setAccionMsg(`Guía verificada en ${barrera?.nombre ?? barreraId}`);
+      setTimeout(() => onVolver(), 2000);
     } catch {
       setAccion('err');
       setAccionMsg('Error al verificar la guía. Intentá de nuevo.');
@@ -281,6 +305,7 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
       setShowDenegarModal(false);
       setAccion('ok');
       setAccionMsg(`Guía denegada en ${barrera?.nombre ?? barreraId}`);
+      setTimeout(() => onVolver(), 2000);
     } catch {
       setAccion('err');
       setAccionMsg('Error al denegar la guía. Intentá de nuevo.');
@@ -291,10 +316,11 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
     if (!barreraId) { setAccion('err'); setAccionMsg('Seleccioná una barrera.'); return; }
     const barrera = barreras.find((b) => b.id === barreraId);
     try {
-      await modificarYVerificarGuia(guiaActual.id, barreraId, cambios);
+      await modificarYVerificarGuia(guiaActual.id, barreraId, { ...cambios, items: itemsCambios });
       setShowModificarModal(false);
       setAccion('ok');
       setAccionMsg(`Guía modificada y verificada en ${barrera?.nombre ?? barreraId}`);
+      setTimeout(() => onVolver(), 2000);
     } catch {
       setAccion('err');
       setAccionMsg('Error al modificar la guía. Intentá de nuevo.');
@@ -527,10 +553,10 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
         </div>
       )}
 
-      {/* Modal: Modificar y Verificar */}
+      {/* Modal: Modificar y Verificar — todos los campos */}
       {showModificarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Edit3 size={20} className="text-orange-500" /> Modificar y Verificar
@@ -539,47 +565,159 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
                 <X size={20} />
               </button>
             </div>
-            <p className="text-sm text-gray-600 mb-5">
-              Corregí los datos incorrectos y luego verificá la guía.
-            </p>
-            <div className="space-y-4">
+            <p className="text-sm text-gray-500 mb-5">Corregí los datos que no coincidan y luego verificá la guía.</p>
+
+            <div className="space-y-6">
+              {/* Remitente */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Conductor</label>
-                <input
-                  type="text"
-                  value={cambios.transporteConductor}
-                  onChange={(e) => setCambios({ ...cambios, transporteConductor: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none"
-                />
+                <p className={sec}>Remitente</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className={lbl}>Nombre / Razón Social</label>
+                    <input type="text" className={fld} value={cambios.remitenteNombre}
+                      onChange={e => setCambios({ ...cambios, remitenteNombre: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={lbl}>RENSPA N°</label>
+                    <input type="text" className={fld} value={cambios.remitenteRenspa}
+                      onChange={e => setCambios({ ...cambios, remitenteRenspa: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Tipo de Remitente</label>
+                    <select className={fld} value={cambios.remitenteTipo}
+                      onChange={e => setCambios({ ...cambios, remitenteTipo: e.target.value })}>
+                      <option value="">— Seleccionar —</option>
+                      {TIPOS_REMITENTE_OPT.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
               </div>
+
+              {/* Destinatario */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Patente Camión</label>
-                <input
-                  type="text"
-                  value={cambios.transporteCamionPatente}
-                  onChange={(e) => setCambios({ ...cambios, transporteCamionPatente: e.target.value.toUpperCase() })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none"
-                />
+                <p className={sec}>Destinatario</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className={lbl}>Nombre / Razón Social</label>
+                    <input type="text" className={fld} value={cambios.destinatarioNombre}
+                      onChange={e => setCambios({ ...cambios, destinatarioNombre: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Tipo de Destino</label>
+                    <select className={fld} value={cambios.destinoTipo}
+                      onChange={e => setCambios({ ...cambios, destinoTipo: e.target.value as 'externo' | 'interno' })}>
+                      <option value="externo">Mercado Externo</option>
+                      <option value="interno">Mercado Interno</option>
+                    </select>
+                  </div>
+                  {cambios.destinoTipo === 'externo' ? (
+                    <>
+                      <div>
+                        <label className={lbl}>País de Destino</label>
+                        <input type="text" className={fld} value={cambios.destinoPais}
+                          onChange={e => setCambios({ ...cambios, destinoPais: e.target.value })} />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className={lbl}>Punto de Salida</label>
+                        <input type="text" className={fld} value={cambios.destinoPuntoSalida}
+                          onChange={e => setCambios({ ...cambios, destinoPuntoSalida: e.target.value })} />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <label className={lbl}>Tipo de Mercado Interno</label>
+                        <select className={fld} value={cambios.destinoMercadoInterno}
+                          onChange={e => setCambios({ ...cambios, destinoMercadoInterno: e.target.value })}>
+                          <option value="">— Seleccionar —</option>
+                          {MERCADOS_INT_OPT.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={lbl}>Provincia de Destino</label>
+                        <input type="text" className={fld} value={cambios.destinoProvincia}
+                          onChange={e => setCambios({ ...cambios, destinoProvincia: e.target.value })} />
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
+
+              {/* Ítems de mercadería */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Patente Acoplado (opcional)</label>
-                <input
-                  type="text"
-                  value={cambios.transporteAcopladoPatente}
-                  onChange={(e) => setCambios({ ...cambios, transporteAcopladoPatente: e.target.value.toUpperCase() })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none"
-                />
+                <p className={sec}>Mercadería</p>
+                <div className="space-y-4">
+                  {itemsCambios.map((it, idx) => (
+                    <div key={it.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <p className="text-xs font-bold text-orange-500 mb-2">Producto {idx + 1} — {it.especie}</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <div>
+                          <label className={lbl}>Variedad</label>
+                          <input type="text" className={fld} value={it.variedad ?? ''}
+                            onChange={e => actualizarItem(idx, 'variedad', e.target.value)} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Tipo de Envase</label>
+                          <select className={fld} value={it.tipoEnvase ?? ''}
+                            onChange={e => actualizarItem(idx, 'tipoEnvase', e.target.value)}>
+                            <option value="">—</option>
+                            {TIPOS_ENVASE_OPT.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className={lbl}>Lugar de Empaque</label>
+                          <input type="text" className={fld} value={it.lugarEmpaque ?? ''}
+                            onChange={e => actualizarItem(idx, 'lugarEmpaque', e.target.value)} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Cantidad (kg)</label>
+                          <input type="number" className={fld} value={it.cantidadKg ?? ''}
+                            onChange={e => actualizarItem(idx, 'cantidadKg', e.target.value ? Number(e.target.value) : '')} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Bultos</label>
+                          <input type="number" className={fld} value={it.cantidadBultos ?? ''}
+                            onChange={e => actualizarItem(idx, 'cantidadBultos', e.target.value ? Number(e.target.value) : '')} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              {/* Transporte */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Precintos (opcional)</label>
-                <input
-                  type="text"
-                  value={cambios.transportePrecintos}
-                  onChange={(e) => setCambios({ ...cambios, transportePrecintos: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none"
-                />
+                <p className={sec}>Transporte</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={lbl}>Conductor</label>
+                    <input type="text" className={fld} value={cambios.transporteConductor}
+                      onChange={e => setCambios({ ...cambios, transporteConductor: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Empresa de Transporte</label>
+                    <input type="text" className={fld} value={cambios.transporteEmpresa}
+                      onChange={e => setCambios({ ...cambios, transporteEmpresa: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Patente Camión</label>
+                    <input type="text" className={fld} value={cambios.transporteCamionPatente}
+                      onChange={e => setCambios({ ...cambios, transporteCamionPatente: e.target.value.toUpperCase() })} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Patente Acoplado</label>
+                    <input type="text" className={fld} value={cambios.transporteAcopladoPatente}
+                      onChange={e => setCambios({ ...cambios, transporteAcopladoPatente: e.target.value.toUpperCase() })} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={lbl}>Precintos</label>
+                    <input type="text" className={fld} value={cambios.transportePrecintos}
+                      onChange={e => setCambios({ ...cambios, transportePrecintos: e.target.value })} />
+                  </div>
+                </div>
               </div>
             </div>
+
             <div className="flex gap-3 mt-6">
               <button
                 onClick={handleModificarVerificar}

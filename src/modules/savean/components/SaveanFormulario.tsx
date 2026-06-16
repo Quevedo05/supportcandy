@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useSavean } from '../context/SaveanContext';
 import { GuiaSavean } from '../types/savean';
 import { Plus, Trash2, CheckCircle2 } from 'lucide-react';
@@ -139,19 +140,26 @@ export function SaveanFormulario({ onVolver }: { onVolver?: () => void }) {
   };
 
   if (guiaCreada) {
+    const verificationUrl = `${window.location.origin}/?verificar=${guiaCreada.token}`;
     return (
       <div className="max-w-xl mx-auto mt-8 text-center">
         <div className="bg-white border-2 border-green-500 rounded-xl p-8 shadow">
           <CheckCircle2 size={56} className="mx-auto text-green-600 mb-4" />
           <h2 className="text-2xl font-bold text-green-700 mb-2">¡Guía registrada!</h2>
-          <p className="text-gray-500 text-sm mb-4">Tu número de guía es:</p>
-          <div className="text-3xl font-bold text-orange-600 mb-2">{guiaCreada.numero}</div>
+          <p className="text-gray-500 text-sm mb-2">Tu número de guía es:</p>
+          <div className="text-3xl font-bold text-orange-600 mb-4">{guiaCreada.numero}</div>
+
+          <div className="my-4 flex flex-col items-center gap-2">
+            <p className="text-xs font-bold text-gray-700 uppercase tracking-widest">QR a presentar en Barrera</p>
+            <div className="p-3 border-2 border-orange-200 rounded-xl bg-white inline-block">
+              <QRCodeSVG value={verificationUrl} size={160} level="M" />
+            </div>
+            <p className="text-xs text-gray-400">Sacá una captura de pantalla para presentar en la barrera</p>
+          </div>
+
           <p className="text-gray-500 text-xs mb-6">
             Válida por 20 días · Vence el{' '}
             {new Date(guiaCreada.fechaVencimiento).toLocaleDateString('es-AR')}
-          </p>
-          <p className="text-sm text-gray-600 mb-6">
-            Presentá este número en la barrera fitosanitaria para la verificación.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button

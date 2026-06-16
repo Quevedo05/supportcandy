@@ -271,10 +271,21 @@ router.patch('/guias/:id/modificar-verificar', autenticar, soloSavean, async (re
     ];
     const vals = [barreraId, barrieraNombre, req.usuario.email, inspectorNombre];
 
-    if (cambios.transporteConductor !== undefined)       { sets.push('transporte_conductor = ?');        vals.push(cambios.transporteConductor); }
-    if (cambios.transporteCamionPatente !== undefined)   { sets.push('transporte_camion_patente = ?');   vals.push(cambios.transporteCamionPatente); }
+    if (cambios.remitenteNombre !== undefined)        { sets.push('remitente_nombre = ?');          vals.push(cambios.remitenteNombre); }
+    if (cambios.remitenteRenspa !== undefined)         { sets.push('remitente_renspa = ?');           vals.push(cambios.remitenteRenspa || null); }
+    if (cambios.remitenteTipo !== undefined)           { sets.push('remitente_tipo = ?');             vals.push(cambios.remitenteTipo || null); }
+    if (cambios.destinatarioNombre !== undefined)      { sets.push('destinatario_nombre = ?');        vals.push(cambios.destinatarioNombre); }
+    if (cambios.destinoTipo !== undefined)             { sets.push('destino_tipo = ?');               vals.push(cambios.destinoTipo); }
+    if (cambios.destinoPais !== undefined)             { sets.push('destino_pais = ?');               vals.push(cambios.destinoPais || null); }
+    if (cambios.destinoPuntoSalida !== undefined)      { sets.push('destino_punto_salida = ?');       vals.push(cambios.destinoPuntoSalida || null); }
+    if (cambios.destinoMercadoInterno !== undefined)   { sets.push('destino_mercado_interno = ?');    vals.push(cambios.destinoMercadoInterno || null); }
+    if (cambios.destinoProvincia !== undefined)        { sets.push('destino_provincia = ?');          vals.push(cambios.destinoProvincia || null); }
+    if (cambios.items !== undefined)                   { sets.push('items = ?');                      vals.push(JSON.stringify(cambios.items)); }
+    if (cambios.transporteEmpresa !== undefined)       { sets.push('transporte_empresa = ?');         vals.push(cambios.transporteEmpresa || null); }
+    if (cambios.transporteConductor !== undefined)     { sets.push('transporte_conductor = ?');       vals.push(cambios.transporteConductor); }
+    if (cambios.transporteCamionPatente !== undefined) { sets.push('transporte_camion_patente = ?');  vals.push(cambios.transporteCamionPatente); }
     if (cambios.transporteAcopladoPatente !== undefined) { sets.push('transporte_acoplado_patente = ?'); vals.push(cambios.transporteAcopladoPatente || null); }
-    if (cambios.transportePrecintos !== undefined)       { sets.push('transporte_precintos = ?');        vals.push(cambios.transportePrecintos || null); }
+    if (cambios.transportePrecintos !== undefined)     { sets.push('transporte_precintos = ?');       vals.push(cambios.transportePrecintos || null); }
 
     vals.push(id);
     await pool.query(`UPDATE guias_savean SET ${sets.join(', ')} WHERE guiaId = ?`, vals);
