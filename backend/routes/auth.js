@@ -35,6 +35,10 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Usuario inactivo. Contacte al administrador.' });
     }
 
+    if (!usuario.password_hash) {
+      return res.status(401).json({ error: 'Tu cuenta está pendiente de activación. Revisá tu email.' });
+    }
+
     const passwordValida = await bcrypt.compare(password, usuario.password_hash);
     if (!passwordValida) {
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
@@ -78,6 +82,68 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error('[POST /auth/login]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET /api/auth/invitacion/:token — PUBLIC (obtener datos del usuario pendiente)
+router.get('/invitacion/:token', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT usuarioId, nombre, email, rol, modulo, invitation_expires_at
+       FROM usuarios WHERE invitation_token = ? AND password_hash = ''`,
+      [req.params.token]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Token inválido o ya utilizado' });
+    const u = rows[0];
+    if (new Date(u.invitation_expires_at) < new Date()) {
+      return res.status(410).json({ error: 'El link expiró. Pedile al administrador que te reenvíe la invitación.' });
+    }
+    return res.json({ nombre: u.nombre, email: u.email, rol: u.rol, modulo: u.modulo });
+  } catch (err) {
+    console.error('[GET /auth/invitacion/:token]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST /api/auth/activar — PUBLIC (establecer contraseña y activar cuenta)
+router.post('/activar', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password || password.length < 6) {
+      return res.status(400).json({ error: 'Token y contraseña (mínimo 6 caracteres) son requeridos' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT usuarioId, nombre, email, rol, modulo, invitation_expires_at
+       FROM usuarios WHERE invitation_token = ? AND password_hash = ''`,
+      [token]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Token inválido o ya utilizado' });
+    const u = rows[0];
+    if (new Date(u.invitation_expires_at) < new Date()) {
+      return res.status(410).json({ error: 'El link expiró. Pedile al administrador que te reenvíe la invitación.' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    await pool.query(
+      `UPDATE usuarios SET password_hash = ?, invitation_token = NULL, invitation_expires_at = NULL WHERE usuarioId = ?`,
+      [passwordHash, u.usuarioId]
+    );
+
+    const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
+    const jwtToken = jwt.sign(
+      { usuarioId: u.usuarioId, nombre: u.nombre, email: u.email, rol: u.rol, modulo: u.modulo || 'tickets' },
+      process.env.JWT_SECRET,
+      { expiresIn }
+    );
+
+    return res.status(200).json({
+      token: jwtToken,
+      usuario: { usuarioId: u.usuarioId, nombre: u.nombre, email: u.email, rol: u.rol, modulo: u.modulo || 'tickets' },
+    });
+  } catch (err) {
+    console.error('[POST /auth/activar]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

@@ -1,10 +1,12 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../db/connection');
 const { autenticar } = require('../middleware/auth');
 const { soloAdmin } = require('../middleware/adminOnly');
 const { soloModulo } = require('../middleware/soloModulo');
+const { enviarInvitacion } = require('../services/mailer');
 
 const router = express.Router();
 
@@ -17,6 +19,7 @@ function formatUsuario(row) {
     nombre: row.nombre,
     email: row.email,
     rol: row.rol,
+    modulo: row.modulo || 'tickets',
     activo: Boolean(row.activo),
     creadoEn: row.creado_en instanceof Date ? row.creado_en.toISOString() : row.creado_en,
     actualizadoEn: row.actualizado_en instanceof Date ? row.actualizado_en.toISOString() : row.actualizado_en,
@@ -27,7 +30,7 @@ function formatUsuario(row) {
 router.get('/', async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT usuarioId, nombre, email, rol, activo, creado_en, actualizado_en FROM usuarios ORDER BY creado_en ASC'
+      'SELECT usuarioId, nombre, email, rol, modulo, activo, creado_en, actualizado_en FROM usuarios ORDER BY creado_en ASC'
     );
     return res.status(200).json({
       usuarios: rows.map(formatUsuario),
@@ -39,62 +42,49 @@ router.get('/', async (_req, res) => {
   }
 });
 
-// POST /api/usuarios
+// POST /api/usuarios — crea usuario y envía invitación por email
 router.post('/', async (req, res) => {
   try {
-    const { nombre, email, password, rol } = req.body;
+    const { nombre, email, rol, modulo = 'tickets' } = req.body;
 
     const errores = {};
-    if (!nombre || nombre.trim().length < 2) {
-      errores.nombre = 'El nombre debe tener al menos 2 caracteres';
-    } else if (nombre.trim().length > 100) {
-      errores.nombre = 'El nombre no puede superar 100 caracteres';
-    }
-
+    if (!nombre || nombre.trim().length < 2) errores.nombre = 'El nombre debe tener al menos 2 caracteres';
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(email.trim())) {
-      errores.email = 'El email no es válido';
-    } else if (email.trim().length > 255) {
-      errores.email = 'El email no puede superar 255 caracteres';
-    }
-
-    if (!password || password.length < 6) {
-      errores.password = 'La contraseña debe tener al menos 6 caracteres';
-    }
-
-    if (!rol || !['admin', 'contribuidor'].includes(rol)) {
-      errores.rol = "El rol debe ser 'admin' o 'contribuidor'";
-    }
+    if (!email || !emailRegex.test(email.trim())) errores.email = 'El email no es válido';
+    if (!rol || !['admin', 'contribuidor', 'inspector'].includes(rol)) errores.rol = 'Rol inválido';
+    if (!['tickets', 'savean'].includes(modulo)) errores.modulo = 'Módulo inválido';
 
     if (Object.keys(errores).length > 0) {
       return res.status(400).json({ error: 'Datos inválidos', errores });
     }
 
     const emailNorm = email.trim().toLowerCase();
-
-    const [existing] = await pool.query(
-      'SELECT usuarioId FROM usuarios WHERE email = ?',
-      [emailNorm]
-    );
-    if (existing.length > 0) {
-      return res.status(409).json({ error: 'Este email ya está registrado' });
-    }
+    const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [emailNorm]);
+    if (existing.length > 0) return res.status(409).json({ error: 'Este email ya está registrado' });
 
     const usuarioId = uuidv4();
-    const passwordHash = await bcrypt.hash(password, 10);
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     await pool.query(
-      `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, activo)
-       VALUES (?, ?, ?, ?, ?, 1)`,
-      [usuarioId, nombre.trim(), emailNorm, passwordHash, rol]
+      `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, modulo, activo, invitation_token, invitation_expires_at)
+       VALUES (?, ?, ?, '', ?, ?, 1, ?, ?)`,
+      [usuarioId, nombre.trim(), emailNorm, rol, modulo, token, expires]
     );
 
+    try {
+      await enviarInvitacion({ nombre: nombre.trim(), email: emailNorm, token, modulo, rol });
+    } catch (mailErr) {
+      console.error('[Mailer] Error enviando invitación:', mailErr.message);
+      // No fallar el request si el mail falla — el admin puede reenviar
+    }
+
     const [newRows] = await pool.query(
-      'SELECT usuarioId, nombre, email, rol, activo, creado_en, actualizado_en FROM usuarios WHERE usuarioId = ?',
+      'SELECT usuarioId, nombre, email, rol, modulo, activo, creado_en, actualizado_en FROM usuarios WHERE usuarioId = ?',
       [usuarioId]
     );
 
-    return res.status(201).json(formatUsuario(newRows[0]));
+    return res.status(201).json({ ...formatUsuario(newRows[0]), invitacionEnviada: true });
   } catch (err) {
     console.error('[POST /usuarios]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });

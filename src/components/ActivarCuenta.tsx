@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { CheckCircle2, Lock, Eye, EyeOff, AlertCircle, Building2, Loader2 } from 'lucide-react';
-import { Usuario } from '../types/auth';
+import { RolSistema, Modulo } from '../types/auth';
+
+interface UsuarioPendiente {
+  nombre: string;
+  email: string;
+  rol: RolSistema;
+  modulo: Modulo;
+}
 
 interface Props {
   token: string;
 }
 
 export function ActivarCuenta({ token }: Props) {
-  const { cargando, obtenerPorToken, activarCuenta, login } = useAuth();
+  const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
 
-  const [usuarioPendiente, setUsuarioPendiente] = useState<Usuario | null | 'invalid'>(null);
+  const [usuarioPendiente, setUsuarioPendiente] = useState<UsuarioPendiente | null | 'invalid' | 'expired'>(null);
   const [pass, setPass] = useState('');
   const [passConfirm, setPassConfirm] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -19,10 +25,19 @@ export function ActivarCuenta({ token }: Props) {
   const [procesando, setProcesando] = useState(false);
 
   useEffect(() => {
-    if (cargando) return;
-    const u = obtenerPorToken(token);
-    setUsuarioPendiente(u ?? 'invalid');
-  }, [cargando, token, obtenerPorToken]);
+    async function fetchInvitacion() {
+      try {
+        const res = await fetch(`${apiUrl}/auth/invitacion/${token}`);
+        if (res.status === 410) { setUsuarioPendiente('expired'); return; }
+        if (!res.ok) { setUsuarioPendiente('invalid'); return; }
+        const data = await res.json();
+        setUsuarioPendiente({ nombre: data.nombre, email: data.email, rol: data.rol, modulo: data.modulo });
+      } catch {
+        setUsuarioPendiente('invalid');
+      }
+    }
+    fetchInvitacion();
+  }, [token, apiUrl]);
 
   const handleActivar = async () => {
     setErr('');
@@ -30,26 +45,39 @@ export function ActivarCuenta({ token }: Props) {
     if (pass !== passConfirm) { setErr('Las contraseñas no coinciden.'); return; }
 
     setProcesando(true);
-    const ok = activarCuenta(token, pass);
-    if (!ok) { setErr('Token inválido o ya utilizado.'); setProcesando(false); return; }
+    try {
+      const res = await fetch(`${apiUrl}/auth/activar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password: pass }),
+      });
 
-    setActivado(true);
+      if (res.status === 404) { setErr('Token inválido o ya utilizado.'); return; }
+      if (res.status === 410) { setErr('El link expiró. Pedile al administrador que te reenvíe la invitación.'); return; }
+      if (!res.ok) { setErr('Error al activar la cuenta. Intentá de nuevo.'); return; }
 
-    // Auto-login after activation
-    setTimeout(async () => {
-      const u = usuarioPendiente as Usuario;
-      try {
-        await login(u.email, pass);
-        // Clean URL param
-        window.history.replaceState({}, '', window.location.pathname);
-      } catch {
-        // login will redirect via App.tsx
-      }
-    }, 1500);
+      const data = await res.json();
+      localStorage.setItem('sc_token', data.token);
+      localStorage.setItem('sc_sesion', JSON.stringify({
+        usuarioId: data.usuario.usuarioId,
+        email: data.usuario.email,
+        nombre: data.usuario.nombre,
+        rol: data.usuario.rol,
+        modulo: data.usuario.modulo ?? 'tickets',
+      }));
+
+      setActivado(true);
+      setTimeout(() => {
+        window.location.replace(window.location.pathname);
+      }, 1500);
+    } catch {
+      setErr('Error de conexión. Intentá de nuevo.');
+    } finally {
+      setProcesando(false);
+    }
   };
 
-  // Loading context
-  if (cargando || usuarioPendiente === null) {
+  if (usuarioPendiente === null) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <Loader2 size={32} className="text-violet-400 animate-spin" />
@@ -57,7 +85,20 @@ export function ActivarCuenta({ token }: Props) {
     );
   }
 
-  // Invalid / already used token
+  if (usuarioPendiente === 'expired') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm text-center">
+          <AlertCircle size={48} className="text-amber-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Link expirado</h2>
+          <p className="text-gray-500 text-sm">
+            Este link de activación expiró. Contactá al administrador para que te reenvíe la invitación.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (usuarioPendiente === 'invalid') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -72,7 +113,6 @@ export function ActivarCuenta({ token }: Props) {
     );
   }
 
-  // Success view
   if (activado) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -91,7 +131,7 @@ export function ActivarCuenta({ token }: Props) {
     );
   }
 
-  const u = usuarioPendiente as Usuario;
+  const u = usuarioPendiente;
   const sistemaLabel = u.modulo === 'savean' ? 'SAVEAN — Guías de Origen' : 'Sistema de Tickets';
   const rolLabel =
     u.modulo === 'savean'
@@ -100,7 +140,6 @@ export function ActivarCuenta({ token }: Props) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
-      {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
@@ -109,7 +148,6 @@ export function ActivarCuenta({ token }: Props) {
       <div className="relative z-10 w-full max-w-md">
         <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl overflow-hidden">
 
-          {/* Header */}
           <div className="bg-gradient-to-r from-slate-800 to-violet-900 px-8 py-10">
             <div className="flex items-center justify-center mb-5">
               <div className="bg-white/20 p-3 rounded-xl backdrop-blur">
@@ -124,9 +162,7 @@ export function ActivarCuenta({ token }: Props) {
             </p>
           </div>
 
-          {/* Body */}
           <div className="px-8 py-8 space-y-5">
-            {/* User info */}
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-slate-500 font-medium">Nombre</span>
@@ -146,7 +182,6 @@ export function ActivarCuenta({ token }: Props) {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Crear contraseña
@@ -170,7 +205,6 @@ export function ActivarCuenta({ token }: Props) {
               </div>
             </div>
 
-            {/* Confirm */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Confirmar contraseña
