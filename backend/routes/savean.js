@@ -335,29 +335,45 @@ router.get('/barreristas', autenticar, soloSavean, async (_req, res) => {
 // Crea cuentas de login para todos los barreristas que no las tienen aún
 router.post('/barreristas/migrar-inspectores', autenticar, soloSavean, soloAdmin, async (req, res) => {
   try {
-    const [barreristas] = await pool.query('SELECT * FROM barreristas_savean WHERE activo = 1');
+    const [barreristas] = await pool.query('SELECT barreristId, nombre, usuario FROM barreristas_savean WHERE activo = 1 ORDER BY nombre ASC');
     const creados = [];
     const saltados = [];
 
     for (const b of barreristas) {
-      const usuarioClean = b.usuario.trim().toLowerCase();
-      const email = `${usuarioClean}@savean.local`;
-      const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [email]);
-      if (existing.length > 0) { saltados.push(usuarioClean); continue; }
+      const rawUsuario = b.usuario ? String(b.usuario).trim() : '';
+      const usuarioClean = rawUsuario.toLowerCase().replace(/[^a-z0-9._-]/g, '');
 
-      const passwordHash = await bcrypt.hash(usuarioClean, 10);
-      const usuarioId = uuidv4();
-      await pool.query(
-        `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, modulo, activo) VALUES (?, ?, ?, ?, 'inspector', 'savean', 1)`,
-        [usuarioId, b.nombre, email, passwordHash]
-      );
-      creados.push({ nombre: b.nombre, usuario: usuarioClean, contrasena: usuarioClean });
+      if (!usuarioClean) {
+        console.warn('[migrar-inspectores] Barrerista sin usuario válido:', b.nombre);
+        saltados.push(b.nombre || '(sin nombre)');
+        continue;
+      }
+
+      const email = `${usuarioClean}@savean.local`;
+
+      try {
+        const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [email]);
+        if (existing.length > 0) { saltados.push(usuarioClean); continue; }
+
+        const passwordHash = await bcrypt.hash(usuarioClean, 10);
+        const usuarioId = uuidv4();
+        const nombre = b.nombre ? String(b.nombre).trim() : usuarioClean;
+
+        await pool.query(
+          `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, modulo, activo) VALUES (?, ?, ?, ?, 'inspector', 'savean', 1)`,
+          [usuarioId, nombre, email, passwordHash]
+        );
+        creados.push({ nombre, usuario: usuarioClean, contrasena: usuarioClean });
+      } catch (innerErr) {
+        console.error(`[migrar-inspectores] Error procesando ${usuarioClean}:`, innerErr.message);
+        saltados.push(`${usuarioClean} (error: ${innerErr.message})`);
+      }
     }
 
     return res.json({ creados, saltados });
   } catch (err) {
     console.error('[POST /savean/barreristas/migrar-inspectores]', err);
-    return res.status(500).json({ error: 'Error interno del servidor' });
+    return res.status(500).json({ error: `Error interno: ${err.message}` });
   }
 });
 

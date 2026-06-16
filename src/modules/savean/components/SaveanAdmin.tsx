@@ -223,13 +223,18 @@ export function SaveanAdmin() {
   const handleMigrarInspectores = async () => {
     setMigrando(true);
     setMigResult(null);
+    setErrBr('');
     try {
       const res = await fetch(`${API_URL}/savean/barreristas/migrar-inspectores`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       const data = await res.json();
-      setMigResult(data);
+      if (!res.ok) {
+        setErrBr(data?.error ?? `Error del servidor (${res.status}). Revisá los logs del backend.`);
+        return;
+      }
+      setMigResult({ creados: data.creados ?? [], saltados: data.saltados ?? [] });
     } catch {
       setErrBr('Error de conexión al migrar.');
     } finally {
