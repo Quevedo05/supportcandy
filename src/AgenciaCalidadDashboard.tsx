@@ -1828,13 +1828,8 @@ function saveTickets(tickets: Ticket[]) {
 }
 
 const getInitialState = (): DashboardState => {
-  let tickets = MOCK_TICKETS;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_TICKETS);
-    if (raw) tickets = JSON.parse(raw, reviveDates) as Ticket[];
-  } catch { /* use mock */ }
   return {
-    tickets,
+    tickets: [],
     seleccionados: new Set(),
     filtros: {
       busqueda: '',
@@ -1984,10 +1979,6 @@ export default function AgenciaCalidadDashboard() {
     fetchUsuarios();
   }, []);
 
-  // Persist tickets to localStorage whenever they change
-  useEffect(() => {
-    saveTickets(state.tickets);
-  }, [state.tickets]);
 
   // Fetch comments from API when a ticket is opened
   useEffect(() => {
