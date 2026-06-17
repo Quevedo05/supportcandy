@@ -929,6 +929,9 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   if (!ticket) return null;
 
   const autorRol = usuario ? (ROL_LABELS[usuario.rol] ?? usuario.rol) : '';
+  const puedeComentarUser =
+    usuario?.rol === 'admin' ||
+    (ticket.agentes ?? []).includes(usuario?.nombre ?? '');
 
   const toggleSeccion = (key: string) =>
     setSeccionesAbiertas((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1035,98 +1038,109 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Editor de respuesta */}
           <div className="border-b border-slate-200 p-4 bg-white">
-            {/* Author badge */}
-            {usuario && (
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-full bg-[#7F1D1D] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {usuario.nombre.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <span className="text-sm font-semibold text-slate-800">{usuario.nombre}</span>
-                  <span className="ml-2 text-xs bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">{autorRol}</span>
-                </div>
-              </div>
-            )}
-            <textarea
-              value={comentarioNuevo}
-              onChange={(e) => onCommentChange(e.target.value)}
-              placeholder="Escribir comentario o respuesta..."
-              rows={3}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-            />
-            {/* Attached files list */}
-            {comentarioAdjuntos.length > 0 && (
-              <div className="mt-2 space-y-1">
-                {comentarioAdjuntos.map((adj, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded px-2 py-1">
-                    <File size={13} className="text-slate-400 flex-shrink-0" />
-                    <span className="text-xs text-slate-700 flex-1 truncate">{adj.nombre}</span>
-                    <span className="text-xs text-slate-400">{formatBytes(adj.tamano)}</span>
-                    <button onClick={() => onAdjuntosChange(comentarioAdjuntos.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500">
-                      <X size={12} />
-                    </button>
+            {puedeComentarUser ? (
+              <>
+                {/* Author badge */}
+                {usuario && (
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 rounded-full bg-[#7F1D1D] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      {usuario.nombre.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="text-sm font-semibold text-slate-800">{usuario.nombre}</span>
+                      <span className="ml-2 text-xs bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">{autorRol}</span>
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <input
-                  ref={adjuntosRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleAgregarArchivos(e.target.files)}
+                )}
+                <textarea
+                  value={comentarioNuevo}
+                  onChange={(e) => onCommentChange(e.target.value)}
+                  placeholder="Escribir comentario o respuesta..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
                 />
-                <button
-                  onClick={() => adjuntosRef.current?.click()}
-                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-[#FF9500] border border-slate-300 rounded px-2.5 py-1.5 hover:border-[#FF9500] transition-colors"
-                >
-                  <File size={13} /> Adjuntar archivo
-                </button>
-                {/* Derivar button */}
-                <div className="relative">
-                  <button
-                    onClick={() => setDerivarAbierto((v) => !v)}
-                    className="flex items-center gap-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded px-3 py-1.5 transition-colors"
-                  >
-                    ↪ Derivar a...
-                    <ChevronDown size={12} className={`transition-transform ${derivarAbierto ? 'rotate-180' : ''}`} />
-                  </button>
-                  {derivarAbierto && (
-                    <div className="absolute left-0 bottom-full mb-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1 min-w-[240px]">
-                      {usuariosConEstados.length === 0 ? (
-                        <p className="px-4 py-3 text-xs text-slate-400 italic">Sin agentes asignados a etapas</p>
-                      ) : (
-                        usuariosConEstados.flatMap((u) =>
-                          u.estadosAsignados.map((estado) => (
-                            <button
-                              key={`${u.usuarioId}-${estado}`}
-                              onClick={() => {
-                                onChangeEstado(ticket.id, estado as TicketEstado);
-                                onChangeAgentes(ticket.id, [u.nombre]);
-                                setDerivarAbierto(false);
-                              }}
-                              className="w-full flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF9500] transition-colors"
-                            >
-                              <span className="font-medium">{u.nombre}</span>
-                              <span className="text-xs text-slate-400 ml-2">{estado}</span>
-                            </button>
-                          ))
-                        )
+                {/* Attached files list */}
+                {comentarioAdjuntos.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {comentarioAdjuntos.map((adj, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded px-2 py-1">
+                        <File size={13} className="text-slate-400 flex-shrink-0" />
+                        <span className="text-xs text-slate-700 flex-1 truncate">{adj.nombre}</span>
+                        <span className="text-xs text-slate-400">{formatBytes(adj.tamano)}</span>
+                        <button onClick={() => onAdjuntosChange(comentarioAdjuntos.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={adjuntosRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleAgregarArchivos(e.target.files)}
+                    />
+                    <button
+                      onClick={() => adjuntosRef.current?.click()}
+                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-[#FF9500] border border-slate-300 rounded px-2.5 py-1.5 hover:border-[#FF9500] transition-colors"
+                    >
+                      <File size={13} /> Adjuntar archivo
+                    </button>
+                    {/* Derivar button */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setDerivarAbierto((v) => !v)}
+                        className="flex items-center gap-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded px-3 py-1.5 transition-colors"
+                      >
+                        ↪ Derivar a...
+                        <ChevronDown size={12} className={`transition-transform ${derivarAbierto ? 'rotate-180' : ''}`} />
+                      </button>
+                      {derivarAbierto && (
+                        <div className="absolute left-0 bottom-full mb-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1 min-w-[240px]">
+                          {usuariosConEstados.length === 0 ? (
+                            <p className="px-4 py-3 text-xs text-slate-400 italic">Sin agentes asignados a etapas</p>
+                          ) : (
+                            usuariosConEstados.flatMap((u) =>
+                              u.estadosAsignados.map((estado) => (
+                                <button
+                                  key={`${u.usuarioId}-${estado}`}
+                                  onClick={() => {
+                                    onChangeEstado(ticket.id, estado as TicketEstado);
+                                    onChangeAgentes(ticket.id, [u.nombre]);
+                                    setDerivarAbierto(false);
+                                  }}
+                                  className="w-full flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF9500] transition-colors"
+                                >
+                                  <span className="font-medium">{u.nombre}</span>
+                                  <span className="text-xs text-slate-400 ml-2">{estado}</span>
+                                </button>
+                              ))
+                            )
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
+                  </div>
+                  <button
+                    onClick={handleEnviarComentario}
+                    disabled={!comentarioNuevo.trim() && comentarioAdjuntos.length === 0}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ↩ Enviar respuesta
+                  </button>
                 </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-md">
+                <UserCircle size={16} className="text-slate-400 flex-shrink-0" />
+                <p className="text-sm text-slate-500">
+                  Solo el agente asignado a este ticket puede agregar comentarios.
+                </p>
               </div>
-              <button
-                onClick={handleEnviarComentario}
-                disabled={!comentarioNuevo.trim() && comentarioAdjuntos.length === 0}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                ↩ Enviar respuesta
-              </button>
-            </div>
+            )}
           </div>
 
           {/* Hilo de actividad */}
@@ -1975,6 +1989,35 @@ export default function AgenciaCalidadDashboard() {
     saveTickets(state.tickets);
   }, [state.tickets]);
 
+  // Fetch comments from API when a ticket is opened
+  useEffect(() => {
+    if (!state.ticketAbierto) return;
+    const ticketId = state.ticketAbierto.id;
+    const fetchComentarios = async () => {
+      const token = localStorage.getItem('sc_token');
+      const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+      if (!token || !apiUrl) return;
+      try {
+        const res = await fetch(`${apiUrl}/tickets/${ticketId}/comentarios`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const comentariosApi: Comentario[] = (data.comentarios as Array<Record<string, unknown>>).map((c) => ({
+          id: String(c.comentarioId),
+          tipo: 'comentario' as const,
+          autor: String(c.autorNombre),
+          autorRol: String(c.autorRol),
+          fecha: new Date(String(c.fecha)),
+          contenido: String(c.contenido),
+          adjuntos: [],
+        }));
+        dispatch({ type: 'ACTUALIZAR_TICKET', payload: { id: ticketId, fields: { comentarios: comentariosApi } } });
+      } catch { /* silencioso */ }
+    };
+    fetchComentarios();
+  }, [state.ticketAbierto?.id]);
+
   // Programas de formularios activos (fuente de verdad para el filtro)
   const programasDisponibles = useMemo(() => {
     const set = new Set(formularios.filter(f => f.activo).map(f => f.programa).filter(Boolean));
@@ -2086,9 +2129,18 @@ export default function AgenciaCalidadDashboard() {
         onAdjuntosChange={(adj) =>
           dispatch({ type: 'SET_COMENTARIO_ADJUNTOS', payload: adj })
         }
-        onAddComment={(autorRol, adjuntos) =>
-          dispatch({ type: 'AGREGAR_COMENTARIO', payload: { autor: usuario?.nombre || 'Usuario', autorRol, adjuntos } })
-        }
+        onAddComment={async (autorRol, adjuntos) => {
+          const token = localStorage.getItem('sc_token');
+          const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+          if (token && apiUrl && state.ticketAbierto && state.comentarioNuevo.trim()) {
+            await fetch(`${apiUrl}/tickets/${state.ticketAbierto.id}/comentarios`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ contenido: state.comentarioNuevo }),
+            }).catch(() => {});
+          }
+          dispatch({ type: 'AGREGAR_COMENTARIO', payload: { autor: usuario?.nombre || 'Usuario', autorRol, adjuntos } });
+        }}
         onChangeEstado={async (id, estado) => {
           dispatch({ type: 'CAMBIAR_ESTADO_TICKET', payload: { id, estado, autor: usuario?.nombre || 'Usuario' } });
           const token = localStorage.getItem('sc_token');

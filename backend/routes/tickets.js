@@ -287,7 +287,37 @@ router.delete('/:ticketId', autenticar, soloTickets, async (req, res) => {
   }
 });
 
-// POST /api/tickets/:ticketId/comentarios — JWT required
+// GET /api/tickets/:ticketId/comentarios — JWT required, cualquier usuario autenticado
+router.get('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+
+    const [ticketRows] = await pool.query(
+      'SELECT ticketId FROM tickets WHERE ticketId = ?',
+      [ticketId]
+    );
+    if (ticketRows.length === 0) {
+      return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+
+    const [comentarios] = await pool.query(
+      `SELECT c.comentarioId, c.ticketId, c.contenido, c.fecha,
+              u.nombre AS autorNombre, u.rol AS autorRol
+       FROM comentarios c
+       JOIN usuarios u ON u.usuarioId = c.autor_id
+       WHERE c.ticketId = ?
+       ORDER BY c.fecha ASC`,
+      [ticketId]
+    );
+
+    return res.status(200).json({ comentarios });
+  } catch (err) {
+    console.error('[GET /tickets/:id/comentarios]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST /api/tickets/:ticketId/comentarios — JWT required, solo asignado o admin
 router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
@@ -298,11 +328,21 @@ router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) 
     }
 
     const [ticketRows] = await pool.query(
-      'SELECT ticketId FROM tickets WHERE ticketId = ?',
+      'SELECT ticketId, agentes, asignado_a FROM tickets WHERE ticketId = ?',
       [ticketId]
     );
     if (ticketRows.length === 0) {
       return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+
+    if (req.usuario.rol !== 'admin') {
+      const agentesTicket = ticketRows[0].agentes ? JSON.parse(ticketRows[0].agentes) : [];
+      const esAsignado =
+        (ticketRows[0].asignado_a && ticketRows[0].asignado_a === req.usuario.usuarioId) ||
+        agentesTicket.includes(req.usuario.nombre);
+      if (!esAsignado) {
+        return res.status(403).json({ error: 'Solo el agente asignado puede agregar comentarios' });
+      }
     }
 
     const comentarioId = uuidv4();
