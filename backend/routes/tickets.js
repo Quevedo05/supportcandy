@@ -160,7 +160,7 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
     const total = countRows[0].total;
 
     const [rows] = await pool.query(
-      `SELECT ticketId, numero, titulo, descripcion, estado, etapa, agentes, prioridad,
+      `SELECT ticketId, numero, titulo, estado, etapa, agentes, prioridad,
               asignado_a, formularioId, ciudadano_nombre, ciudadano_email,
               ciudadano_telefono, fecha_creacion, fecha_cierre
        FROM tickets
@@ -178,6 +178,27 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
     });
   } catch (err) {
     console.error('[GET /tickets]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET /api/tickets/:ticketId — JWT required, retorna ticket completo con descripción
+router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const [rows] = await pool.query(
+      `SELECT ticketId, numero, titulo, descripcion, estado, etapa, agentes, prioridad,
+              asignado_a, formularioId, ciudadano_nombre, ciudadano_email,
+              ciudadano_telefono, fecha_creacion, fecha_cierre
+       FROM tickets WHERE ticketId = ?`,
+      [ticketId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+    return res.status(200).json(formatTicket(rows[0]));
+  } catch (err) {
+    console.error('[GET /tickets/:id]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

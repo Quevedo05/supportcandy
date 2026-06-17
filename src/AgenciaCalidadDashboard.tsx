@@ -118,6 +118,7 @@ interface ModalState {
 
 interface DashboardState {
   tickets: Ticket[];
+  cargandoTickets: boolean;
   seleccionados: Set<string>;
   filtros: FiltrosActivos;
   paginaActual: number;
@@ -131,6 +132,7 @@ interface DashboardState {
 
 type DashboardAction =
   | { type: 'SET_TICKETS'; payload: Ticket[] }
+  | { type: 'SET_CARGANDO_TICKETS'; payload: boolean }
   | { type: 'SET_BUSQUEDA'; payload: string }
   | { type: 'SET_CAMPO_BUSQUEDA'; payload: CampoBusqueda }
   | { type: 'SET_VISTA'; payload: VistaFiltro }
@@ -1810,7 +1812,9 @@ function dashboardReducer(
         ticketAbierto: null,
       };
     case 'SET_TICKETS':
-      return { ...state, tickets: action.payload };
+      return { ...state, tickets: action.payload, cargandoTickets: false };
+    case 'SET_CARGANDO_TICKETS':
+      return { ...state, cargandoTickets: action.payload };
     default:
       return state;
   }
@@ -1821,17 +1825,11 @@ function dashboardReducer(
 // ═════════════════════════════════════════════════════════════════════════════
 
 
-const STORAGE_KEY_TICKETS = 'sc_tickets_v2';
-
-function saveTickets(tickets: Ticket[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(tickets));
-  } catch { /* quota exceeded */ }
-}
 
 const getInitialState = (): DashboardState => {
   return {
     tickets: [],
+    cargandoTickets: true,
     seleccionados: new Set(),
     filtros: {
       busqueda: '',
@@ -1949,13 +1947,12 @@ export default function AgenciaCalidadDashboard() {
         const res = await fetch(`${apiUrl}/tickets?limit=200`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) return;
+        if (!res.ok) { dispatch({ type: 'SET_CARGANDO_TICKETS', payload: false }); return; }
         const data = await res.json();
         const mapped = (data.tickets as Record<string, unknown>[]).map(mapApiTicket);
         dispatch({ type: 'SET_TICKETS', payload: mapped });
-        saveTickets(mapped);
       } catch {
-        // fallback: keep localStorage tickets
+        dispatch({ type: 'SET_CARGANDO_TICKETS', payload: false });
       }
     };
     fetchTickets();
@@ -2009,6 +2006,28 @@ export default function AgenciaCalidadDashboard() {
       } catch { /* silencioso */ }
     };
     fetchComentarios();
+  }, [state.ticketAbierto?.id]);
+
+  // Fetch descripción completa al abrir un ticket (no viene en el listado para ahorrar ancho de banda)
+  useEffect(() => {
+    if (!state.ticketAbierto) return;
+    if (state.ticketAbierto.descripcion) return; // ya cargada
+    const ticketId = state.ticketAbierto.id;
+    const fetchDescripcion = async () => {
+      const token = localStorage.getItem('sc_token');
+      const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+      if (!token || !apiUrl) return;
+      try {
+        const res = await fetch(`${apiUrl}/tickets/${ticketId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const t = await res.json() as Record<string, unknown>;
+        const desc = String(t.descripcion ?? '');
+        dispatch({ type: 'ACTUALIZAR_TICKET', payload: { id: ticketId, fields: { descripcion: desc, datosAdicionales: parsearDescripcion(desc) } } });
+      } catch { /* silencioso */ }
+    };
+    fetchDescripcion();
   }, [state.ticketAbierto?.id]);
 
   // Programas de formularios activos (fuente de verdad para el filtro)
@@ -2414,7 +2433,17 @@ export default function AgenciaCalidadDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {ticketsPaginados.map((ticket) => (
+                {state.cargandoTickets && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-16 text-center">
+                      <div className="flex flex-col items-center gap-3 text-slate-400">
+                        <div className="w-8 h-8 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
+                        <span className="text-sm">Cargando tickets...</span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {!state.cargandoTickets && ticketsPaginados.map((ticket) => (
                   <TicketRow
                     key={ticket.id}
                     ticket={ticket}
@@ -2427,6 +2456,7 @@ export default function AgenciaCalidadDashboard() {
                     }
                   />
                 ))}
+
               </tbody>
             </table>
           </div>
