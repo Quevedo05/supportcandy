@@ -183,6 +183,8 @@ const PRIORIDAD_CONFIG: Record<TicketPrioridad, { color: string; bg: string }> =
   Urgente: { color: '#EF4444', bg: '#FEF2F2' },
 };
 
+const SUPERVISORES_EMAILS = ['precio@calidadsj.com.ar', 'vcastro@calidadsj.com.ar'];
+
 const PROGRAMA_PREFIX_MAP: Record<TipoPrograma, TicketPrefix> = {
   'MICROCRÉDITOS': 'MC',
 };
@@ -235,10 +237,8 @@ function aplicarFiltros(
   tickets: Ticket[],
   filtros: FiltrosActivos,
   usuarioNombre?: string,
-  etapasAsignadas?: string[],
 ): Ticket[] {
   return tickets
-    .filter((t) => !etapasAsignadas?.length || etapasAsignadas.includes(t.estado))
     .filter((t) => {
       switch (filtros.vista) {
         case 'todos':       return !t.eliminado;
@@ -928,9 +928,11 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   if (!ticket) return null;
 
   const autorRol = usuario ? (ROL_LABELS[usuario.rol] ?? usuario.rol) : '';
-  const puedeComentarUser =
+  const puedeEditarTicket =
     usuario?.rol === 'admin' ||
+    SUPERVISORES_EMAILS.includes(usuario?.email ?? '') ||
     (ticket.agentes ?? []).includes(usuario?.nombre ?? '');
+  const puedeComentarUser = puedeEditarTicket;
 
   const toggleSeccion = (key: string) =>
     setSeccionesAbiertas((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1250,9 +1252,11 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
               ) : (
                 <div className="flex items-center gap-2 mb-3">
                   <EstadoBadge estado={ticket.estado} />
-                  <button onClick={() => { setEditandoEstado(true); setEstadoTmp(ticket.estado); }} className="text-slate-400 hover:text-slate-600 ml-auto">
-                    <Pencil size={12} />
-                  </button>
+                  {puedeEditarTicket && (
+                    <button onClick={() => { setEditandoEstado(true); setEstadoTmp(ticket.estado); }} className="text-slate-400 hover:text-slate-600 ml-auto">
+                      <Pencil size={12} />
+                    </button>
+                  )}
                 </div>
               )}
               <InfoRow label="Programa" value={ticket.programa} />
@@ -1352,20 +1356,22 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </div>
               ) : (
                 <div className="space-y-0.5">
-                  <div className="flex justify-end mb-1">
-                    <button
-                      onClick={() => {
-                        setLegajoTmp({
-                          legajo: ticket.legajo ?? '',
-                          numeroActa: ticket.numeroActa ?? '',
-                          importe: ticket.importe ? String(ticket.importe) : '',
-                          codigoExterno: ticket.codigoExterno ?? '',
-                        });
-                        setEditandoLegajo(true);
-                      }}
-                      className="text-slate-400 hover:text-slate-600"
-                    ><Pencil size={12} /></button>
-                  </div>
+                  {puedeEditarTicket && (
+                    <div className="flex justify-end mb-1">
+                      <button
+                        onClick={() => {
+                          setLegajoTmp({
+                            legajo: ticket.legajo ?? '',
+                            numeroActa: ticket.numeroActa ?? '',
+                            importe: ticket.importe ? String(ticket.importe) : '',
+                            codigoExterno: ticket.codigoExterno ?? '',
+                          });
+                          setEditandoLegajo(true);
+                        }}
+                        className="text-slate-400 hover:text-slate-600"
+                      ><Pencil size={12} /></button>
+                    </div>
+                  )}
                   <InfoRow label="Nro. Legajo" value={ticket.legajo} />
                   <InfoRow label="Nro. Acta" value={ticket.numeroActa} />
                   <InfoRow label="Importe" value={ticket.importe ? `$ ${ticket.importe.toLocaleString('es-AR')}` : undefined} />
@@ -1395,40 +1401,41 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                   </div>
                 </div>
               )}
-              {/* Picker de personas */}
-              {usuariosConEstados.length > 0 ? (
-                <div>
-                  <p className="text-xs font-medium text-slate-500 mb-2">
-                    {(ticket.agentes ?? []).length === 0 ? 'Asignar a:' : 'Reasignar a:'}
-                  </p>
-                  <div className="space-y-1">
-                    {usuariosConEstados.map((u) =>
-                      u.estadosAsignados.map((estado) => (
-                        <button
-                          key={`${u.usuarioId}-${estado}`}
-                          onClick={() => {
-                            onChangeEstado(ticket.id, estado as TicketEstado);
-                            onChangeAgentes(ticket.id, [u.nombre]);
-                          }}
-                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition text-left"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
-                              <UserCircle size={13} className="text-slate-500" />
+              {/* Picker de personas — solo para editores */}
+              {puedeEditarTicket && (
+                usuariosConEstados.length > 0 ? (
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 mb-2">
+                      {(ticket.agentes ?? []).length === 0 ? 'Asignar a:' : 'Reasignar a:'}
+                    </p>
+                    <div className="space-y-1">
+                      {usuariosConEstados.map((u) =>
+                        u.estadosAsignados.map((estado) => (
+                          <button
+                            key={`${u.usuarioId}-${estado}`}
+                            onClick={() => {
+                              onChangeEstado(ticket.id, estado as TicketEstado);
+                              onChangeAgentes(ticket.id, [u.nombre]);
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition text-left"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                                <UserCircle size={13} className="text-slate-500" />
+                              </div>
+                              <span className="text-xs font-medium text-slate-700">{u.nombre}</span>
                             </div>
-                            <span className="text-xs font-medium text-slate-700">{u.nombre}</span>
-                          </div>
-                          <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full">{estado}</span>
-                        </button>
-                      ))
-                    )}
+                            <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full">{estado}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400 italic">
-                  {(ticket.agentes ?? []).length === 0 ? 'Sin agente asignado' : ''}
-                  {usuariosConEstados.length === 0 && ' — Asigná etapas a usuarios desde el panel de administración'}
-                </p>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">
+                    Sin agentes configurados — Asigná etapas a usuarios desde Administración
+                  </p>
+                )
               )}
               {ticket.adjuntos.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-slate-100">
@@ -1480,12 +1487,14 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </div>
               ) : (
                 <div>
-                  <div className="flex justify-end mb-1">
-                    <button
-                      onClick={() => { setObservacionesTmp(ticket.observaciones ?? ''); setEditandoObservaciones(true); }}
-                      className="text-slate-400 hover:text-slate-600"
-                    ><Pencil size={12} /></button>
-                  </div>
+                  {puedeEditarTicket && (
+                    <div className="flex justify-end mb-1">
+                      <button
+                        onClick={() => { setObservacionesTmp(ticket.observaciones ?? ''); setEditandoObservaciones(true); }}
+                        className="text-slate-400 hover:text-slate-600"
+                      ><Pencil size={12} /></button>
+                    </div>
+                  )}
                   {ticket.observaciones ? (
                     <p className="text-xs text-slate-700 whitespace-pre-wrap">{ticket.observaciones}</p>
                   ) : (
@@ -1925,7 +1934,7 @@ interface UsuarioConEstados {
 }
 
 export default function AgenciaCalidadDashboard() {
-  const { usuario, usuarios } = useAuth();
+  const { usuario } = useAuth();
   const { formularios } = useFormularios();
   const [state, dispatch] = useReducer(dashboardReducer, undefined, getInitialState);
   const [usuariosConEstados, setUsuariosConEstados] = useState<UsuarioConEstados[]>([]);
@@ -2008,17 +2017,10 @@ export default function AgenciaCalidadDashboard() {
     return Array.from(set).sort();
   }, [formularios]);
 
-  // For contribuidores, restrict visible tickets to their assigned stages
-  const etapasAsignadas = useMemo(() => {
-    if (usuario?.rol !== 'contribuidor') return undefined;
-    const fullUser = usuarios.find(u => u.id === usuario.usuarioId);
-    return fullUser?.etapasAsignadas ?? [];
-  }, [usuario, usuarios]);
-
   // Derived state
   const ticketsFiltrados = useMemo(
-    () => aplicarFiltros(state.tickets, state.filtros, usuario?.nombre, etapasAsignadas),
-    [state.tickets, state.filtros, usuario?.nombre, etapasAsignadas]
+    () => aplicarFiltros(state.tickets, state.filtros, usuario?.nombre),
+    [state.tickets, state.filtros, usuario?.nombre]
   );
 
   const ticketsPaginados = useMemo(() => {
@@ -2042,17 +2044,14 @@ export default function AgenciaCalidadDashboard() {
   }, [state.modal.programa, state.modal.beneficiario, state.tickets]);
 
   const countPorVista = useMemo(() => {
-    const visibles = etapasAsignadas?.length
-      ? state.tickets.filter((t) => etapasAsignadas.includes(t.estado))
-      : state.tickets;
-    const noElim = visibles.filter((t) => !t.eliminado);
+    const noElim = state.tickets.filter((t) => !t.eliminado);
     return {
       todos:       noElim.length,
       no_resuelto: noElim.filter((t) => t.estado !== 'Cerrado').length,
       sin_asignar: noElim.filter((t) => !t.agentes || t.agentes.length === 0).length,
       mio:         noElim.filter((t) => (t.agentes ?? []).includes(usuario?.nombre ?? '')).length,
       cerrado:     noElim.filter((t) => t.estado === 'Cerrado').length,
-      eliminado:   visibles.filter((t) => !!t.eliminado).length,
+      eliminado:   state.tickets.filter((t) => !!t.eliminado).length,
     };
   }, [state.tickets, usuario?.nombre]);
 

@@ -6,6 +6,8 @@ const { soloModulo } = require('../middleware/soloModulo');
 
 const soloTickets = soloModulo('tickets');
 
+const SUPERVISORES_EMAILS = ['precio@calidadsj.com.ar', 'vcastro@calidadsj.com.ar'];
+
 const router = express.Router();
 
 function formatTicket(row) {
@@ -187,11 +189,18 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
     const { estado, prioridad, asignadoA, etapa, agentes } = req.body;
 
     const [rows] = await pool.query(
-      'SELECT ticketId FROM tickets WHERE ticketId = ?',
+      'SELECT ticketId, agentes FROM tickets WHERE ticketId = ?',
       [ticketId]
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+
+    if (req.usuario.rol !== 'admin' && !SUPERVISORES_EMAILS.includes(req.usuario.email)) {
+      const agentesTicket = rows[0].agentes ? JSON.parse(rows[0].agentes) : [];
+      if (!agentesTicket.includes(req.usuario.nombre)) {
+        return res.status(403).json({ error: 'No tenés permisos para modificar este ticket' });
+      }
     }
 
     const setClauses = [];
@@ -335,12 +344,9 @@ router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) 
       return res.status(404).json({ error: 'Ticket no encontrado' });
     }
 
-    if (req.usuario.rol !== 'admin') {
+    if (req.usuario.rol !== 'admin' && !SUPERVISORES_EMAILS.includes(req.usuario.email)) {
       const agentesTicket = ticketRows[0].agentes ? JSON.parse(ticketRows[0].agentes) : [];
-      const esAsignado =
-        (ticketRows[0].asignado_a && ticketRows[0].asignado_a === req.usuario.usuarioId) ||
-        agentesTicket.includes(req.usuario.nombre);
-      if (!esAsignado) {
+      if (!agentesTicket.includes(req.usuario.nombre)) {
         return res.status(403).json({ error: 'Solo el agente asignado puede agregar comentarios' });
       }
     }
