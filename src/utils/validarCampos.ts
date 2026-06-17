@@ -1,5 +1,12 @@
 import { CampoFormulario, ErroresCampos, ValoresCampos } from '../types/formularios';
 
+function esCampoVisible(campo: CampoFormulario, campos: CampoFormulario[], valores: ValoresCampos): boolean {
+  if (!campo.condicion) return true;
+  const controlador = campos.find((c) => c.campo === campo.condicion!.campo);
+  if (!controlador) return false;
+  return campo.condicion.valor.includes(valores[controlador.id] ?? '');
+}
+
 export function validarRespuestasCampos(
   campos: CampoFormulario[],
   valores: ValoresCampos
@@ -7,6 +14,8 @@ export function validarRespuestasCampos(
   const errores: ErroresCampos = {};
 
   for (const campo of campos) {
+    if (!esCampoVisible(campo, campos, valores)) continue;
+
     const valor = valores[campo.id]?.trim() ?? '';
 
     // Validar requeridos

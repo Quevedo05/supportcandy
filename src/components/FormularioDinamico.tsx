@@ -105,11 +105,21 @@ export function FormularioDinamico({
 
   const spacingClass = modo === 'publico' ? 'space-y-6' : 'space-y-4';
 
+  const camposOrdenados = [...campos].sort((a, b) => a.orden - b.orden);
+
+  const esCampoVisible = (campo: CampoFormulario): boolean => {
+    if (!campo.condicion) return true;
+    const campoControlador = camposOrdenados.find((c) => c.campo === campo.condicion!.campo);
+    if (!campoControlador) return false;
+    const valorActual = valores[campoControlador.id] ?? '';
+    return campo.condicion.valor.includes(valorActual);
+  };
+
   return (
     <div className={spacingClass}>
-      {[...campos]
-        .sort((a, b) => a.orden - b.orden)
-        .map((campo) => (
+      {camposOrdenados.map((campo) => {
+        if (!esCampoVisible(campo)) return null;
+        return (
           <div key={campo.id}>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               {campo.label}
@@ -120,7 +130,8 @@ export function FormularioDinamico({
               <p className="text-xs text-red-600 mt-1">{errores[campo.id]}</p>
             )}
           </div>
-        ))}
+        );
+      })}
     </div>
   );
 }

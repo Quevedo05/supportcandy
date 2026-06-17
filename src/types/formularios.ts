@@ -13,6 +13,10 @@ export interface CampoFormulario {
   placeholder?: string;
   descripcion?: string;
   longitudMaxima?: number;
+  condicion?: {
+    campo: string;        // slug del campo que controla la visibilidad
+    valor: string[];      // valores que hacen visible este campo
+  };
 }
 
 export interface Formulario {
