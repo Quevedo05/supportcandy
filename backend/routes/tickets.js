@@ -30,6 +30,7 @@ function formatTicket(row) {
     tipoTramite: row.tipo_tramite || null,
     numeroLegajo: row.numero_legajo || null,
     numeroActa: row.numero_acta || null,
+    leido: row.leido === 1 || row.leido === true,
     fechaCreacion: row.fecha_creacion instanceof Date
       ? row.fecha_creacion.toISOString()
       : row.fecha_creacion,
@@ -198,7 +199,7 @@ router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
-              t.fecha_creacion, t.fecha_cierre,
+              t.leido, t.fecha_creacion, t.fecha_cierre,
               f.programa AS formulario_programa
        FROM tickets t
        LEFT JOIN formularios f ON f.formularioId = t.formularioId
@@ -256,8 +257,7 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
-              t.fecha_creacion, t.fecha_cierre,
-              f.programa AS formulario_programa
+              t.leido, t.fecha_creacion, t.fecha_cierre, f.programa AS formulario_programa
        FROM tickets t
        LEFT JOIN formularios f ON f.formularioId = t.formularioId
        ${whereClause}
@@ -286,7 +286,7 @@ router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
-              t.fecha_creacion, t.fecha_cierre,
+              t.leido, t.fecha_creacion, t.fecha_cierre,
               f.programa AS formulario_programa
        FROM tickets t
        LEFT JOIN formularios f ON f.formularioId = t.formularioId
@@ -390,7 +390,7 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
-              t.fecha_creacion, t.fecha_cierre,
+              t.leido, t.fecha_creacion, t.fecha_cierre,
               f.programa AS formulario_programa
        FROM tickets t
        LEFT JOIN formularios f ON f.formularioId = t.formularioId
@@ -401,6 +401,30 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
     return res.status(200).json(formatTicket(updatedRows[0]));
   } catch (err) {
     console.error('[PATCH /tickets/:id]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PATCH /api/tickets/:ticketId/leido — JWT required, marca ticket como leído/no leído
+router.patch('/:ticketId/leido', autenticar, soloTickets, async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const { leido } = req.body;
+
+    if (typeof leido !== 'boolean') {
+      return res.status(400).json({ error: 'El campo "leido" debe ser booleano' });
+    }
+
+    const [rows] = await pool.query('SELECT ticketId FROM tickets WHERE ticketId = ?', [ticketId]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+
+    await pool.query('UPDATE tickets SET leido = ? WHERE ticketId = ?', [leido ? 1 : 0, ticketId]);
+
+    return res.status(200).json({ ticketId, leido });
+  } catch (err) {
+    console.error('[PATCH /tickets/:id/leido]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   tipo_tramite        VARCHAR(100)  NULL,
   numero_legajo       VARCHAR(100)  NULL,
   numero_acta         VARCHAR(100)  NULL,
+  leido               TINYINT(1)    NOT NULL DEFAULT 0,
   fecha_creacion      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   fecha_cierre        DATETIME      NULL,
   numero              INT           NOT NULL DEFAULT 0,

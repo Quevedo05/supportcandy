@@ -85,6 +85,7 @@ interface Ticket {
   codigoExterno?: string;
   observaciones?: string;
   eliminado?: boolean;
+  leido?: boolean;
 }
 
 interface FiltrosActivos {
@@ -346,6 +347,7 @@ interface TicketRowProps {
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onOpenDetail: (ticket: Ticket) => void;
+  onMarkUnread: (id: string) => void;
 }
 
 const TicketRow: React.FC<TicketRowProps> = ({
@@ -353,9 +355,12 @@ const TicketRow: React.FC<TicketRowProps> = ({
   isSelected,
   onToggleSelect,
   onOpenDetail,
+  onMarkUnread,
 }) => {
   const [expandido, setExpandido] = useState(false);
   const bgClass = isSelected ? 'bg-[#FEF2F2]' : 'hover:bg-slate-50';
+  const unread = !ticket.leido;
+  const textWeight = unread ? 'font-semibold' : '';
 
   return (
     <React.Fragment>
@@ -380,13 +385,14 @@ const TicketRow: React.FC<TicketRowProps> = ({
             className={`text-slate-400 transition-transform ${expandido ? 'rotate-180' : ''}`}
           />
         </td>
-        <td className="px-4 py-3 text-sm text-slate-700">
+        <td className={`px-4 py-3 text-sm text-slate-700 ${textWeight}`}>
+          {unread && <span className="inline-block w-2 h-2 rounded-full bg-[#FF9500] mr-1.5 mb-0.5" />}
           {ticket.programa}
         </td>
-        <td className="px-4 py-3 text-sm text-slate-600 font-mono">
+        <td className={`px-4 py-3 text-sm text-slate-600 font-mono ${textWeight}`}>
           {ticket.legajo ?? '—'}
         </td>
-        <td className="px-4 py-3 text-sm text-slate-800">
+        <td className={`px-4 py-3 text-sm text-slate-800 ${textWeight}`}>
           {ticket.beneficiario.apellido} {ticket.beneficiario.nombre}
         </td>
         <td className="px-4 py-3">
@@ -417,6 +423,16 @@ const TicketRow: React.FC<TicketRowProps> = ({
                 <span className="text-blue-600">{ticket.emailSolicitante ?? '—'}</span>
               </div>
             </div>
+            {!unread && (
+              <div className="mt-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onMarkUnread(ticket.id); }}
+                  className="text-xs text-slate-500 hover:text-[#FF9500] flex items-center gap-1"
+                >
+                  Marcar como no leído
+                </button>
+              </div>
+            )}
           </td>
         </tr>
       )}
@@ -1784,6 +1800,7 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
     tipoTramite: t.tipoTramite ? String(t.tipoTramite) : undefined,
     legajo: t.numeroLegajo ? String(t.numeroLegajo) : undefined,
     numeroActa: t.numeroActa ? String(t.numeroActa) : undefined,
+    leido: t.leido === true,
   };
 }
 
@@ -2327,9 +2344,36 @@ export default function AgenciaCalidadDashboard() {
                     onToggleSelect={(id) =>
                       dispatch({ type: 'TOGGLE_SELECCION', payload: id })
                     }
-                    onOpenDetail={(ticket) =>
-                      dispatch({ type: 'ABRIR_TICKET_DETAIL', payload: ticket })
-                    }
+                    onOpenDetail={(ticket) => {
+                      dispatch({ type: 'ABRIR_TICKET_DETAIL', payload: ticket });
+                      if (!ticket.leido) {
+                        const token = localStorage.getItem('sc_token');
+                        const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+                        if (token && apiUrl) {
+                          fetch(`${apiUrl}/tickets/${ticket.id}/leido`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ leido: true }),
+                          }).then(() => {
+                            dispatch({ type: 'ACTUALIZAR_TICKET', payload: { id: ticket.id, fields: { leido: true } } });
+                            dispatch({ type: 'SET_TICKETS', payload: state.tickets.map((t) => t.id === ticket.id ? { ...t, leido: true } : t) });
+                          }).catch(() => {/* silencioso */});
+                        }
+                      }
+                    }}
+                    onMarkUnread={(id) => {
+                      const token = localStorage.getItem('sc_token');
+                      const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+                      if (token && apiUrl) {
+                        fetch(`${apiUrl}/tickets/${id}/leido`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ leido: false }),
+                        }).then(() => {
+                          dispatch({ type: 'SET_TICKETS', payload: state.tickets.map((t) => t.id === id ? { ...t, leido: false } : t) });
+                        }).catch(() => {/* silencioso */});
+                      }
+                    }}
                   />
                 ))}
 
