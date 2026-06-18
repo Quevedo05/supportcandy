@@ -17,7 +17,6 @@ const TIPO_LABELS: Record<TipoCampo, string> = {
   archivo: 'Archivo',
 };
 
-const PROGRAMAS = ['MICROCRÉDITOS'];
 
 function slugificar(label: string): string {
   return 'cf_' + label
@@ -335,19 +334,13 @@ export function FormularioBuilder({ formulario, onGuardar, onCancelar }: Formula
       {/* Sección 1: Información */}
       <Seccion titulo="Información del Formulario">
         <FormRow label="Programa">
-          <div className="flex items-center border border-gray-300 rounded overflow-hidden">
-            <div className="px-2 py-1.5 bg-gray-100 border-r border-gray-300">
-              <Search size={14} className="text-gray-500" />
-            </div>
-            <select
-              value={info.programa}
-              onChange={(e) => setInfoField({ programa: e.target.value })}
-              className="flex-1 px-3 py-1.5 text-sm focus:outline-none bg-white"
-            >
-              <option value="">Seleccionar programa...</option>
-              {PROGRAMAS.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
+          <input
+            type="text"
+            value={info.programa}
+            onChange={(e) => setInfoField({ programa: e.target.value.toUpperCase() })}
+            placeholder="Ej: COSECHA Y ACARREO 2026"
+            className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-400 uppercase"
+          />
         </FormRow>
 
         <FormRow label="Nombre">
