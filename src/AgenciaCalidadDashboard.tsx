@@ -4,9 +4,6 @@ import React, { useReducer, useMemo, useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, CheckCircle, Trash2, Pencil, UserCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useFormularios } from './context/FormulariosContext';
-import { FormularioDinamico } from './components/FormularioDinamico';
-import { validarRespuestasCampos } from './utils/validarCampos';
-import type { ValoresCampos, ErroresCampos } from './types/formularios';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SECTION 1: TYPE DEFINITIONS
@@ -114,6 +111,9 @@ interface ModalState {
   agentes: string;
   emailSolicitante: string;
   adjuntos: Adjunto[];
+  tipoTramite: string;
+  legajo: string;
+  asunto: string;
 }
 
 interface DashboardState {
@@ -187,9 +187,7 @@ const PRIORIDAD_CONFIG: Record<TicketPrioridad, { color: string; bg: string }> =
 
 const SUPERVISORES_EMAILS = ['precio@calidadsj.com.ar', 'vcastro@calidadsj.com.ar'];
 
-const PROGRAMA_PREFIX_MAP: Record<TipoPrograma, TicketPrefix> = {
-  'MICROCRÉDITOS': 'MC',
-};
+const TIPO_TRAMITE_OPCIONES = ['N/A', 'ANR', 'COMPRA DE MATERIALES', 'CRÉDITO', 'HONORARIOS'] as const;
 
 
 const ESTADOS: TicketEstado[] = [
@@ -278,29 +276,20 @@ function aplicarFiltros(
     });
 }
 
-function getNextNumero(tickets: Ticket[], prefix: TicketPrefix): number {
-  const matching = tickets.filter((t) => t.prefix === prefix);
-  return matching.length > 0 ? Math.max(...matching.map((t) => t.numero)) + 1 : 1;
-}
 
-function generarIDTicket(
-  programa: TipoPrograma,
-  beneficiario: string,
-  numero: number
-): string {
-  const prefix = PROGRAMA_PREFIX_MAP[programa];
-  const nombreUpper = beneficiario.toUpperCase().trim();
-  return `${prefix} ${numero} ${nombreUpper}`;
-}
 
 function validarModal(modal: ModalState): Record<string, string> {
   const errores: Record<string, string> = {};
+  if (!modal.beneficiario.trim()) errores.beneficiario = 'El nombre es requerido';
+  if (!modal.dni.trim()) errores.dni = 'El DNI es requerido';
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!modal.email.trim() || !emailRe.test(modal.email.trim())) errores.email = 'Email inválido';
+  if (!modal.telefono.trim()) errores.telefono = 'El teléfono es requerido';
   if (!modal.programa) errores.programa = 'Seleccioná un programa';
-  if (!modal.prioridad) errores.prioridad = 'Seleccioná una prioridad';
-  if (!modal.beneficiario.trim())
-    errores.beneficiario = 'Ingresá el nombre del beneficiario';
-  if (!/^\d{7,8}$/.test(modal.dni))
-    errores.dni = 'DNI debe tener 7 u 8 dígitos';
+  if (!modal.tipoTramite) errores.tipoTramite = 'Seleccioná un tipo de trámite';
+  if (!modal.legajo.trim()) errores.legajo = 'El número de legajo es requerido';
+  if (!modal.asunto.trim()) errores.asunto = 'El asunto es requerido';
+  if (!modal.descripcion.trim()) errores.descripcion = 'La descripción es requerida';
   return errores;
 }
 
@@ -475,10 +464,9 @@ interface NuevoTicketModalProps {
   modal: ModalState;
   onClose: () => void;
   onUpdateField: (field: string, value: unknown) => void;
-  onAdjuntosChange: (adjuntos: Adjunto[]) => void;
-  onSubmit: (datosAdicionales?: Record<string, string>) => void;
-  asuntoGenerado: string;
-  programas: string[];
+  onSubmit: () => void;
+  guardando: boolean;
+  todosLosProgramas: string[];
 }
 
 const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
@@ -486,360 +474,157 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
   modal,
   onClose,
   onUpdateField,
-  onAdjuntosChange,
   onSubmit,
-  asuntoGenerado,
-  programas,
+  guardando,
+  todosLosProgramas,
 }) => {
-  const { formularios, obtenerCampos } = useFormularios();
-  const [valoresCampos, setValoresCampos] = useState<ValoresCampos>({});
-  const [erroresCampos, setErroresCampos] = useState<ErroresCampos>({});
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleFiles = (files: FileList | null) => {
-    if (!files) return;
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const contenido = e.target?.result as string;
-        onAdjuntosChange([
-          ...modal.adjuntos,
-          { nombre: file.name, tipo: file.type, tamano: file.size, contenido },
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const removeAdjunto = (idx: number) =>
-    onAdjuntosChange(modal.adjuntos.filter((_, i) => i !== idx));
-
-  // Reset dynamic values when programa changes
-  useEffect(() => {
-    setValoresCampos({});
-    setErroresCampos({});
-  }, [modal.programa]);
-
-  const camposDelPrograma = modal.programa
-    ? obtenerCampos(
-        formularios.find((f) => f.programa === modal.programa)?.id ?? ''
-      )
-    : [];
-
   if (!isOpen) return null;
+
+  const campo = (
+    label: string,
+    field: string,
+    tipo: 'text' | 'email' | 'textarea' = 'text',
+    opciones?: { placeholder?: string; requerido?: boolean }
+  ) => {
+    const requerido = opciones?.requerido !== false;
+    const error = modal.errores[field];
+    const cls = `w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#FF9500] ${
+      error ? 'border-red-400 bg-red-50' : 'border-slate-300'
+    }`;
+    return (
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          {label}{requerido && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+        {tipo === 'textarea' ? (
+          <textarea
+            value={String((modal as unknown as Record<string, unknown>)[field] ?? '')}
+            onChange={(e) => onUpdateField(field, e.target.value)}
+            placeholder={opciones?.placeholder}
+            rows={4}
+            className={cls + ' resize-none'}
+          />
+        ) : (
+          <input
+            type={tipo}
+            value={String((modal as unknown as Record<string, unknown>)[field] ?? '')}
+            onChange={(e) => onUpdateField(field, e.target.value)}
+            placeholder={opciones?.placeholder}
+            className={cls}
+          />
+        )}
+        {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Nuevo Ticket</h2>
-          <button
-            onClick={onClose}
-            className="text-slate-500 hover:text-slate-700"
-          >
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-700">
             <X size={20} />
           </button>
         </div>
 
-        <div className="px-6 py-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Asunto
-            </label>
-            <input
-              type="text"
-              value={asuntoGenerado}
-              readOnly
-              className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50 text-xs font-mono text-slate-600"
-            />
+        <div className="px-6 py-5 space-y-4">
+          {/* Fila 1: Nombre + DNI */}
+          <div className="grid grid-cols-2 gap-4">
+            {campo('Nombre del solicitante', 'beneficiario', 'text', { placeholder: 'Ej: Laura Gómez' })}
+            {campo('DNI del solicitante', 'dni', 'text', { placeholder: 'Número de documento' })}
           </div>
 
+          {/* Fila 2: Email + Teléfono */}
+          <div className="grid grid-cols-2 gap-4">
+            {campo('Dirección de correo electrónico', 'email', 'email', { placeholder: 'correo@ejemplo.com' })}
+            {campo('Teléfono', 'telefono', 'text', { placeholder: 'Ej: 2645123456' })}
+          </div>
+
+          {/* Fila 3: Tipo de programa + Tipo de trámite */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Tipo de Programa
+                Tipo de programa<span className="text-red-500 ml-0.5">*</span>
               </label>
               <select
                 value={modal.programa}
-                onChange={(e) =>
-                  onUpdateField('programa', e.target.value as TipoPrograma)
-                }
-                className={`w-full px-3 py-2 border rounded-md text-sm ${
-                  modal.errores.programa
-                    ? 'border-red-400 bg-red-50'
-                    : 'border-slate-300'
+                onChange={(e) => onUpdateField('programa', e.target.value)}
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#FF9500] ${
+                  modal.errores.programa ? 'border-red-400 bg-red-50' : 'border-slate-300'
                 }`}
               >
-                <option value="">Seleccionar...</option>
-                {programas.map((p: string) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
+                <option value="">Por favor seleccione el tipo de programa</option>
+                {todosLosProgramas.map((p) => (
+                  <option key={p} value={p}>{p}</option>
                 ))}
               </select>
               {modal.errores.programa && (
-                <p className="text-xs text-red-600 mt-1">
-                  {modal.errores.programa}
-                </p>
+                <p className="text-xs text-red-600 mt-1">{modal.errores.programa}</p>
               )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Estado inicial
-              </label>
-              <div className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm bg-orange-50 text-orange-700 font-medium">
-                Solicitud inicial
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Prioridad
-            </label>
-            <div className="flex gap-6">
-              {PRIORIDADES.map((p) => (
-                <label key={p} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="prioridad"
-                    value={p}
-                    checked={modal.prioridad === p}
-                    onChange={(e) =>
-                      onUpdateField('prioridad', e.target.value as TicketPrioridad)
-                    }
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-slate-700">{p}</span>
-                </label>
-              ))}
-            </div>
-            {modal.errores.prioridad && (
-              <p className="text-xs text-red-600 mt-1">
-                {modal.errores.prioridad}
-              </p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Beneficiario (nombre completo)
-              </label>
-              <input
-                type="text"
-                value={modal.beneficiario}
-                onChange={(e) =>
-                  onUpdateField('beneficiario', e.target.value)
-                }
-                placeholder="Ej: GOMEZ LAURA"
-                className={`w-full px-3 py-2 border rounded-md text-sm ${
-                  modal.errores.beneficiario
-                    ? 'border-red-400 bg-red-50'
-                    : 'border-slate-300'
-                }`}
-              />
-              {modal.errores.beneficiario && (
-                <p className="text-xs text-red-600 mt-1">
-                  {modal.errores.beneficiario}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Teléfono móvil
-              </label>
-              <input
-                type="text"
-                value={modal.telefono}
-                onChange={(e) => onUpdateField('telefono', e.target.value)}
-                placeholder="Ej: 2645123456"
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Tipo de Documento
+                Tipo de trámite<span className="text-red-500 ml-0.5">*</span>
               </label>
               <select
-                value={modal.tipoDocumento}
-                onChange={(e) => onUpdateField('tipoDocumento', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                <option value="">Seleccionar...</option>
-                <option value="DNI">DNI</option>
-                <option value="CUIT">CUIT</option>
-                <option value="CUIL">CUIL</option>
-                <option value="LC">LC</option>
-                <option value="LE">LE</option>
-                <option value="CE">CE</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                N° de Documento
-              </label>
-              <input
-                type="text"
-                value={modal.dni}
-                onChange={(e) => onUpdateField('dni', e.target.value)}
-                placeholder="Ej: 12345678"
-                maxLength={11}
-                className={`w-full px-3 py-2 border rounded-md text-sm ${
-                  modal.errores.dni
-                    ? 'border-red-400 bg-red-50'
-                    : 'border-slate-300'
+                value={modal.tipoTramite}
+                onChange={(e) => onUpdateField('tipoTramite', e.target.value)}
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#FF9500] ${
+                  modal.errores.tipoTramite ? 'border-red-400 bg-red-50' : 'border-slate-300'
                 }`}
-              />
-              {modal.errores.dni && (
-                <p className="text-xs text-red-600 mt-1">{modal.errores.dni}</p>
+              >
+                <option value=""></option>
+                {TIPO_TRAMITE_OPCIONES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              {modal.errores.tipoTramite && (
+                <p className="text-xs text-red-600 mt-1">{modal.errores.tipoTramite}</p>
               )}
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Descripción
-            </label>
-            <textarea
-              value={modal.descripcion}
-              onChange={(e) => onUpdateField('descripcion', e.target.value)}
-              placeholder="Detalles del ticket..."
-              rows={4}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-            />
-          </div>
-
-          {camposDelPrograma.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3 border-t border-slate-200 pt-4">
-                Campos del programa
-              </h3>
-              <FormularioDinamico
-                campos={camposDelPrograma}
-                valores={valoresCampos}
-                errores={erroresCampos}
-                onChange={(campoId, valor) =>
-                  setValoresCampos((prev) => ({ ...prev, [campoId]: valor }))
-                }
-                modo="staff"
-              />
-            </div>
-          )}
-
+          {/* Fila 4: Nº Legajo + Nº Acta */}
           <div className="grid grid-cols-2 gap-4">
+            {campo('Número de legajo', 'legajo', 'text', { placeholder: 'Ingrese el número de legajo interno' })}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Número de Acta <span className="text-slate-400 font-normal">(opcional)</span>
+                Número de Acta <span className="text-slate-400 font-normal text-xs">(opcional)</span>
               </label>
               <input
                 type="text"
                 value={modal.numeroActa}
                 onChange={(e) => onUpdateField('numeroActa', e.target.value)}
                 placeholder="Ej: NOTA DEL 15/05/26"
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Agente/s asignado/s <span className="text-slate-400 font-normal">(opcional)</span>
-              </label>
-              <input
-                type="text"
-                value={modal.agentes}
-                onChange={(e) => onUpdateField('agentes', e.target.value)}
-                placeholder="Ej: Juan Pérez, María García"
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#FF9500]"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Email del solicitante <span className="text-slate-400 font-normal">(opcional)</span>
-            </label>
-            <input
-              type="email"
-              value={modal.emailSolicitante}
-              onChange={(e) => onUpdateField('emailSolicitante', e.target.value)}
-              placeholder="Ej: solicitante@gmail.com"
-              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-            />
-          </div>
+          {/* Asunto */}
+          {campo('Asunto', 'asunto', 'text', { placeholder: 'Breve descripción del ticket' })}
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Adjuntos <span className="text-slate-400 font-normal">(PDF, Word, imágenes, etc.)</span>
-            </label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt"
-              className="hidden"
-              onChange={(e) => handleFiles(e.target.files)}
-            />
-            <div
-              className="border-2 border-dashed border-slate-300 rounded-md p-5 text-center cursor-pointer hover:border-[#FF9500] hover:bg-orange-50 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
-            >
-              <File className="w-7 h-7 text-slate-400 mx-auto mb-2" />
-              <p className="text-sm text-slate-600">
-                Arrastrá archivos aquí o <span className="text-[#FF9500] font-medium">seleccioná archivos</span>
-              </p>
-              <p className="text-xs text-slate-400 mt-1">PDF, Word, Excel, imágenes</p>
-            </div>
-            {modal.adjuntos.length > 0 && (
-              <div className="mt-3 space-y-1.5">
-                {modal.adjuntos.map((adj, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded px-3 py-1.5">
-                    <File size={14} className="text-slate-500 flex-shrink-0" />
-                    <span className="text-xs text-slate-700 flex-1 truncate">{adj.nombre}</span>
-                    <span className="text-xs text-slate-400">{(adj.tamano / 1024).toFixed(0)} KB</span>
-                    <button onClick={() => removeAdjunto(i)} className="text-slate-400 hover:text-red-500 ml-1">
-                      <X size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Descripción */}
+          {campo('Descripción', 'descripcion', 'textarea', { placeholder: 'Descripción detallada del ticket' })}
         </div>
 
         <div className="flex gap-3 justify-end px-6 py-4 border-t border-slate-200">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50"
+            disabled={guardando}
+            className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
-            onClick={() => {
-              // Validate dynamic fields if any
-              if (camposDelPrograma.length > 0) {
-                const erroresDinamicos = validarRespuestasCampos(
-                  camposDelPrograma,
-                  valoresCampos
-                );
-                if (Object.keys(erroresDinamicos).length > 0) {
-                  setErroresCampos(erroresDinamicos);
-                  return;
-                }
-              }
-              // All validation passed, submit with dynamic values
-              onSubmit(valoresCampos);
-            }}
-            className="px-4 py-2 text-sm font-medium text-white bg-[#FF9500] rounded-md hover:bg-[#E67E00]"
+            onClick={onSubmit}
+            disabled={guardando}
+            className="px-4 py-2 text-sm font-medium text-white bg-[#FF9500] rounded-md hover:bg-[#E67E00] disabled:opacity-60 flex items-center gap-2"
           >
-            Guardar Ticket
+            {guardando && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+            {guardando ? 'Guardando...' : 'Guardar Ticket'}
           </button>
         </div>
       </div>
@@ -1656,6 +1441,9 @@ function dashboardReducer(
           agentes: '',
           emailSolicitante: '',
           adjuntos: [],
+          tipoTramite: '',
+          legajo: '',
+          asunto: '',
         },
       };
     case 'SET_MODAL_ADJUNTOS':
@@ -1699,6 +1487,9 @@ function dashboardReducer(
           agentes: '',
           emailSolicitante: '',
           adjuntos: [],
+          tipoTramite: '',
+          legajo: '',
+          asunto: '',
         },
       };
     }
@@ -1857,6 +1648,9 @@ const getInitialState = (): DashboardState => {
       agentes: '',
       emailSolicitante: '',
       adjuntos: [],
+      tipoTramite: '',
+      legajo: '',
+      asunto: '',
     },
     ticketAbierto: null,
     comentarioNuevo: '',
@@ -1884,8 +1678,13 @@ function parsearDescripcion(descripcion: string): Record<string, string> {
 
 function mapApiTicket(t: Record<string, unknown>): Ticket {
   const titulo = String(t.titulo ?? '');
-  const partesTitulo = titulo.split(' - ');
-  const programa = partesTitulo.length > 1 ? partesTitulo[partesTitulo.length - 1] : 'Sin programa';
+
+  // Preferir el programa del formulario (campo directo), con fallback al patrón legacy del titulo
+  let programa = String(t.formularioPrograma ?? '');
+  if (!programa) {
+    const partes = titulo.split(' - ');
+    programa = partes.length > 1 ? partes[partes.length - 1] : 'Sin programa';
+  }
 
   const nombreCompleto = String(t.ciudadanoNombre ?? '');
   const partesNombre = nombreCompleto.trim().split(' ');
@@ -1908,7 +1707,7 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
     id: String(t.ticketId ?? t.id ?? ''),
     prefix: programa.slice(0, 2).toUpperCase(),
     numero: Number(t.numero ?? 0),
-    beneficiario: { apellido, nombre, dni: '' },
+    beneficiario: { apellido, nombre, dni: String(t.ciudadanoDni ?? '') },
     asunto: titulo,
     programa,
     estado: estadoMapped,
@@ -1922,6 +1721,9 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
     comentarios: [],
     telefono: String(t.ciudadanoTelefono ?? ''),
     emailSolicitante: String(t.ciudadanoEmail ?? ''),
+    tipoTramite: t.tipoTramite ? String(t.tipoTramite) : undefined,
+    legajo: t.numeroLegajo ? String(t.numeroLegajo) : undefined,
+    numeroActa: t.numeroActa ? String(t.numeroActa) : undefined,
   };
 }
 
@@ -2030,9 +1832,15 @@ export default function AgenciaCalidadDashboard() {
     fetchDescripcion();
   }, [state.ticketAbierto?.id]);
 
-  // Programas de formularios activos (fuente de verdad para el filtro)
+  // Programas activos para el filtro del sidebar
   const programasDisponibles = useMemo(() => {
     const set = new Set(formularios.filter(f => f.activo).map(f => f.programa).filter(Boolean));
+    return Array.from(set).sort();
+  }, [formularios]);
+
+  // Todos los programas (activos + inactivos) para el modal de creación manual
+  const todosLosProgramas = useMemo(() => {
+    const set = new Set(formularios.map(f => f.programa).filter(Boolean));
     return Array.from(set).sort();
   }, [formularios]);
 
@@ -2049,19 +1857,6 @@ export default function AgenciaCalidadDashboard() {
 
   const totalPaginas = Math.ceil(ticketsFiltrados.length / state.porPagina);
 
-  const asuntoGenerado = useMemo(() => {
-    if (!state.modal.programa || !state.modal.beneficiario) return '';
-    const nextNum = getNextNumero(
-      state.tickets,
-      PROGRAMA_PREFIX_MAP[state.modal.programa as TipoPrograma]
-    );
-    return generarIDTicket(
-      state.modal.programa as TipoPrograma,
-      state.modal.beneficiario,
-      nextNum
-    );
-  }, [state.modal.programa, state.modal.beneficiario, state.tickets]);
-
   const countPorVista = useMemo(() => {
     const noElim = state.tickets.filter((t) => !t.eliminado);
     return {
@@ -2074,44 +1869,65 @@ export default function AgenciaCalidadDashboard() {
     };
   }, [state.tickets, usuario?.nombre]);
 
-  const handleSubmitTicket = (datosAdicionales?: Record<string, string>) => {
+  const [guardandoTicket, setGuardandoTicket] = useState(false);
+
+  const handleSubmitTicket = async () => {
     const errores = validarModal(state.modal);
     if (Object.keys(errores).length > 0) {
       dispatch({ type: 'SET_MODAL_ERRORES', payload: errores });
       return;
     }
 
-    const nextNum = getNextNumero(
-      state.tickets,
-      PROGRAMA_PREFIX_MAP[state.modal.programa as TipoPrograma]
-    );
-    const newTicket: Ticket = {
-      id: asuntoGenerado,
-      prefix: PROGRAMA_PREFIX_MAP[state.modal.programa as TipoPrograma],
-      numero: nextNum,
-      beneficiario: {
-        apellido: state.modal.beneficiario.split(' ')[0] || '',
-        nombre: state.modal.beneficiario.split(' ').slice(1).join(' ') || '',
-        dni: state.modal.dni,
-      },
-      asunto: asuntoGenerado,
-      programa: state.modal.programa as TipoPrograma,
-      estado: (state.modal.estado as TicketEstado) || 'Solicitud inicial',
-      prioridad: state.modal.prioridad as TicketPrioridad,
-      descripcion: state.modal.descripcion,
-      adjuntos: state.modal.adjuntos,
-      fechaCreacion: new Date(),
-      fechaActualizacion: new Date(),
-      comentarios: [],
-      tipoDocumento: state.modal.tipoDocumento || undefined,
-      telefono: state.modal.telefono || undefined,
-      datosAdicionales: datosAdicionales && Object.keys(datosAdicionales).length > 0 ? datosAdicionales : undefined,
-      numeroActa: state.modal.numeroActa || undefined,
-      agentes: state.modal.agentes ? state.modal.agentes.split(',').map((s) => s.trim()).filter(Boolean) : undefined,
-      emailSolicitante: state.modal.emailSolicitante || undefined,
-    };
+    const token = localStorage.getItem('sc_token');
+    const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+    if (!token || !apiUrl) {
+      alert('Sin conexión al servidor');
+      return;
+    }
 
-    dispatch({ type: 'TICKET_GUARDADO', payload: newTicket });
+    const formularioSeleccionado = formularios.find((f) => f.programa === state.modal.programa);
+
+    setGuardandoTicket(true);
+    try {
+      const res = await fetch(`${apiUrl}/tickets/crear-manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          formularioId: formularioSeleccionado?.id || null,
+          nombre: state.modal.beneficiario,
+          dni: state.modal.dni,
+          email: state.modal.email,
+          telefono: state.modal.telefono,
+          tipoTramite: state.modal.tipoTramite,
+          legajo: state.modal.legajo,
+          numeroActa: state.modal.numeroActa || null,
+          asunto: state.modal.asunto,
+          descripcion: state.modal.descripcion,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert((err as Record<string, string>).error || 'Error al crear el ticket');
+        return;
+      }
+
+      // Recargar todos los tickets desde el servidor
+      const res2 = await fetch(`${apiUrl}/tickets?limit=200`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res2.ok) {
+        const data = await res2.json();
+        const mapped = (data.tickets as Record<string, unknown>[]).map(mapApiTicket);
+        dispatch({ type: 'SET_TICKETS', payload: mapped });
+      }
+
+      dispatch({ type: 'CERRAR_MODAL' });
+    } catch {
+      alert('Error al crear el ticket. Verificá tu conexión.');
+    } finally {
+      setGuardandoTicket(false);
+    }
   };
 
   const paginaInicio = (state.paginaActual - 1) * state.porPagina + 1;
@@ -2517,12 +2333,9 @@ export default function AgenciaCalidadDashboard() {
             payload: { field, value },
           })
         }
-        onAdjuntosChange={(adj) =>
-          dispatch({ type: 'SET_MODAL_ADJUNTOS', payload: adj })
-        }
         onSubmit={handleSubmitTicket}
-        asuntoGenerado={asuntoGenerado}
-        programas={programasDisponibles}
+        guardando={guardandoTicket}
+        todosLosProgramas={todosLosProgramas}
       />
     </div>
   );

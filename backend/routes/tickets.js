@@ -22,9 +22,14 @@ function formatTicket(row) {
     prioridad: row.prioridad,
     asignadoA: row.asignado_a || null,
     formularioId: row.formularioId || null,
+    formularioPrograma: row.formulario_programa || null,
     ciudadanoNombre: row.ciudadano_nombre || null,
     ciudadanoEmail: row.ciudadano_email || null,
     ciudadanoTelefono: row.ciudadano_telefono || null,
+    ciudadanoDni: row.ciudadano_dni || null,
+    tipoTramite: row.tipo_tramite || null,
+    numeroLegajo: row.numero_legajo || null,
+    numeroActa: row.numero_acta || null,
     fechaCreacion: row.fecha_creacion instanceof Date
       ? row.fecha_creacion.toISOString()
       : row.fecha_creacion,
@@ -120,6 +125,94 @@ router.post('/crear-desde-formulario', async (req, res) => {
   }
 });
 
+// POST /api/tickets/crear-manual — JWT required
+// Permite crear tickets con programas no publicados (activo=0) desde el portal de agencia.
+router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
+  try {
+    const {
+      formularioId,
+      nombre,
+      dni,
+      email,
+      telefono,
+      tipoTramite,
+      legajo,
+      numeroActa,
+      asunto,
+      descripcion,
+    } = req.body;
+
+    const errores = {};
+    if (!nombre || nombre.trim().length < 2) errores.nombre = 'El nombre es requerido';
+    if (!dni || !dni.trim()) errores.dni = 'El DNI es requerido';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email.trim())) errores.email = 'El email no es válido';
+    if (!telefono || !telefono.trim()) errores.telefono = 'El teléfono es requerido';
+    const tiposTramiteValidos = ['N/A', 'ANR', 'COMPRA DE MATERIALES', 'CRÉDITO', 'HONORARIOS'];
+    if (!tipoTramite || !tiposTramiteValidos.includes(tipoTramite)) errores.tipoTramite = 'Tipo de trámite inválido';
+    if (!legajo || !legajo.trim()) errores.legajo = 'El número de legajo es requerido';
+    if (!asunto || !asunto.trim()) errores.asunto = 'El asunto es requerido';
+    if (!descripcion || !descripcion.trim()) errores.descripcion = 'La descripción es requerida';
+
+    if (Object.keys(errores).length > 0) {
+      return res.status(400).json({ error: 'Datos inválidos', errores });
+    }
+
+    if (formularioId) {
+      const [formRows] = await pool.query(
+        'SELECT formularioId FROM formularios WHERE formularioId = ?',
+        [formularioId]
+      );
+      if (formRows.length === 0) {
+        return res.status(404).json({ error: 'Programa no encontrado' });
+      }
+    }
+
+    const ticketId = uuidv4();
+
+    const [result] = await pool.query(
+      `INSERT INTO tickets
+         (ticketId, titulo, descripcion, estado, prioridad, formularioId,
+          ciudadano_nombre, ciudadano_email, ciudadano_telefono,
+          ciudadano_dni, tipo_tramite, numero_legajo, numero_acta, numero)
+       VALUES (?, ?, ?, 'abierto', 'media', ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [
+        ticketId,
+        asunto.trim(),
+        descripcion.trim(),
+        formularioId || null,
+        nombre.trim(),
+        email.trim().toLowerCase(),
+        telefono ? telefono.trim() : null,
+        dni.trim(),
+        tipoTramite,
+        legajo.trim(),
+        numeroActa ? numeroActa.trim() : null,
+      ]
+    );
+
+    const idSeq = result.insertId;
+    await pool.query('UPDATE tickets SET numero = ? WHERE id_seq = ?', [idSeq, idSeq]);
+
+    const [rows] = await pool.query(
+      `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
+              t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
+              t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
+              t.fecha_creacion, t.fecha_cierre,
+              f.programa AS formulario_programa
+       FROM tickets t
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
+       WHERE t.ticketId = ?`,
+      [ticketId]
+    );
+
+    return res.status(201).json(formatTicket(rows[0]));
+  } catch (err) {
+    console.error('[POST /tickets/crear-manual]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // GET /api/tickets — JWT required
 router.get('/', autenticar, soloTickets, async (req, res) => {
   try {
@@ -137,35 +230,38 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
           error: `Estado inválido. Valores permitidos: ${estadosValidos.join(', ')}`,
         });
       }
-      conditions.push('estado = ?');
+      conditions.push('t.estado = ?');
       params.push(estado);
     }
 
     if (formularioId) {
-      conditions.push('formularioId = ?');
+      conditions.push('t.formularioId = ?');
       params.push(formularioId);
     }
 
     if (asignadoA) {
-      conditions.push('asignado_a = ?');
+      conditions.push('t.asignado_a = ?');
       params.push(asignadoA);
     }
 
     const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
     const [countRows] = await pool.query(
-      `SELECT COUNT(*) AS total FROM tickets ${whereClause}`,
+      `SELECT COUNT(*) AS total FROM tickets t ${whereClause}`,
       params
     );
     const total = countRows[0].total;
 
     const [rows] = await pool.query(
-      `SELECT ticketId, numero, titulo, estado, etapa, agentes, prioridad,
-              asignado_a, formularioId, ciudadano_nombre, ciudadano_email,
-              ciudadano_telefono, fecha_creacion, fecha_cierre
-       FROM tickets
+      `SELECT t.ticketId, t.numero, t.titulo, t.estado, t.etapa, t.agentes, t.prioridad,
+              t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
+              t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
+              t.fecha_creacion, t.fecha_cierre,
+              f.programa AS formulario_programa
+       FROM tickets t
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
        ${whereClause}
-       ORDER BY fecha_creacion DESC
+       ORDER BY t.fecha_creacion DESC
        LIMIT ? OFFSET ?`,
       [...params, limit, skip]
     );
@@ -187,10 +283,14 @@ router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
     const [rows] = await pool.query(
-      `SELECT ticketId, numero, titulo, descripcion, estado, etapa, agentes, prioridad,
-              asignado_a, formularioId, ciudadano_nombre, ciudadano_email,
-              ciudadano_telefono, fecha_creacion, fecha_cierre
-       FROM tickets WHERE ticketId = ?`,
+      `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
+              t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
+              t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
+              t.fecha_creacion, t.fecha_cierre,
+              f.programa AS formulario_programa
+       FROM tickets t
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
+       WHERE t.ticketId = ?`,
       [ticketId]
     );
     if (rows.length === 0) {
@@ -287,10 +387,14 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
     );
 
     const [updatedRows] = await pool.query(
-      `SELECT ticketId, numero, titulo, descripcion, estado, etapa, agentes, prioridad,
-              asignado_a, formularioId, ciudadano_nombre, ciudadano_email,
-              ciudadano_telefono, fecha_creacion, fecha_cierre
-       FROM tickets WHERE ticketId = ?`,
+      `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
+              t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
+              t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
+              t.fecha_creacion, t.fecha_cierre,
+              f.programa AS formulario_programa
+       FROM tickets t
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
+       WHERE t.ticketId = ?`,
       [ticketId]
     );
 
