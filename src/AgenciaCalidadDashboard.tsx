@@ -464,6 +464,7 @@ interface NuevoTicketModalProps {
   modal: ModalState;
   onClose: () => void;
   onUpdateField: (field: string, value: unknown) => void;
+  onAdjuntosChange: (adjuntos: Adjunto[]) => void;
   onSubmit: () => void;
   guardando: boolean;
   todosLosProgramas: string[];
@@ -474,10 +475,25 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
   modal,
   onClose,
   onUpdateField,
+  onAdjuntosChange,
   onSubmit,
   guardando,
   todosLosProgramas,
 }) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const contenido = e.target?.result as string;
+        onAdjuntosChange([...modal.adjuntos, { nombre: file.name, tipo: file.type, tamano: file.size, contenido }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   if (!isOpen) return null;
 
   const campo = (
@@ -608,6 +624,50 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
 
           {/* Descripción */}
           {campo('Descripción', 'descripcion', 'textarea', { placeholder: 'Descripción detallada del ticket' })}
+
+          {/* Adjuntos */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Adjuntar archivos <span className="text-slate-400 font-normal text-xs">(opcional)</span>
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt"
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+            <div
+              className="border-2 border-dashed border-slate-300 rounded-md p-5 text-center cursor-pointer hover:border-[#FF9500] hover:bg-orange-50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+            >
+              <File className="w-7 h-7 text-slate-400 mx-auto mb-2" />
+              <p className="text-sm text-slate-600">
+                Arrastrá archivos aquí o <span className="text-[#FF9500] font-medium">seleccioná archivos</span>
+              </p>
+              <p className="text-xs text-slate-400 mt-1">PDF, Word, Excel, imágenes</p>
+            </div>
+            {modal.adjuntos.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                {modal.adjuntos.map((adj, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded px-3 py-1.5">
+                    <File size={14} className="text-slate-500 flex-shrink-0" />
+                    <span className="text-xs text-slate-700 flex-1 truncate">{adj.nombre}</span>
+                    <span className="text-xs text-slate-400">{(adj.tamano / 1024).toFixed(0)} KB</span>
+                    <button
+                      onClick={() => onAdjuntosChange(modal.adjuntos.filter((_, j) => j !== i))}
+                      className="text-slate-400 hover:text-red-500 ml-1"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-3 justify-end px-6 py-4 border-t border-slate-200">
@@ -2332,6 +2392,9 @@ export default function AgenciaCalidadDashboard() {
             type: 'UPDATE_MODAL_FIELD',
             payload: { field, value },
           })
+        }
+        onAdjuntosChange={(adj) =>
+          dispatch({ type: 'SET_MODAL_ADJUNTOS', payload: adj })
         }
         onSubmit={handleSubmitTicket}
         guardando={guardandoTicket}
