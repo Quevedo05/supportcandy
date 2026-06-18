@@ -371,7 +371,7 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
             <option value="">— Seleccioná tu barrera —</option>
             {barrerasActivas.map((b) => (
               <option key={b.id} value={b.id}>
-                {b.nombre}{b.ruta ? ` · ${b.ruta}` : ''}{b.departamento ? ` · Dpto. ${b.departamento}` : ''}
+                {b.nombre}
               </option>
             ))}
           </select>
