@@ -3,6 +3,7 @@ module.exports = {
     {
       name: 'supportcandy-api',
       script: './server.js',
+      cwd: '/var/www/sistema/backend',
       instances: 'max',
       exec_mode: 'cluster',
       watch: false,
