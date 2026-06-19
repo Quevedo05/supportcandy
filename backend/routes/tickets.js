@@ -305,7 +305,7 @@ router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
 router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { estado, prioridad, asignadoA, etapa, agentes } = req.body;
+    const { estado, prioridad, asignadoA, etapa, agentes, descripcion } = req.body;
 
     const [rows] = await pool.query(
       'SELECT ticketId, agentes FROM tickets WHERE ticketId = ?',
@@ -372,6 +372,14 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
     if (agentes !== undefined) {
       setClauses.push('agentes = ?');
       params.push(Array.isArray(agentes) ? JSON.stringify(agentes) : null);
+    }
+
+    if (descripcion !== undefined) {
+      if (req.usuario.rol !== 'admin' && !req.usuario.puedeEditarDatos) {
+        return res.status(403).json({ error: 'No tenés permiso para editar los datos de la solicitud' });
+      }
+      setClauses.push('descripcion = ?');
+      params.push(descripcion);
     }
 
     if (setClauses.length === 0) {

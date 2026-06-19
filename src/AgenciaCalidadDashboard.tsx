@@ -781,6 +781,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [legajoTmp, setLegajoTmp] = useState({ legajo: '', numeroActa: '', importe: '', codigoExterno: '' });
   const [editandoObservaciones, setEditandoObservaciones] = useState(false);
   const [observacionesTmp, setObservacionesTmp] = useState('');
+  const [editandoCampos, setEditandoCampos] = useState(false);
+  const [camposTmp, setCamposTmp] = useState<Record<string, string>>({});
   const [seccionesAbiertas, setSeccionesAbiertas] = useState<Record<string, boolean>>({
     solicitud: true, campos: true, legajo: true, asignaciones: true, observaciones: true, auditoria: false,
   });
@@ -1136,39 +1138,87 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
               <SeccionHeader title="Campos de la Solicitud" sKey="campos" />
               {seccionesAbiertas.campos && (
                 <div className="p-4 border-b border-slate-100 space-y-2">
-                  {Object.entries(ticket.datosAdicionales).map(([k, v]) => {
-                    const label = campoLabelMap[k] ?? k;
-                    if (typeof v === 'string' && v.startsWith('data:')) {
-                      const esImagen = v.startsWith('data:image/');
-                      return (
-                        <div key={k} className="py-0.5">
-                          <span className="text-slate-500 text-xs block mb-1">{label}:</span>
-                          {esImagen ? (
-                            <div className="space-y-1">
-                              <img
-                                src={v}
-                                alt={label}
-                                className="max-w-full rounded border border-slate-200 max-h-48 object-contain"
-                              />
-                              <a href={v} download={`${label}.jpg`} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                                <File size={11} /> Descargar imagen
-                              </a>
-                            </div>
-                          ) : (
-                            <a href={v} download={label} className="inline-flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded transition-colors">
-                              <File size={12} /> Descargar archivo
-                            </a>
-                          )}
+                  {editandoCampos ? (
+                    <div className="space-y-2">
+                      {Object.entries(camposTmp).map(([k, v]) => (
+                        <div key={k}>
+                          <label className="text-xs text-slate-500">{campoLabelMap[k] ?? k}</label>
+                          <input
+                            type="text"
+                            value={v}
+                            onChange={(e) => setCamposTmp((prev) => ({ ...prev, [k]: e.target.value }))}
+                            className="w-full px-2 py-1.5 border border-slate-300 rounded text-xs mt-0.5"
+                          />
                         </div>
-                      );
-                    }
-                    return (
-                      <div key={k} className="flex gap-2 py-0.5">
-                        <span className="text-slate-500 text-xs min-w-[100px] flex-shrink-0">{label}:</span>
-                        <span className="text-slate-800 text-xs font-medium break-words">{v || '—'}</span>
+                      ))}
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={() => {
+                            // Rebuild description preserving order and adjunto lines
+                            const descripcionNueva = Object.entries(ticket.datosAdicionales ?? {})
+                              .map(([k, v]) => {
+                                if (String(v).startsWith('data:')) return `${k}: [Adjunto]${v}`;
+                                return `${k}: ${camposTmp[k] ?? v}`;
+                              })
+                              .join('\n');
+                            onActualizarTicket(ticket.id, {
+                              descripcion: descripcionNueva,
+                              datosAdicionales: { ...ticket.datosAdicionales, ...camposTmp },
+                            });
+                            setEditandoCampos(false);
+                          }}
+                          className="flex-1 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                        >Guardar</button>
+                        <button onClick={() => setEditandoCampos(false)} className="flex-1 py-1 text-xs border border-slate-300 rounded hover:bg-slate-50">Cancelar</button>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ) : (
+                    <>
+                      {puedeEditarDatos && (
+                        <div className="flex justify-end mb-1">
+                          <button
+                            onClick={() => {
+                              const soloTexto = Object.fromEntries(
+                                Object.entries(ticket.datosAdicionales ?? {}).filter(([, v]) => !String(v).startsWith('data:'))
+                              );
+                              setCamposTmp(soloTexto);
+                              setEditandoCampos(true);
+                            }}
+                            className="text-slate-400 hover:text-slate-600"
+                          ><Pencil size={12} /></button>
+                        </div>
+                      )}
+                      {Object.entries(ticket.datosAdicionales).map(([k, v]) => {
+                        const label = campoLabelMap[k] ?? k;
+                        if (typeof v === 'string' && v.startsWith('data:')) {
+                          const esImagen = v.startsWith('data:image/');
+                          return (
+                            <div key={k} className="py-0.5">
+                              <span className="text-slate-500 text-xs block mb-1">{label}:</span>
+                              {esImagen ? (
+                                <div className="space-y-1">
+                                  <img src={v} alt={label} className="max-w-full rounded border border-slate-200 max-h-48 object-contain" />
+                                  <a href={v} download={`${label}.jpg`} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                    <File size={11} /> Descargar imagen
+                                  </a>
+                                </div>
+                              ) : (
+                                <a href={v} download={label} className="inline-flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded transition-colors">
+                                  <File size={12} /> Descargar archivo
+                                </a>
+                              )}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={k} className="flex gap-2 py-0.5">
+                            <span className="text-slate-500 text-xs min-w-[100px] flex-shrink-0">{label}:</span>
+                            <span className="text-slate-800 text-xs font-medium break-words">{v || '—'}</span>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               )}
             </>
@@ -2068,7 +2118,20 @@ export default function AgenciaCalidadDashboard() {
           dispatch({ type: 'ELIMINAR_TICKET', payload: id });
         }}
         onNuevoTicket={() => dispatch({ type: 'CERRAR_TICKET_DETAIL' })}
-        onActualizarTicket={(id, fields) => dispatch({ type: 'ACTUALIZAR_TICKET', payload: { id, fields } })}
+        onActualizarTicket={async (id, fields) => {
+          dispatch({ type: 'ACTUALIZAR_TICKET', payload: { id, fields } });
+          if (fields.descripcion !== undefined) {
+            const token = localStorage.getItem('sc_token');
+            const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+            if (token && apiUrl) {
+              await fetch(`${apiUrl}/tickets/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ descripcion: fields.descripcion }),
+              }).catch(() => {});
+            }
+          }
+        }}
       />
     );
   }
