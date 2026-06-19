@@ -1132,6 +1132,18 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             </div>
           )}
 
+          {/* Descripción de ticket manual (sin campos estructurados) */}
+          {ticket.descripcion && (!ticket.datosAdicionales || Object.keys(ticket.datosAdicionales).length === 0) && (
+            <>
+              <SeccionHeader title="Descripción de la Solicitud" sKey="campos" />
+              {seccionesAbiertas.campos && (
+                <div className="p-4 border-b border-slate-100">
+                  <p className="text-xs text-slate-700 whitespace-pre-wrap">{ticket.descripcion}</p>
+                </div>
+              )}
+            </>
+          )}
+
           {/* Campos de la Solicitud */}
           {ticket.datosAdicionales && Object.keys(ticket.datosAdicionales).length > 0 && (
             <>
