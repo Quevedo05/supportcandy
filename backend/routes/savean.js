@@ -363,8 +363,20 @@ router.post('/barreristas/migrar-inspectores', autenticar, soloSavean, soloAdmin
       const email = `${usuarioClean}@savean.local`;
 
       try {
-        const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [email]);
-        if (existing.length > 0) { saltados.push(usuarioClean); continue; }
+        const [existing] = await pool.query('SELECT usuarioId, modulo, rol FROM usuarios WHERE email = ?', [email]);
+        if (existing.length > 0) {
+          const u = existing[0];
+          if (u.modulo !== 'savean' || u.rol !== 'inspector') {
+            await pool.query(
+              `UPDATE usuarios SET modulo = 'savean', rol = 'inspector', activo = 1 WHERE usuarioId = ?`,
+              [u.usuarioId]
+            );
+            creados.push({ nombre: b.nombre || usuarioClean, usuario: usuarioClean, reparado: true });
+          } else {
+            saltados.push(usuarioClean);
+          }
+          continue;
+        }
 
         const passwordHash = await bcrypt.hash(usuarioClean, 10);
         const usuarioId = uuidv4();

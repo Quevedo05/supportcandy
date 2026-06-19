@@ -9,10 +9,19 @@ export function SaveanProvider({ children }: { children: ReactNode }) {
   const [barreras, setBarreras] = useState<Barrera[]>([]);
   const [barreristas, setBarreristas] = useState<Barrerista[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorCarga, setErrorCarga] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     Promise.all([
-      httpClient.get<{ guias: GuiaSavean[] }>('/savean/guias').then(({ guias: list }) => setGuias(list)).catch(() => {}),
+      httpClient.get<{ guias: GuiaSavean[] }>('/savean/guias')
+        .then(({ guias: list }) => setGuias(list))
+        .catch((err: any) => {
+          if (String(err?.message).includes('403')) {
+            setErrorCarga('Tu cuenta no tiene permiso para acceder a las guías. Contactá al administrador.');
+          } else {
+            setErrorCarga('No se pudieron cargar las guías. Verificá tu conexión e intentá recargar la página.');
+          }
+        }),
       httpClient.get<{ barreras: Barrera[] }>('/savean/barreras').then(({ barreras: list }) => setBarreras(list)).catch(() => {}),
       httpClient.get<{ barreristas: Barrerista[] }>('/savean/barreristas').then(({ barreristas: list }) => setBarreristas(list)).catch(() => {}),
     ]).finally(() => setLoading(false));
@@ -68,7 +77,7 @@ export function SaveanProvider({ children }: { children: ReactNode }) {
 
   return (
     <SaveanContext.Provider value={{
-      guias, barreras, barreristas, loading,
+      guias, barreras, barreristas, loading, errorCarga,
       crearGuia, verificarGuia, denegarGuia, modificarYVerificarGuia,
       obtenerGuia, obtenerGuiaPorNumero,
       agregarBarrerista, desactivarBarrerista, eliminarBarrerista, agregarBarrera,

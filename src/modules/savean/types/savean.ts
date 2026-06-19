@@ -67,6 +67,7 @@ export interface SaveanContextType {
   barreras: Barrera[];
   barreristas: Barrerista[];
   loading: boolean;
+  errorCarga?: string;
   crearGuia: (data: Omit<GuiaSavean, 'id' | 'numero' | 'token' | 'estado' | 'fechaEmision' | 'fechaVencimiento'>) => Promise<GuiaSavean>;
   verificarGuia: (id: string, barreraId: string) => Promise<void>;
   denegarGuia: (id: string, barreraId: string, motivo: string) => Promise<void>;

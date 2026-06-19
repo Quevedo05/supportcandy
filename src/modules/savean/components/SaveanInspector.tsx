@@ -743,7 +743,7 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
 type FiltroEstado = 'todos' | EstadoGuia;
 
 export function SaveanInspector() {
-  const { guias } = useSavean();
+  const { guias, errorCarga } = useSavean();
   const [filtro, setFiltro] = useState<FiltroEstado>('todos');
   const [busqueda, setBusqueda] = useState('');
   const [guiaSeleccionada, setGuiaSeleccionada] = useState<GuiaSavean | null>(null);
@@ -800,6 +800,13 @@ export function SaveanInspector() {
           <p className="text-sm text-gray-500">Verificá, denegá o modificá las guías de origen</p>
         </div>
       </div>
+
+      {errorCarga && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <AlertCircle size={18} className="text-red-500 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-red-700">{errorCarga}</p>
+        </div>
+      )}
 
       {/* Search + Scanner */}
       <div className="flex gap-2">
