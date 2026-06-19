@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { X, Plus, Trash2, Eye, EyeOff, Users, FileText, Mail, CheckCircle2, ClipboardList, ShieldCheck } from 'lucide-react';
+import { X, Plus, Trash2, Eye, EyeOff, Users, FileText, Mail, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { FormulariosPanel } from './FormulariosPanel';
 
 const ESTADOS_TICKET = [
