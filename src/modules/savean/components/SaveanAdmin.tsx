@@ -30,7 +30,7 @@ function mesLabel() {
 }
 
 // ─── small components ────────────────────────────────────────────────────────
-function KPI({ label, value, color = 'orange' }: { label: string; value: number | string; color?: string }) {
+function KPI({ label, value, color = 'orange', onClick }: { label: string; value: number | string; color?: string; onClick?: () => void }) {
   const border: Record<string, string> = {
     orange: 'border-l-4 border-orange-500', green: 'border-l-4 border-green-500',
     red: 'border-l-4 border-red-500', yellow: 'border-l-4 border-yellow-400',
@@ -41,9 +41,13 @@ function KPI({ label, value, color = 'orange' }: { label: string; value: number 
     yellow: 'text-yellow-600', gray: 'text-gray-500', blue: 'text-blue-600',
   };
   return (
-    <div className={`bg-white rounded-lg p-4 ${border[color] ?? border.orange} shadow-sm`}>
+    <div
+      className={`bg-white rounded-lg p-4 ${border[color] ?? border.orange} shadow-sm ${onClick ? 'cursor-pointer hover:shadow-md hover:bg-gray-50 transition' : ''}`}
+      onClick={onClick}
+    >
       <p className={`text-3xl font-extrabold leading-none ${num[color] ?? num.orange}`}>{value}</p>
       <p className="text-xs text-gray-500 mt-1.5 font-medium">{label}</p>
+      {onClick && <p className="text-xs text-orange-400 mt-1 font-medium">Ver listado →</p>}
     </div>
   );
 }
@@ -104,6 +108,7 @@ export function SaveanAdmin() {
   const { guias, barreras, barreristas, agregarBarrerista, eliminarBarrerista } = useSavean();
 
   const [guiaVista, setGuiaVista] = useState<GuiaSavean | null>(null);
+  const [kpiModal, setKpiModal] = useState<{ title: string; guias: GuiaSavean[] } | null>(null);
   const [fechaFiltro, setFechaFiltro] = useState(hoyISO());
   const [busquedaPendientes, setBusquedaPendientes] = useState('');
   const [verTodasGuias, setVerTodasGuias] = useState(false);
@@ -130,12 +135,18 @@ export function SaveanAdmin() {
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
   const hoy = hoyISO();
+  const guiasEmitidasHoy = guias.filter(g => g.fechaEmision.slice(0, 10) === hoy);
+  const guiasVerificadasHoy = guias.filter(g => g.estado === 'verificada' && g.fechaVerificacion?.slice(0, 10) === hoy);
+  const guiasPendientesAhora = guias.filter(g => g.estado === 'pendiente');
+  const guiasDenegadasHoy = guias.filter(g => g.estado === 'denegada' && g.fechaVerificacion?.slice(0, 10) === hoy);
+  const guiasVencidas = guias.filter(g => g.estado === 'vencida');
+
   const totalGuias = guias.length;
-  const emitidasHoy = guias.filter(g => g.fechaEmision.slice(0, 10) === hoy).length;
-  const verificadasHoy = guias.filter(g => g.estado === 'verificada' && g.fechaVerificacion?.slice(0, 10) === hoy).length;
-  const pendientesAhora = guias.filter(g => g.estado === 'pendiente').length;
-  const denegadasHoy = guias.filter(g => g.estado === 'denegada' && g.fechaVerificacion?.slice(0, 10) === hoy).length;
-  const vencidasHoy = guias.filter(g => g.estado === 'vencida').length;
+  const emitidasHoy = guiasEmitidasHoy.length;
+  const verificadasHoy = guiasVerificadasHoy.length;
+  const pendientesAhora = guiasPendientesAhora.length;
+  const denegadasHoy = guiasDenegadasHoy.length;
+  const vencidasHoy = guiasVencidas.length;
 
   // ── Mes ──────────────────────────────────────────────────────────────────
   const mesActual = hoy.slice(0, 7);
@@ -273,6 +284,11 @@ export function SaveanAdmin() {
     } catch { /* ignore */ }
   };
 
+  const openGuiaFromModal = (g: GuiaSavean) => {
+    setKpiModal(null);
+    setGuiaVista(g);
+  };
+
   if (guiaVista) {
     return <GuiaDetalle guia={guiaVista} onVolver={() => setGuiaVista(null)} />;
   }
@@ -308,18 +324,18 @@ export function SaveanAdmin() {
 
       {/* ── 3. KPI ROW 1 ── */}
       <div className="grid grid-cols-3 gap-3">
-        <KPI label="Total guías" value={totalGuias} color="orange" />
-        <KPI label="Emitidas Hoy" value={emitidasHoy} color="blue" />
-        <KPI label="Verificadas Hoy" value={verificadasHoy} color="green" />
+        <KPI label="Total guías" value={totalGuias} color="orange" onClick={() => setKpiModal({ title: 'Total de guías', guias })} />
+        <KPI label="Emitidas Hoy" value={emitidasHoy} color="blue" onClick={() => setKpiModal({ title: 'Emitidas hoy', guias: guiasEmitidasHoy })} />
+        <KPI label="Verificadas Hoy" value={verificadasHoy} color="green" onClick={() => setKpiModal({ title: 'Verificadas hoy', guias: guiasVerificadasHoy })} />
       </div>
 
       {/* ── 4. KPI ROW 2 ── */}
       <div className="grid grid-cols-3 gap-3">
-        <KPI label="Verificaciones Hechas" value={verificadasHoy} color="green" />
-        <KPI label="Pendientes ahora" value={pendientesAhora} color="yellow" />
+        <KPI label="Verificaciones Hechas" value={verificadasHoy} color="green" onClick={() => setKpiModal({ title: 'Verificaciones hechas hoy', guias: guiasVerificadasHoy })} />
+        <KPI label="Pendientes ahora" value={pendientesAhora} color="yellow" onClick={() => setKpiModal({ title: 'Pendientes ahora', guias: guiasPendientesAhora })} />
         <div className="grid grid-cols-2 gap-3 col-span-1">
-          <KPI label="Denegadas Hoy" value={denegadasHoy} color="red" />
-          <KPI label="Vencidas Hoy" value={vencidasHoy} color="gray" />
+          <KPI label="Denegadas Hoy" value={denegadasHoy} color="red" onClick={() => setKpiModal({ title: 'Denegadas hoy', guias: guiasDenegadasHoy })} />
+          <KPI label="Vencidas Hoy" value={vencidasHoy} color="gray" onClick={() => setKpiModal({ title: 'Vencidas', guias: guiasVencidas })} />
         </div>
       </div>
 
@@ -699,6 +715,55 @@ export function SaveanAdmin() {
           )}
         </div>
       </div>
+
+      {/* ── MODAL KPI ── */}
+      {kpiModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-16 px-4" onClick={() => setKpiModal(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[75vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <div>
+                <h3 className="font-bold text-gray-900 text-base">{kpiModal.title}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{kpiModal.guias.length} guía{kpiModal.guias.length !== 1 ? 's' : ''}</p>
+              </div>
+              <button onClick={() => setKpiModal(null)} className="text-gray-400 hover:text-gray-700 text-xl font-bold leading-none">×</button>
+            </div>
+            {kpiModal.guias.length === 0 ? (
+              <p className="text-gray-400 text-sm px-5 py-6">No hay guías en esta categoría.</p>
+            ) : (
+              <div className="overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-gray-50">
+                    <tr className="text-gray-400 border-b">
+                      <th className="text-left px-5 py-2 font-medium">N° Guía</th>
+                      <th className="text-left px-3 py-2 font-medium">Estado</th>
+                      <th className="text-left px-3 py-2 font-medium">Remitente</th>
+                      <th className="text-left px-3 py-2 font-medium">Inspector</th>
+                      <th className="text-left px-3 py-2 font-medium">Fecha emisión</th>
+                      <th className="py-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kpiModal.guias.map(g => (
+                      <tr
+                        key={g.id}
+                        className="border-b border-gray-50 hover:bg-orange-50 transition cursor-pointer"
+                        onClick={() => openGuiaFromModal(g)}
+                      >
+                        <td className="px-5 py-2 font-mono font-semibold text-orange-700">{g.numero}</td>
+                        <td className="px-3 py-2"><EstadoBadge estado={g.estado} /></td>
+                        <td className="px-3 py-2 text-gray-700">{g.remitenteNombre}</td>
+                        <td className="px-3 py-2 text-gray-500">{g.inspectorNombre ?? '—'}</td>
+                        <td className="px-3 py-2 text-gray-400">{formatFecha(g.fechaEmision)}</td>
+                        <td className="px-3 py-2 text-right"><Eye size={13} className="text-orange-400" /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
