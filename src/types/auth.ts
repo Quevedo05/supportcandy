@@ -21,6 +21,7 @@ export interface SesionActiva {
   nombre: string;
   rol: RolSistema;
   modulo: Modulo;
+  puedeEditarDatos?: boolean;
 }
 
 export interface AuthContextType {

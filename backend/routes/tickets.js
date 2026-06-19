@@ -6,8 +6,6 @@ const { soloModulo } = require('../middleware/soloModulo');
 
 const soloTickets = soloModulo('tickets');
 
-const SUPERVISORES_EMAILS = ['precio@calidadsj.com.ar', 'vcastro@calidadsj.com.ar'];
-
 const router = express.Router();
 
 function formatTicket(row) {
@@ -317,7 +315,7 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
       return res.status(404).json({ error: 'Ticket no encontrado' });
     }
 
-    if (req.usuario.rol !== 'admin' && !SUPERVISORES_EMAILS.includes(req.usuario.email)) {
+    if (req.usuario.rol !== 'admin') {
       const agentesTicket = rows[0].agentes ? JSON.parse(rows[0].agentes) : [];
       if (!agentesTicket.includes(req.usuario.nombre)) {
         return res.status(403).json({ error: 'No tenés permisos para modificar este ticket' });
@@ -493,7 +491,7 @@ router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) 
       return res.status(404).json({ error: 'Ticket no encontrado' });
     }
 
-    if (req.usuario.rol !== 'admin' && !SUPERVISORES_EMAILS.includes(req.usuario.email)) {
+    if (req.usuario.rol !== 'admin') {
       const agentesTicket = ticketRows[0].agentes ? JSON.parse(ticketRows[0].agentes) : [];
       if (!agentesTicket.includes(req.usuario.nombre)) {
         return res.status(403).json({ error: 'Solo el agente asignado puede agregar comentarios' });

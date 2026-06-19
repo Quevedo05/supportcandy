@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { X, Plus, Trash2, Eye, EyeOff, Users, FileText, Mail, CheckCircle2, ClipboardList } from 'lucide-react';
+import { X, Plus, Trash2, Eye, EyeOff, Users, FileText, Mail, CheckCircle2, ClipboardList, ShieldCheck } from 'lucide-react';
 import { FormulariosPanel } from './FormulariosPanel';
 
 const ESTADOS_TICKET = [
@@ -25,6 +25,7 @@ interface UsuarioDB {
   modulo: string;
   activo: boolean;
   estadosAsignados: string[];
+  puedeEditarDatos: boolean;
   creadoEn: string;
 }
 
@@ -126,6 +127,15 @@ export function AdminPanel() {
     fetchUsuarios();
   };
 
+  const handleToggleEditarDatos = async (usuarioId: string) => {
+    const token = localStorage.getItem('sc_token');
+    await fetch(`${apiUrl}/usuarios/${usuarioId}/toggle-editar-datos`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    fetchUsuarios();
+  };
+
   const handleGuardarEstados = async () => {
     if (!modalEstados) return;
     setGuardandoEstados(true);
@@ -207,7 +217,7 @@ export function AdminPanel() {
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Módulo</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Rol</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Etapas asignadas</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Edición de datos</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
             </tr>
@@ -238,27 +248,23 @@ export function AdminPanel() {
                           : 'bg-blue-100 text-blue-800'
                     }`}
                   >
-                    {u.rol === 'admin' ? 'Administrador' : u.rol === 'inspector' ? 'Inspector' : 'Contribuidor'}
+                    {u.rol === 'admin' ? 'Supervisor' : u.rol === 'inspector' ? 'Inspector' : 'Operativo'}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm">
-                  {u.modulo === 'tickets' ? (
-                    <div className="flex flex-wrap gap-1 max-w-xs">
-                      {(u.estadosAsignados ?? []).length === 0 ? (
-                        <span className="text-xs text-gray-400 italic">Sin etapas</span>
-                      ) : (
-                        (u.estadosAsignados ?? []).map((e) => (
-                          <span key={e} className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs">{e}</span>
-                        ))
-                      )}
-                      <button
-                        onClick={() => setModalEstados({ usuarioId: u.usuarioId, nombre: u.nombre, estados: u.estadosAsignados ?? [] })}
-                        className="p-0.5 text-gray-400 hover:text-blue-600 transition"
-                        title="Editar etapas"
-                      >
-                        <ClipboardList size={14} />
-                      </button>
-                    </div>
+                  {u.modulo === 'tickets' && u.rol === 'contribuidor' ? (
+                    <button
+                      onClick={() => handleToggleEditarDatos(u.usuarioId)}
+                      title={u.puedeEditarDatos ? 'Revocar permiso de edición de datos' : 'Habilitar edición de datos'}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition ${
+                        u.puedeEditarDatos
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      <ShieldCheck size={13} />
+                      {u.puedeEditarDatos ? 'Habilitado' : 'Sin permiso'}
+                    </button>
                   ) : (
                     <span className="text-xs text-gray-400">—</span>
                   )}
@@ -388,8 +394,8 @@ export function AdminPanel() {
                   >
                     {formData.modulo === 'tickets' ? (
                       <>
-                        <option value="contribuidor">Contribuidor</option>
-                        <option value="admin">Administrador</option>
+                        <option value="contribuidor">Operativo</option>
+                        <option value="admin">Supervisor</option>
                       </>
                     ) : (
                       <>

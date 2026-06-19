@@ -22,6 +22,7 @@ function formatUsuario(row) {
     modulo: row.modulo || 'tickets',
     activo: Boolean(row.activo),
     estadosAsignados: row.estados_asignados ? JSON.parse(row.estados_asignados) : [],
+    puedeEditarDatos: Boolean(row.puede_editar_datos),
     creadoEn: row.creado_en instanceof Date ? row.creado_en.toISOString() : row.creado_en,
     actualizadoEn: row.actualizado_en instanceof Date ? row.actualizado_en.toISOString() : row.actualizado_en,
   };
@@ -31,7 +32,7 @@ function formatUsuario(row) {
 router.get('/', async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT usuarioId, nombre, email, rol, modulo, activo, estados_asignados, creado_en, actualizado_en FROM usuarios ORDER BY creado_en ASC'
+      'SELECT usuarioId, nombre, email, rol, modulo, activo, estados_asignados, puede_editar_datos, creado_en, actualizado_en FROM usuarios ORDER BY creado_en ASC'
     );
     return res.status(200).json({
       usuarios: rows.map(formatUsuario),
@@ -140,6 +141,24 @@ router.patch('/:usuarioId/toggle-activo', async (req, res) => {
     });
   } catch (err) {
     console.error('[PATCH /usuarios/:id/toggle-activo]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PATCH /api/usuarios/:usuarioId/toggle-editar-datos
+router.patch('/:usuarioId/toggle-editar-datos', async (req, res) => {
+  try {
+    const { usuarioId } = req.params;
+    const [rows] = await pool.query(
+      'SELECT usuarioId, puede_editar_datos FROM usuarios WHERE usuarioId = ?',
+      [usuarioId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const nuevo = rows[0].puede_editar_datos ? 0 : 1;
+    await pool.query('UPDATE usuarios SET puede_editar_datos = ? WHERE usuarioId = ?', [nuevo, usuarioId]);
+    return res.status(200).json({ usuarioId, puedeEditarDatos: Boolean(nuevo) });
+  } catch (err) {
+    console.error('[PATCH /usuarios/:id/toggle-editar-datos]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

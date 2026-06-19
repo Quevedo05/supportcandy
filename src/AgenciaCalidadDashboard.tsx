@@ -186,8 +186,6 @@ const PRIORIDAD_CONFIG: Record<TicketPrioridad, { color: string; bg: string }> =
   Urgente: { color: '#EF4444', bg: '#FEF2F2' },
 };
 
-const SUPERVISORES_EMAILS = ['precio@calidadsj.com.ar', 'vcastro@calidadsj.com.ar'];
-
 const TIPO_TRAMITE_OPCIONES = ['N/A', 'ANR', 'COMPRA DE MATERIALES', 'CRÉDITO', 'HONORARIOS'] as const;
 
 
@@ -747,11 +745,11 @@ interface TicketDetailModalProps {
   onEliminarTicket: (id: string) => void;
   onNuevoTicket: () => void;
   onActualizarTicket: (id: string, fields: Partial<Ticket>) => void;
-  usuariosConEstados: { usuarioId: string; nombre: string; estadosAsignados: string[] }[];
+  operativos: { usuarioId: string; nombre: string }[];
 }
 
 const ROL_LABELS: Record<string, string> = {
-  admin: 'Administrador', contribuidor: 'Contribuidor',
+  admin: 'Supervisor', contribuidor: 'Operativo',
   inspector: 'Inspector', dev: 'Desarrollador',
 };
 
@@ -772,7 +770,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   onEliminarTicket,
   onNuevoTicket,
   onActualizarTicket,
-  usuariosConEstados,
+  operativos,
 }) => {
   const { usuario } = useAuth();
   const { formularios, obtenerCampos } = useFormularios();
@@ -793,8 +791,10 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const autorRol = usuario ? (ROL_LABELS[usuario.rol] ?? usuario.rol) : '';
   const puedeEditarTicket =
     usuario?.rol === 'admin' ||
-    SUPERVISORES_EMAILS.includes(usuario?.email ?? '') ||
     (ticket.agentes ?? []).includes(usuario?.nombre ?? '');
+  const puedeEditarDatos =
+    usuario?.rol === 'admin' ||
+    usuario?.puedeEditarDatos === true;
   const puedeComentarUser = puedeEditarTicket;
 
   const toggleSeccion = (key: string) =>
@@ -963,26 +963,22 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         <ChevronDown size={12} className={`transition-transform ${derivarAbierto ? 'rotate-180' : ''}`} />
                       </button>
                       {derivarAbierto && (
-                        <div className="absolute left-0 bottom-full mb-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1 min-w-[240px]">
-                          {usuariosConEstados.length === 0 ? (
-                            <p className="px-4 py-3 text-xs text-slate-400 italic">Sin agentes asignados a etapas</p>
+                        <div className="absolute left-0 bottom-full mb-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1 min-w-[200px]">
+                          {operativos.length === 0 ? (
+                            <p className="px-4 py-3 text-xs text-slate-400 italic">Sin agentes operativos</p>
                           ) : (
-                            usuariosConEstados.flatMap((u) =>
-                              u.estadosAsignados.map((estado) => (
-                                <button
-                                  key={`${u.usuarioId}-${estado}`}
-                                  onClick={() => {
-                                    onChangeEstado(ticket.id, estado as TicketEstado);
-                                    onChangeAgentes(ticket.id, [u.nombre]);
-                                    setDerivarAbierto(false);
-                                  }}
-                                  className="w-full flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF9500] transition-colors"
-                                >
-                                  <span className="font-medium">{u.nombre}</span>
-                                  <span className="text-xs text-slate-400 ml-2">{estado}</span>
-                                </button>
-                              ))
-                            )
+                            operativos.map((u) => (
+                              <button
+                                key={u.usuarioId}
+                                onClick={() => {
+                                  onChangeAgentes(ticket.id, [u.nombre]);
+                                  setDerivarAbierto(false);
+                                }}
+                                className="w-full flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF9500] transition-colors"
+                              >
+                                <span className="font-medium">{u.nombre}</span>
+                              </button>
+                            ))
                           )}
                         </div>
                       )}
@@ -1219,7 +1215,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </div>
               ) : (
                 <div className="space-y-0.5">
-                  {puedeEditarTicket && (
+                  {puedeEditarDatos && (
                     <div className="flex justify-end mb-1">
                       <button
                         onClick={() => {
@@ -1264,39 +1260,35 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                   </div>
                 </div>
               )}
-              {/* Picker de personas — solo para editores */}
+              {/* Picker de personas — solo para supervisores y agente actualmente asignado */}
               {puedeEditarTicket && (
-                usuariosConEstados.length > 0 ? (
+                operativos.length > 0 ? (
                   <div>
                     <p className="text-xs font-medium text-slate-500 mb-2">
                       {(ticket.agentes ?? []).length === 0 ? 'Asignar a:' : 'Reasignar a:'}
                     </p>
                     <div className="space-y-1">
-                      {usuariosConEstados.map((u) =>
-                        u.estadosAsignados.map((estado) => (
-                          <button
-                            key={`${u.usuarioId}-${estado}`}
-                            onClick={() => {
-                              onChangeEstado(ticket.id, estado as TicketEstado);
-                              onChangeAgentes(ticket.id, [u.nombre]);
-                            }}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition text-left"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
-                                <UserCircle size={13} className="text-slate-500" />
-                              </div>
-                              <span className="text-xs font-medium text-slate-700">{u.nombre}</span>
-                            </div>
-                            <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full">{estado}</span>
-                          </button>
-                        ))
-                      )}
+                      {operativos.map((u) => (
+                        <button
+                          key={u.usuarioId}
+                          onClick={() => onChangeAgentes(ticket.id, [u.nombre])}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border transition text-left ${
+                            (ticket.agentes ?? []).includes(u.nombre)
+                              ? 'border-blue-400 bg-blue-50'
+                              : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50'
+                          }`}
+                        >
+                          <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                            <UserCircle size={13} className="text-slate-500" />
+                          </div>
+                          <span className="text-xs font-medium text-slate-700">{u.nombre}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 ) : (
                   <p className="text-xs text-slate-400 italic">
-                    Sin agentes configurados — Asigná etapas a usuarios desde Administración
+                    Sin agentes operativos en el sistema
                   </p>
                 )
               )}
@@ -1350,7 +1342,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </div>
               ) : (
                 <div>
-                  {puedeEditarTicket && (
+                  {puedeEditarDatos && (
                     <div className="flex justify-end mb-1">
                       <button
                         onClick={() => { setObservacionesTmp(ticket.observaciones ?? ''); setEditandoObservaciones(true); }}
@@ -1804,17 +1796,16 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
   };
 }
 
-interface UsuarioConEstados {
+interface OperativoInfo {
   usuarioId: string;
   nombre: string;
-  estadosAsignados: string[];
 }
 
 export default function AgenciaCalidadDashboard() {
   const { usuario } = useAuth();
   const { formularios } = useFormularios();
   const [state, dispatch] = useReducer(dashboardReducer, undefined, getInitialState);
-  const [usuariosConEstados, setUsuariosConEstados] = useState<UsuarioConEstados[]>([]);
+  const [operativos, setOperativos] = useState<OperativoInfo[]>([]);
 
   // Fetch tickets from API on mount and on focus
   useEffect(() => {
@@ -1839,9 +1830,9 @@ export default function AgenciaCalidadDashboard() {
     return () => window.removeEventListener('focus', fetchTickets);
   }, []);
 
-  // Fetch usuarios con estados asignados
+  // Fetch todos los agentes operativos activos
   useEffect(() => {
-    const fetchUsuarios = async () => {
+    const fetchOperativos = async () => {
       const token = localStorage.getItem('sc_token');
       const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
       if (!token || !apiUrl) return;
@@ -1849,12 +1840,14 @@ export default function AgenciaCalidadDashboard() {
         const res = await fetch(`${apiUrl}/usuarios`, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) return;
         const data = await res.json();
-        setUsuariosConEstados(
-          (data.usuarios as UsuarioConEstados[]).filter((u) => (u.estadosAsignados ?? []).length > 0)
+        setOperativos(
+          (data.usuarios as Array<{ usuarioId: string; nombre: string; rol: string; activo: boolean; modulo: string }>)
+            .filter((u) => u.rol === 'contribuidor' && u.activo && u.modulo === 'tickets')
+            .map(({ usuarioId, nombre }) => ({ usuarioId, nombre }))
         );
       } catch { /* silencioso */ }
     };
-    fetchUsuarios();
+    fetchOperativos();
   }, []);
 
 
@@ -2060,7 +2053,7 @@ export default function AgenciaCalidadDashboard() {
             }).catch(() => {});
           }
         }}
-        usuariosConEstados={usuariosConEstados}
+        operativos={operativos}
         onEliminarTicket={async (id) => {
           const token = localStorage.getItem('sc_token');
           const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
