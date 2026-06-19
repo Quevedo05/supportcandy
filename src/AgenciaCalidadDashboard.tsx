@@ -2021,6 +2021,9 @@ export default function AgenciaCalidadDashboard() {
 
     setGuardandoTicket(true);
     try {
+      const lineasAdjuntos = state.modal.adjuntos.map((adj) => `${adj.nombre}: [Adjunto]${adj.contenido}`);
+      const descripcionFinal = [`Descripción: ${state.modal.descripcion.trim()}`, ...lineasAdjuntos].join('\n');
+
       const res = await fetch(`${apiUrl}/tickets/crear-manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -2034,7 +2037,7 @@ export default function AgenciaCalidadDashboard() {
           legajo: state.modal.legajo,
           numeroActa: state.modal.numeroActa || null,
           asunto: state.modal.asunto,
-          descripcion: state.modal.descripcion,
+          descripcion: descripcionFinal,
         }),
       });
 
