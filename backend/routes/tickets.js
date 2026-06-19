@@ -318,10 +318,7 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
     if (req.usuario.rol !== 'admin') {
       const agentesTicket = rows[0].agentes ? JSON.parse(rows[0].agentes) : [];
       const estaAsignado = agentesTicket.includes(req.usuario.nombre);
-      const soloEditandoDescripcion = descripcion !== undefined &&
-        estado === undefined && prioridad === undefined &&
-        asignadoA === undefined && etapa === undefined && agentes === undefined;
-      if (!estaAsignado && !(soloEditandoDescripcion && req.usuario.puedeEditarDatos)) {
+      if (!estaAsignado && !req.usuario.puedeEditarDatos) {
         return res.status(403).json({ error: 'No tenés permisos para modificar este ticket' });
       }
     }

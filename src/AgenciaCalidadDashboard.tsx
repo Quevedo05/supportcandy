@@ -793,7 +793,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const autorRol = usuario ? (ROL_LABELS[usuario.rol] ?? usuario.rol) : '';
   const puedeEditarTicket =
     usuario?.rol === 'admin' ||
-    (ticket.agentes ?? []).includes(usuario?.nombre ?? '');
+    (ticket.agentes ?? []).includes(usuario?.nombre ?? '') ||
+    usuario?.puedeEditarDatos === true;
   const puedeEditarDatos =
     usuario?.rol === 'admin' ||
     usuario?.puedeEditarDatos === true;

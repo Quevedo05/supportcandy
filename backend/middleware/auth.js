@@ -20,6 +20,7 @@ function autenticar(req, res, next) {
       email: payload.email,
       rol: payload.rol,
       modulo: payload.modulo,
+      puedeEditarDatos: Boolean(payload.puedeEditarDatos),
     };
     next();
   } catch (err) {
