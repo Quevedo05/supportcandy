@@ -163,6 +163,32 @@ router.patch('/:usuarioId/toggle-editar-datos', async (req, res) => {
   }
 });
 
+// PATCH /api/usuarios/:usuarioId/rol
+router.patch('/:usuarioId/rol', async (req, res) => {
+  try {
+    const { usuarioId } = req.params;
+    const { rol } = req.body;
+
+    if (req.usuario.usuarioId === usuarioId) {
+      return res.status(403).json({ error: 'No puede cambiar su propio rol' });
+    }
+
+    const rolesValidos = ['admin', 'contribuidor', 'inspector'];
+    if (!rol || !rolesValidos.includes(rol)) {
+      return res.status(400).json({ error: 'Rol inválido' });
+    }
+
+    const [rows] = await pool.query('SELECT usuarioId FROM usuarios WHERE usuarioId = ?', [usuarioId]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    await pool.query('UPDATE usuarios SET rol = ? WHERE usuarioId = ?', [rol, usuarioId]);
+    return res.status(200).json({ usuarioId, rol });
+  } catch (err) {
+    console.error('[PATCH /usuarios/:id/rol]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // DELETE /api/usuarios/:usuarioId
 router.delete('/:usuarioId', async (req, res) => {
   try {

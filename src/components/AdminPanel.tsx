@@ -127,6 +127,16 @@ export function AdminPanel() {
     fetchUsuarios();
   };
 
+  const handleCambiarRol = async (usuarioId: string, nuevoRol: string) => {
+    const token = localStorage.getItem('sc_token');
+    await fetch(`${apiUrl}/usuarios/${usuarioId}/rol`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ rol: nuevoRol }),
+    });
+    fetchUsuarios();
+  };
+
   const handleToggleEditarDatos = async (usuarioId: string) => {
     const token = localStorage.getItem('sc_token');
     await fetch(`${apiUrl}/usuarios/${usuarioId}/toggle-editar-datos`, {
@@ -239,17 +249,32 @@ export function AdminPanel() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      u.rol === 'admin'
-                        ? 'bg-purple-100 text-purple-800'
-                        : u.rol === 'inspector'
-                          ? 'bg-cyan-100 text-cyan-800'
+                  {u.modulo === 'tickets' && usuario?.usuarioId !== u.usuarioId ? (
+                    <select
+                      value={u.rol}
+                      onChange={(e) => handleCambiarRol(u.usuarioId, e.target.value)}
+                      className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                        u.rol === 'admin'
+                          ? 'bg-purple-100 text-purple-800'
                           : 'bg-blue-100 text-blue-800'
-                    }`}
-                  >
-                    {u.rol === 'admin' ? 'Supervisor' : u.rol === 'inspector' ? 'Inspector' : 'Operativo'}
-                  </span>
+                      }`}
+                    >
+                      <option value="contribuidor">Operativo</option>
+                      <option value="admin">Supervisor</option>
+                    </select>
+                  ) : (
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        u.rol === 'admin'
+                          ? 'bg-purple-100 text-purple-800'
+                          : u.rol === 'inspector'
+                            ? 'bg-cyan-100 text-cyan-800'
+                            : 'bg-blue-100 text-blue-800'
+                      }`}
+                    >
+                      {u.rol === 'admin' ? 'Supervisor' : u.rol === 'inspector' ? 'Inspector' : 'Operativo'}
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-sm">
                   {u.modulo === 'tickets' && u.rol === 'contribuidor' ? (
