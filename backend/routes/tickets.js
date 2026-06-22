@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../db/connection');
 const { autenticar } = require('../middleware/auth');
 const { soloModulo } = require('../middleware/soloModulo');
+const { enviarAsignacionTicket } = require('../services/mailer');
 
 const soloTickets = soloModulo('tickets');
 
@@ -397,11 +398,33 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
       return res.status(400).json({ error: 'Debe proporcionar al menos un campo para actualizar' });
     }
 
+    const agentesAnteriores = rows[0].agentes ? JSON.parse(rows[0].agentes) : [];
+
     params.push(ticketId);
     await pool.query(
       `UPDATE tickets SET ${setClauses.join(', ')} WHERE ticketId = ?`,
       params
     );
+
+    // Notificar por email a los agentes recién asignados
+    if (agentes !== undefined && Array.isArray(agentes)) {
+      const nuevosAgentes = agentes.filter((n) => !agentesAnteriores.includes(n));
+      if (nuevosAgentes.length > 0) {
+        const [ticketInfoRows] = await pool.query(
+          'SELECT numero, titulo, ciudadano_nombre FROM tickets WHERE ticketId = ?',
+          [ticketId]
+        );
+        const ticketInfo = ticketInfoRows[0];
+        const [usuariosRows] = await pool.query(
+          'SELECT nombre, email FROM usuarios WHERE nombre IN (?) AND activo = 1',
+          [nuevosAgentes]
+        );
+        for (const u of usuariosRows) {
+          enviarAsignacionTicket({ nombre: u.nombre, email: u.email, ticket: ticketInfo })
+            .catch((err) => console.error('[Mailer] Error notificando asignación:', err.message));
+        }
+      }
+    }
 
     const [updatedRows] = await pool.query(
       `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
