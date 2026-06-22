@@ -786,6 +786,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [observacionesTmp, setObservacionesTmp] = useState('');
   const [editandoCampos, setEditandoCampos] = useState(false);
   const [camposTmp, setCamposTmp] = useState<Record<string, string>>({});
+  const [adjuntosTmp, setAdjuntosTmp] = useState<Record<string, string>>({});
+  const adjuntosCamposRef = React.useRef<HTMLInputElement>(null);
   const [seccionesAbiertas, setSeccionesAbiertas] = useState<Record<string, boolean>>({
     solicitud: true, campos: true, legajo: true, asignaciones: true, observaciones: true, auditoria: false,
   });
@@ -1241,20 +1243,70 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                           />
                         </div>
                       ))}
+                      {/* Adjuntos editables */}
+                      {Object.keys(adjuntosTmp).length > 0 && (
+                        <div>
+                          <p className="text-xs text-slate-500 mb-1">Archivos adjuntos:</p>
+                          <div className="space-y-1">
+                            {Object.entries(adjuntosTmp).map(([nombre]) => (
+                              <div key={nombre} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded px-2 py-1">
+                                <File size={12} className="text-slate-400 flex-shrink-0" />
+                                <span className="text-xs text-slate-700 flex-1 truncate">{nombre}</span>
+                                <button
+                                  onClick={() => setAdjuntosTmp((prev) => { const n = { ...prev }; delete n[nombre]; return n; })}
+                                  className="text-red-400 hover:text-red-600 flex-shrink-0"
+                                  title="Eliminar adjunto"
+                                >✕</button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Subir nuevos adjuntos */}
+                      <div>
+                        <input
+                          ref={adjuntosCamposRef}
+                          type="file"
+                          multiple
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt"
+                          className="hidden"
+                          onChange={(e) => {
+                            const files = e.target.files;
+                            if (!files) return;
+                            Array.from(files).forEach((file) => {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const contenido = ev.target?.result as string;
+                                setAdjuntosTmp((prev) => ({ ...prev, [file.name]: contenido }));
+                              };
+                              reader.readAsDataURL(file);
+                            });
+                            if (adjuntosCamposRef.current) adjuntosCamposRef.current.value = '';
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => adjuntosCamposRef.current?.click()}
+                          className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 border border-dashed border-slate-300 hover:border-blue-400 rounded px-2.5 py-1.5 w-full justify-center transition-colors"
+                        >
+                          <File size={12} /> Agregar archivo
+                        </button>
+                      </div>
                       <div className="flex gap-2 pt-1">
                         <button
                           onClick={() => {
-                            // Rebuild description preserving order and adjunto lines
-                            const descripcionNueva = Object.entries(ticket.datosAdicionales ?? {})
-                              .map(([k, v]) => {
-                                if (String(v).startsWith('data:')) return `${k}: [Adjunto]${v}`;
-                                return `${k}: ${camposTmp[k] ?? v}`;
-                              })
+                            const nuevosDatos: Record<string, string> = {
+                              ...Object.fromEntries(
+                                Object.entries(ticket.datosAdicionales ?? {})
+                                  .filter(([, v]) => !String(v).startsWith('data:'))
+                                  .map(([k]) => [k, camposTmp[k] ?? ''])
+                              ),
+                              ...adjuntosTmp,
+                            };
+                            const descripcionNueva = Object.entries(nuevosDatos)
+                              .map(([k, v]) => String(v).startsWith('data:') ? `${k}: [Adjunto]${v}` : `${k}: ${v}`)
                               .join('\n');
-                            onActualizarTicket(ticket.id, {
-                              descripcion: descripcionNueva,
-                              datosAdicionales: { ...ticket.datosAdicionales, ...camposTmp },
-                            });
+                            onActualizarTicket(ticket.id, { descripcion: descripcionNueva, datosAdicionales: nuevosDatos });
                             setEditandoCampos(false);
                           }}
                           className="flex-1 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
@@ -1268,10 +1320,9 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         <div className="flex justify-end mb-1">
                           <button
                             onClick={() => {
-                              const soloTexto = Object.fromEntries(
-                                Object.entries(ticket.datosAdicionales ?? {}).filter(([, v]) => !String(v).startsWith('data:'))
-                              );
-                              setCamposTmp(soloTexto);
+                              const entradas = Object.entries(ticket.datosAdicionales ?? {});
+                              setCamposTmp(Object.fromEntries(entradas.filter(([, v]) => !String(v).startsWith('data:'))));
+                              setAdjuntosTmp(Object.fromEntries(entradas.filter(([, v]) => String(v).startsWith('data:'))));
                               setEditandoCampos(true);
                             }}
                             className="text-slate-400 hover:text-slate-600"
