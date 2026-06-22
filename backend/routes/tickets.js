@@ -277,6 +277,37 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
   }
 });
 
+// GET /api/tickets/consultar/:numero — público, sin auth, para que el ciudadano consulte su estado
+router.get('/consultar/:numero', async (req, res) => {
+  try {
+    const numero = parseInt(req.params.numero, 10);
+    if (!numero || isNaN(numero)) {
+      return res.status(400).json({ error: 'Número de trámite inválido' });
+    }
+    const [rows] = await pool.query(
+      `SELECT t.numero, t.titulo, t.estado, t.etapa, t.fecha_creacion,
+              f.programa AS formulario_programa
+       FROM tickets t
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
+       WHERE t.numero = ?`,
+      [numero]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'No se encontró ningún trámite con ese número' });
+    }
+    const t = rows[0];
+    return res.status(200).json({
+      numero: t.numero,
+      programa: t.formulario_programa || t.titulo || 'Sin programa',
+      estado: t.etapa || (t.estado === 'cerrado' ? 'Cerrado' : 'Solicitud inicial'),
+      fechaIngreso: t.fecha_creacion,
+    });
+  } catch (err) {
+    console.error('[GET /tickets/consultar/:numero]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // GET /api/tickets/:ticketId — JWT required, retorna ticket completo con descripción
 router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
   try {
