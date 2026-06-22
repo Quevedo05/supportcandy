@@ -1957,7 +1957,7 @@ export default function AgenciaCalidadDashboard() {
         const data = await res.json();
         setOperativos(
           (data.usuarios as Array<{ usuarioId: string; nombre: string; rol: string; activo: boolean; modulo: string }>)
-            .filter((u) => u.rol === 'contribuidor' && u.activo && u.modulo === 'tickets')
+            .filter((u) => (u.rol === 'contribuidor' || u.rol === 'admin') && u.activo && u.modulo === 'tickets')
             .map(({ usuarioId, nombre }) => ({ usuarioId, nombre }))
         );
       } catch { /* silencioso */ }
