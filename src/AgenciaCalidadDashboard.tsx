@@ -777,6 +777,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [editandoEstado, setEditandoEstado] = useState(false);
   const [estadoTmp, setEstadoTmp] = useState<TicketEstado | ''>('');
   const [derivarAbierto, setDerivarAbierto] = useState(false);
+  const [pendingAgente, setPendingAgente] = useState<{ nombre: string; accion: 'asignar' | 'quitar' | 'derivar' } | null>(null);
   const [editandoLegajo, setEditandoLegajo] = useState(false);
   const [legajoTmp, setLegajoTmp] = useState({ legajo: '', numeroActa: '', importe: '', codigoExterno: '' });
   const [editandoObservaciones, setEditandoObservaciones] = useState(false);
@@ -802,6 +803,21 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
   const toggleSeccion = (key: string) =>
     setSeccionesAbiertas((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const confirmarAsignacion = () => {
+    if (!pendingAgente) return;
+    const current = ticket.agentes ?? [];
+    let newAgentes: string[];
+    if (pendingAgente.accion === 'quitar') {
+      newAgentes = current.filter((a) => a !== pendingAgente.nombre);
+    } else if (pendingAgente.accion === 'derivar') {
+      newAgentes = [pendingAgente.nombre];
+    } else {
+      newAgentes = [...current, pendingAgente.nombre];
+    }
+    onChangeAgentes(ticket.id, newAgentes);
+    setPendingAgente(null);
+  };
 
   const camposFormulario = (() => {
     const form = formularios.find((f) => f.programa === ticket.programa);
@@ -858,6 +874,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   };
 
   return (
+    <>
     <div className="fixed inset-0 bg-white z-50 flex flex-col overflow-hidden">
       {/* Header granate */}
       <div className="bg-[#7F1D1D] px-4 py-2 flex items-center gap-2">
@@ -974,7 +991,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                               <button
                                 key={u.usuarioId}
                                 onClick={() => {
-                                  onChangeAgentes(ticket.id, [u.nombre]);
+                                  setPendingAgente({ nombre: u.nombre, accion: 'derivar' });
                                   setDerivarAbierto(false);
                                 }}
                                 className="w-full flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF9500] transition-colors"
@@ -1331,22 +1348,26 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       {(ticket.agentes ?? []).length === 0 ? 'Asignar a:' : 'Reasignar a:'}
                     </p>
                     <div className="space-y-1">
-                      {operativos.map((u) => (
-                        <button
-                          key={u.usuarioId}
-                          onClick={() => onChangeAgentes(ticket.id, [u.nombre])}
-                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border transition text-left ${
-                            (ticket.agentes ?? []).includes(u.nombre)
-                              ? 'border-blue-400 bg-blue-50'
-                              : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50'
-                          }`}
-                        >
-                          <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
-                            <UserCircle size={13} className="text-slate-500" />
-                          </div>
-                          <span className="text-xs font-medium text-slate-700">{u.nombre}</span>
-                        </button>
-                      ))}
+                      {operativos.map((u) => {
+                        const yaAsignado = (ticket.agentes ?? []).includes(u.nombre);
+                        return (
+                          <button
+                            key={u.usuarioId}
+                            onClick={() => setPendingAgente({ nombre: u.nombre, accion: yaAsignado ? 'quitar' : 'asignar' })}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border transition text-left ${
+                              yaAsignado
+                                ? 'border-blue-400 bg-blue-50'
+                                : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50'
+                            }`}
+                          >
+                            <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                              <UserCircle size={13} className="text-slate-500" />
+                            </div>
+                            <span className="text-xs font-medium text-slate-700">{u.nombre}</span>
+                            {yaAsignado && <span className="ml-auto text-xs text-blue-500 font-semibold">✓</span>}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : (
@@ -1450,6 +1471,37 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         </div>
       </div>
     </div>
+
+    {/* Modal de confirmación de asignación */}
+    {pendingAgente && (
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setPendingAgente(null)}>
+        <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
+          <h3 className="text-base font-semibold text-slate-800 mb-2">Confirmar asignación</h3>
+          <p className="text-sm text-slate-600 mb-5">
+            {pendingAgente.accion === 'quitar'
+              ? <>¿Desasignar a <span className="font-semibold">{pendingAgente.nombre}</span> de este ticket?</>
+              : pendingAgente.accion === 'derivar'
+              ? <>¿Derivar este ticket a <span className="font-semibold">{pendingAgente.nombre}</span>?</>
+              : <>¿Asignar a <span className="font-semibold">{pendingAgente.nombre}</span> a este ticket?</>}
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setPendingAgente(null)}
+              className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmarAsignacion}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 
