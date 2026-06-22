@@ -340,6 +340,23 @@ const PrioridadBadge: React.FC<PrioridadBadgeProps> = ({ prioridad }) => {
   );
 };
 
+const AVATAR_COLORS = [
+  'bg-violet-500', 'bg-blue-500', 'bg-cyan-500', 'bg-emerald-500',
+  'bg-rose-500', 'bg-amber-500', 'bg-pink-500', 'bg-indigo-500',
+];
+
+function getAvatarColor(nombre: string): string {
+  let hash = 0;
+  for (const ch of nombre) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff;
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitials(nombre: string): string {
+  const parts = nombre.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 interface TicketRowProps {
   ticket: Ticket;
   isSelected: boolean;
@@ -396,13 +413,37 @@ const TicketRow: React.FC<TicketRowProps> = ({
         <td className="px-4 py-3">
           <EstadoBadge estado={ticket.estado} />
         </td>
+        <td className="px-4 py-3">
+          {ticket.agentes && ticket.agentes.length > 0 ? (
+            <div className="flex items-center -space-x-1.5">
+              {ticket.agentes.slice(0, 3).map((agente, i) => (
+                <div
+                  key={i}
+                  title={agente}
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold ring-2 ring-white ${getAvatarColor(agente)}`}
+                >
+                  {getInitials(agente)}
+                </div>
+              ))}
+              {ticket.agentes.length > 3 && (
+                <div className="w-7 h-7 rounded-full bg-slate-300 flex items-center justify-center text-slate-600 text-xs font-bold ring-2 ring-white">
+                  +{ticket.agentes.length - 3}
+                </div>
+              )}
+            </div>
+          ) : (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-xs">
+              Sin asignar
+            </span>
+          )}
+        </td>
         <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">
           {formatearFecha(ticket.fechaActualizacion)}
         </td>
       </tr>
       {expandido && (
         <tr className={`border-b ${isSelected ? 'bg-[#FEF2F2]' : 'bg-slate-50'}`}>
-          <td colSpan={7} className="px-6 py-3">
+          <td colSpan={8} className="px-6 py-3">
             <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
               <div className="flex gap-2">
                 <span className="text-slate-400 font-medium min-w-[90px]">Nº de Acta:</span>
@@ -2570,6 +2611,9 @@ export default function AgenciaCalidadDashboard() {
                     Estado
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Agente/s
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Fecha de Actualización
                   </th>
                 </tr>
@@ -2577,7 +2621,7 @@ export default function AgenciaCalidadDashboard() {
               <tbody className="divide-y divide-slate-200">
                 {state.cargandoTickets && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center">
+                    <td colSpan={8} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center gap-3 text-slate-400">
                         <div className="w-8 h-8 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
                         <span className="text-sm">Cargando tickets...</span>
