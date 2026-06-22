@@ -305,7 +305,7 @@ router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
 router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { estado, prioridad, asignadoA, etapa, agentes, descripcion } = req.body;
+    const { estado, prioridad, asignadoA, etapa, agentes, descripcion, ciudadanoNombre, ciudadanoEmail, ciudadanoTelefono, ciudadanoDni } = req.body;
 
     const [rows] = await pool.query(
       'SELECT ticketId, agentes FROM tickets WHERE ticketId = ?',
@@ -381,6 +381,16 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
       }
       setClauses.push('descripcion = ?');
       params.push(descripcion);
+    }
+
+    if (ciudadanoNombre !== undefined || ciudadanoEmail !== undefined || ciudadanoTelefono !== undefined || ciudadanoDni !== undefined) {
+      if (req.usuario.rol !== 'admin') {
+        return res.status(403).json({ error: 'Solo los supervisores pueden editar datos del solicitante' });
+      }
+      if (ciudadanoNombre !== undefined) { setClauses.push('ciudadano_nombre = ?'); params.push(ciudadanoNombre || null); }
+      if (ciudadanoEmail !== undefined) { setClauses.push('ciudadano_email = ?'); params.push(ciudadanoEmail || null); }
+      if (ciudadanoTelefono !== undefined) { setClauses.push('ciudadano_telefono = ?'); params.push(ciudadanoTelefono || null); }
+      if (ciudadanoDni !== undefined) { setClauses.push('ciudadano_dni = ?'); params.push(ciudadanoDni || null); }
     }
 
     if (setClauses.length === 0) {

@@ -778,6 +778,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [estadoTmp, setEstadoTmp] = useState<TicketEstado | ''>('');
   const [derivarAbierto, setDerivarAbierto] = useState(false);
   const [pendingAgente, setPendingAgente] = useState<{ nombre: string; accion: 'asignar' | 'quitar' | 'derivar' } | null>(null);
+  const [editandoSolicitud, setEditandoSolicitud] = useState(false);
+  const [solicitudTmp, setSolicitudTmp] = useState({ nombre: '', dni: '', email: '', telefono: '' });
   const [editandoLegajo, setEditandoLegajo] = useState(false);
   const [legajoTmp, setLegajoTmp] = useState({ legajo: '', numeroActa: '', importe: '', codigoExterno: '' });
   const [editandoObservaciones, setEditandoObservaciones] = useState(false);
@@ -1140,11 +1142,69 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
               )}
               <InfoRow label="Programa" value={ticket.programa} />
               <InfoRow label="Prioridad"><PrioridadBadge prioridad={ticket.prioridad} /></InfoRow>
-              <InfoRow label="Nombre" value={`${ticket.beneficiario.apellido} ${ticket.beneficiario.nombre}`} />
-              <InfoRow label="Tipo Doc." value={ticket.tipoDocumento ?? '—'} />
-              <InfoRow label="N° Documento" value={ticket.beneficiario.dni} />
-              <InfoRow label="Email" value={ticket.emailSolicitante ?? '—'} />
-              <InfoRow label="Teléfono" value={ticket.telefono ?? '—'} />
+
+              {editandoSolicitud ? (
+                <div className="space-y-2 mt-2">
+                  {[
+                    { key: 'nombre', label: 'Nombre completo' },
+                    { key: 'dni', label: 'N° Documento' },
+                    { key: 'email', label: 'Email' },
+                    { key: 'telefono', label: 'Teléfono' },
+                  ].map(({ key, label }) => (
+                    <div key={key}>
+                      <label className="text-xs text-slate-500">{label}</label>
+                      <input
+                        type="text"
+                        value={solicitudTmp[key as keyof typeof solicitudTmp]}
+                        onChange={(e) => setSolicitudTmp((p) => ({ ...p, [key]: e.target.value }))}
+                        className="w-full px-2 py-1 border border-slate-300 rounded text-xs"
+                      />
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => {
+                        const partes = solicitudTmp.nombre.trim().split(' ');
+                        const apellido = partes.length > 1 ? partes[partes.length - 1] : '';
+                        const nombre = partes.length > 1 ? partes.slice(0, -1).join(' ') : partes[0] ?? '';
+                        onActualizarTicket(ticket.id, {
+                          beneficiario: { ...ticket.beneficiario, apellido, nombre, dni: solicitudTmp.dni },
+                          emailSolicitante: solicitudTmp.email,
+                          telefono: solicitudTmp.telefono,
+                        });
+                        setEditandoSolicitud(false);
+                      }}
+                      className="flex-1 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                    >Guardar</button>
+                    <button onClick={() => setEditandoSolicitud(false)} className="flex-1 py-1 text-xs border border-slate-300 rounded hover:bg-slate-50">Cancelar</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {puedeEditarDatos && (
+                    <div className="flex justify-end mb-1">
+                      <button
+                        onClick={() => {
+                          setSolicitudTmp({
+                            nombre: `${ticket.beneficiario.apellido} ${ticket.beneficiario.nombre}`.trim(),
+                            dni: ticket.beneficiario.dni,
+                            email: ticket.emailSolicitante ?? '',
+                            telefono: ticket.telefono ?? '',
+                          });
+                          setEditandoSolicitud(true);
+                        }}
+                        className="text-slate-400 hover:text-slate-600"
+                      ><Pencil size={12} /></button>
+                    </div>
+                  )}
+                  <InfoRow label="Nombre" value={`${ticket.beneficiario.apellido} ${ticket.beneficiario.nombre}`} />
+                  <InfoRow label="Tipo Doc." value={ticket.tipoDocumento ?? '—'} />
+                  <InfoRow label="N° Documento" value={ticket.beneficiario.dni} />
+                  <InfoRow label="Email" value={ticket.emailSolicitante ?? '—'} />
+                  <InfoRow label="Teléfono" value={ticket.telefono ?? '—'} />
+                </>
+              )}
+
               <InfoRow label="Fecha ingreso" value={formatearFecha(ticket.fechaCreacion)} />
               <InfoRow label="Últ. edición" value={formatearFecha(ticket.fechaActualizacion)} />
             </div>
@@ -2194,14 +2254,22 @@ export default function AgenciaCalidadDashboard() {
         onNuevoTicket={() => dispatch({ type: 'CERRAR_TICKET_DETAIL' })}
         onActualizarTicket={async (id, fields) => {
           dispatch({ type: 'ACTUALIZAR_TICKET', payload: { id, fields } });
-          if (fields.descripcion !== undefined) {
-            const token = localStorage.getItem('sc_token');
-            const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
-            if (token && apiUrl) {
+          const token = localStorage.getItem('sc_token');
+          const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+          if (token && apiUrl) {
+            const body: Record<string, unknown> = {};
+            if (fields.descripcion !== undefined) body.descripcion = fields.descripcion;
+            if (fields.beneficiario !== undefined) {
+              body.ciudadanoNombre = `${fields.beneficiario.apellido} ${fields.beneficiario.nombre}`.trim();
+              body.ciudadanoDni = fields.beneficiario.dni;
+            }
+            if (fields.emailSolicitante !== undefined) body.ciudadanoEmail = fields.emailSolicitante;
+            if (fields.telefono !== undefined) body.ciudadanoTelefono = fields.telefono;
+            if (Object.keys(body).length > 0) {
               await fetch(`${apiUrl}/tickets/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ descripcion: fields.descripcion }),
+                body: JSON.stringify(body),
               }).catch(() => {});
             }
           }
