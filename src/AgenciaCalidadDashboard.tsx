@@ -1028,7 +1028,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         <ChevronDown size={12} className={`transition-transform ${derivarAbierto ? 'rotate-180' : ''}`} />
                       </button>
                       {derivarAbierto && (
-                        <div className="absolute left-0 bottom-full mb-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1 min-w-[200px]">
+                        <div className="absolute left-0 bottom-full mb-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1 min-w-[200px] max-h-60 overflow-y-auto">
                           {operativos.length === 0 ? (
                             <p className="px-4 py-3 text-xs text-slate-400 italic">Sin agentes operativos</p>
                           ) : (
@@ -2109,7 +2109,7 @@ export default function AgenciaCalidadDashboard() {
         const data = await res.json();
         setOperativos(
           (data.usuarios as Array<{ usuarioId: string; nombre: string; rol: string; activo: boolean; modulo: string }>)
-            .filter((u) => u.activo && (u.rol === 'admin' || (u.rol === 'contribuidor' && u.modulo === 'tickets')))
+            .filter((u) => u.activo && (u.rol === 'admin' || u.modulo === 'tickets'))
             .filter((u) => !['Administrador', 'Director Savean', 'Manuel Rodriguez', 'Lucas Quevedo', 'Savean'].includes(u.nombre))
             .map(({ usuarioId, nombre }) => ({ usuarioId, nombre }))
         );
