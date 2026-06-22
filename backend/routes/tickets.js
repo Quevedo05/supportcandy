@@ -465,8 +465,8 @@ router.get('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) =
       return res.status(404).json({ error: 'Ticket no encontrado' });
     }
 
-    const [comentarios] = await pool.query(
-      `SELECT c.comentarioId, c.ticketId, c.contenido, c.fecha,
+    const [rows] = await pool.query(
+      `SELECT c.comentarioId, c.ticketId, c.contenido, c.adjuntos, c.fecha,
               u.nombre AS autorNombre, u.rol AS autorRol
        FROM comentarios c
        JOIN usuarios u ON u.usuarioId = c.autor_id
@@ -474,6 +474,11 @@ router.get('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) =
        ORDER BY c.fecha ASC`,
       [ticketId]
     );
+
+    const comentarios = rows.map((c) => ({
+      ...c,
+      adjuntos: c.adjuntos ? JSON.parse(c.adjuntos) : [],
+    }));
 
     return res.status(200).json({ comentarios });
   } catch (err) {
@@ -486,10 +491,12 @@ router.get('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) =
 router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { contenido } = req.body;
+    const { contenido, adjuntos } = req.body;
 
-    if (!contenido || contenido.trim().length === 0) {
-      return res.status(400).json({ error: 'El contenido del comentario es requerido' });
+    const tieneTexto = contenido && contenido.trim().length > 0;
+    const tieneAdjuntos = Array.isArray(adjuntos) && adjuntos.length > 0;
+    if (!tieneTexto && !tieneAdjuntos) {
+      return res.status(400).json({ error: 'El comentario debe tener texto o archivos adjuntos' });
     }
 
     const [ticketRows] = await pool.query(
@@ -510,17 +517,20 @@ router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) 
     const comentarioId = uuidv4();
     const now = new Date();
 
+    const adjuntosJson = tieneAdjuntos ? JSON.stringify(adjuntos) : null;
+
     await pool.query(
-      `INSERT INTO comentarios (comentarioId, ticketId, autor_id, contenido, fecha)
-       VALUES (?, ?, ?, ?, ?)`,
-      [comentarioId, ticketId, req.usuario.usuarioId, contenido.trim(), now]
+      `INSERT INTO comentarios (comentarioId, ticketId, autor_id, contenido, adjuntos, fecha)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [comentarioId, ticketId, req.usuario.usuarioId, tieneTexto ? contenido.trim() : '', adjuntosJson, now]
     );
 
     return res.status(201).json({
       comentarioId,
       ticketId,
       autorId: req.usuario.usuarioId,
-      contenido: contenido.trim(),
+      contenido: tieneTexto ? contenido.trim() : '',
+      adjuntos: adjuntos ?? [],
       fecha: now.toISOString(),
     });
   } catch (err) {

@@ -1988,7 +1988,7 @@ export default function AgenciaCalidadDashboard() {
           autorRol: String(c.autorRol),
           fecha: new Date(String(c.fecha)),
           contenido: String(c.contenido),
-          adjuntos: [],
+          adjuntos: Array.isArray(c.adjuntos) ? (c.adjuntos as Adjunto[]) : [],
         }));
         dispatch({ type: 'ACTUALIZAR_TICKET', payload: { id: ticketId, fields: { comentarios: comentariosApi } } });
       } catch { /* silencioso */ }
@@ -2139,11 +2139,16 @@ export default function AgenciaCalidadDashboard() {
         onAddComment={async (autorRol, adjuntos) => {
           const token = localStorage.getItem('sc_token');
           const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
-          if (token && apiUrl && state.ticketAbierto && state.comentarioNuevo.trim()) {
+          const tieneTexto = state.comentarioNuevo.trim().length > 0;
+          const tieneAdjuntos = adjuntos.length > 0;
+          if (token && apiUrl && state.ticketAbierto && (tieneTexto || tieneAdjuntos)) {
             await fetch(`${apiUrl}/tickets/${state.ticketAbierto.id}/comentarios`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ contenido: state.comentarioNuevo }),
+              body: JSON.stringify({
+                contenido: state.comentarioNuevo,
+                adjuntos: tieneAdjuntos ? adjuntos : undefined,
+              }),
             }).catch(() => {});
           }
           dispatch({ type: 'AGREGAR_COMENTARIO', payload: { autor: usuario?.nombre || 'Usuario', autorRol, adjuntos } });
