@@ -46,6 +46,7 @@ interface Adjunto {
 
 interface Comentario {
   id: string;
+  autorId?: string;
   autor: string;
   autorRol?: string;
   email?: string;
@@ -829,6 +830,9 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [camposTmp, setCamposTmp] = useState<Record<string, string>>({});
   const [adjuntosTmp, setAdjuntosTmp] = useState<Record<string, string>>({});
   const adjuntosCamposRef = React.useRef<HTMLInputElement>(null);
+  const [editandoAdjuntosId, setEditandoAdjuntosId] = useState<string | null>(null);
+  const [adjuntosEditandoTmp, setAdjuntosEditandoTmp] = useState<Adjunto[]>([]);
+  const adjuntosComentarioRef = React.useRef<HTMLInputElement>(null);
   const [seccionesAbiertas, setSeccionesAbiertas] = useState<Record<string, boolean>>({
     solicitud: true, campos: true, legajo: true, asignaciones: true, observaciones: true, auditoria: false,
   });
@@ -1088,16 +1092,20 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 }
                 if (entrada.tipo === 'evento_agente') {
                   return (
-                    <div key={entrada.id} className="text-center">
-                      <div className="inline-block bg-blue-50 border border-blue-100 rounded px-4 py-2 text-sm text-slate-600">
-                        <strong>{entrada.autor}</strong> cambio de agente de{' '}
-                        <strong>{entrada.agenteAnterior}</strong> a{' '}
-                        <strong>{entrada.agenteNuevo}</strong>{' '}
-                        <span className="text-slate-400">reportado {formatearFechaHora(entrada.fecha)}</span>
+                    <div key={entrada.id} className="flex items-center gap-3 py-1">
+                      <div className="flex-1 h-px bg-slate-200" />
+                      <div className="flex items-center gap-1.5 bg-violet-50 border border-violet-100 rounded-full px-3 py-1 text-xs text-slate-600 whitespace-nowrap">
+                        <UserCircle size={13} className="text-violet-400 flex-shrink-0" />
+                        <strong className="text-slate-700">{entrada.autor}</strong>
+                        <span>— {entrada.contenido}</span>
+                        <span className="text-slate-400 ml-1">{formatearFechaHora(entrada.fecha)}</span>
                       </div>
+                      <div className="flex-1 h-px bg-slate-200" />
                     </div>
                   );
                 }
+                const esPropio = entrada.autorId === usuario?.usuarioId;
+                const editandoEste = editandoAdjuntosId === entrada.id;
                 return (
                   <div key={entrada.id} className="border border-slate-200 rounded-md p-4 bg-white">
                     <div className="flex gap-3">
@@ -1118,17 +1126,26 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         {entrada.contenido && (
                           <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{entrada.contenido}</p>
                         )}
-                        {entrada.adjuntos.length > 0 && (
+
+                        {/* Adjuntos en modo normal */}
+                        {!editandoEste && entrada.adjuntos.length > 0 && (
                           <div className="mt-2 space-y-1">
-                            <p className="text-xs font-medium text-slate-600">Archivos adjuntos:</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-medium text-slate-600">Archivos adjuntos:</p>
+                              {esPropio && (
+                                <button
+                                  onClick={() => { setEditandoAdjuntosId(entrada.id); setAdjuntosEditandoTmp([...entrada.adjuntos]); }}
+                                  className="text-xs text-slate-400 hover:text-[#FF9500] flex items-center gap-0.5"
+                                  title="Editar adjuntos"
+                                >
+                                  <Pencil size={11} /> Editar
+                                </button>
+                              )}
+                            </div>
                             {entrada.adjuntos.map((adj, idx) => (
                               adj.contenido ? (
-                                <a
-                                  key={idx}
-                                  href={adj.contenido}
-                                  download={adj.nombre}
-                                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline"
-                                >
+                                <a key={idx} href={adj.contenido} download={adj.nombre}
+                                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline">
                                   <File size={12} /> {adj.nombre}
                                   <span className="text-slate-400">({formatBytes(adj.tamano)})</span>
                                 </a>
@@ -1138,6 +1155,99 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                                 </span>
                               )
                             ))}
+                          </div>
+                        )}
+
+                        {/* Botón agregar adjunto si no hay ninguno y es propio */}
+                        {!editandoEste && entrada.adjuntos.length === 0 && esPropio && (
+                          <button
+                            onClick={() => { setEditandoAdjuntosId(entrada.id); setAdjuntosEditandoTmp([]); }}
+                            className="mt-2 text-xs text-slate-400 hover:text-[#FF9500] flex items-center gap-1"
+                          >
+                            <Pencil size={11} /> Agregar adjunto
+                          </button>
+                        )}
+
+                        {/* Modo edición de adjuntos */}
+                        {editandoEste && (
+                          <div className="mt-3 border border-orange-200 bg-orange-50 rounded-lg p-3 space-y-2">
+                            <p className="text-xs font-semibold text-orange-700">Editando archivos adjuntos</p>
+                            {adjuntosEditandoTmp.length > 0 ? (
+                              <div className="space-y-1">
+                                {adjuntosEditandoTmp.map((adj, idx) => (
+                                  <div key={idx} className="flex items-center gap-2 bg-white border border-slate-200 rounded px-2 py-1">
+                                    <File size={12} className="text-slate-400 flex-shrink-0" />
+                                    <span className="text-xs text-slate-700 flex-1 truncate">{adj.nombre}</span>
+                                    <button
+                                      onClick={() => setAdjuntosEditandoTmp(adjuntosEditandoTmp.filter((_, i) => i !== idx))}
+                                      className="text-slate-400 hover:text-red-500"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-slate-400 italic">Sin adjuntos</p>
+                            )}
+                            <input
+                              ref={adjuntosComentarioRef}
+                              type="file"
+                              multiple
+                              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                              className="hidden"
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files ?? []);
+                                files.forEach((file) => {
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => {
+                                    setAdjuntosEditandoTmp((prev) => [...prev, {
+                                      nombre: file.name, tipo: file.type, tamano: file.size,
+                                      contenido: ev.target?.result as string,
+                                    }]);
+                                  };
+                                  reader.readAsDataURL(file);
+                                });
+                                e.target.value = '';
+                              }}
+                            />
+                            <button
+                              onClick={() => adjuntosComentarioRef.current?.click()}
+                              className="text-xs text-orange-600 hover:text-orange-800 flex items-center gap-1"
+                            >
+                              <Pencil size={11} /> Agregar archivo
+                            </button>
+                            <div className="flex gap-2 pt-1">
+                              <button
+                                onClick={async () => {
+                                  const token = localStorage.getItem('sc_token');
+                                  const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+                                  try {
+                                    const res = await fetch(`${apiUrl}/tickets/${ticket.id}/comentarios/${entrada.id}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                      body: JSON.stringify({ adjuntos: adjuntosEditandoTmp }),
+                                    });
+                                    if (res.ok) {
+                                      const nuevos = ticket.comentarios.map((c) =>
+                                        c.id === entrada.id ? { ...c, adjuntos: adjuntosEditandoTmp } : c
+                                      );
+                                      onActualizarTicket(ticket.id, { comentarios: nuevos });
+                                      setEditandoAdjuntosId(null);
+                                    }
+                                  } catch { /* silencioso */ }
+                                }}
+                                className="px-3 py-1 bg-orange-500 text-white text-xs font-semibold rounded hover:bg-orange-600"
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                onClick={() => setEditandoAdjuntosId(null)}
+                                className="px-3 py-1 border border-slate-300 text-slate-600 text-xs rounded hover:bg-slate-50"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -2135,7 +2245,8 @@ export default function AgenciaCalidadDashboard() {
         const data = await res.json();
         const comentariosApi: Comentario[] = (data.comentarios as Array<Record<string, unknown>>).map((c) => ({
           id: String(c.comentarioId),
-          tipo: 'comentario' as const,
+          autorId: c.autorId ? String(c.autorId) : undefined,
+          tipo: (c.tipo as Comentario['tipo']) ?? 'comentario',
           autor: String(c.autorNombre),
           autorRol: String(c.autorRol),
           fecha: new Date(String(c.fecha)),

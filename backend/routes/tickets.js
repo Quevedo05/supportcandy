@@ -437,10 +437,28 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
       params
     );
 
-    // Notificar por email a los agentes recién asignados
+    // Notificar por email y registrar evento cuando cambian los agentes
     if (agentes !== undefined && Array.isArray(agentes)) {
-      const nuevosAgentes = agentes.filter((n) => !agentesAnteriores.includes(n));
-      if (nuevosAgentes.length > 0) {
+      const agregados = agentes.filter((n) => !agentesAnteriores.includes(n));
+      const removidos = agentesAnteriores.filter((n) => !agentes.includes(n));
+
+      if (agregados.length > 0 || removidos.length > 0) {
+        let textoEvento = '';
+        if (removidos.length > 0 && agregados.length > 0) {
+          textoEvento = `Derivó a ${agregados.join(', ')} (quitó a ${removidos.join(', ')})`;
+        } else if (agregados.length > 0) {
+          textoEvento = `Agregó como agente: ${agregados.join(', ')}`;
+        } else {
+          textoEvento = `Quitó como agente: ${removidos.join(', ')}`;
+        }
+        await pool.query(
+          `INSERT INTO comentarios (comentarioId, ticketId, autor_id, contenido, adjuntos, tipo, fecha)
+           VALUES (?, ?, ?, ?, NULL, 'evento_agente', ?)`,
+          [uuidv4(), ticketId, req.usuario.usuarioId, textoEvento, new Date()]
+        );
+      }
+
+      if (agregados.length > 0) {
         const [ticketInfoRows] = await pool.query(
           'SELECT numero, titulo, ciudadano_nombre FROM tickets WHERE ticketId = ?',
           [ticketId]
@@ -448,7 +466,7 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
         const ticketInfo = ticketInfoRows[0];
         const [usuariosRows] = await pool.query(
           'SELECT nombre, email FROM usuarios WHERE nombre IN (?) AND activo = 1',
-          [nuevosAgentes]
+          [agregados]
         );
         for (const u of usuariosRows) {
           enviarAsignacionTicket({ nombre: u.nombre, email: u.email, ticket: ticketInfo })
@@ -530,8 +548,8 @@ router.get('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) =
     }
 
     const [rows] = await pool.query(
-      `SELECT c.comentarioId, c.ticketId, c.contenido, c.adjuntos, c.fecha,
-              u.nombre AS autorNombre, u.rol AS autorRol
+      `SELECT c.comentarioId, c.ticketId, c.contenido, c.adjuntos, c.fecha, c.tipo,
+              c.autor_id AS autorId, u.nombre AS autorNombre, u.rol AS autorRol
        FROM comentarios c
        JOIN usuarios u ON u.usuarioId = c.autor_id
        WHERE c.ticketId = ?
@@ -599,6 +617,37 @@ router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) 
     });
   } catch (err) {
     console.error('[POST /tickets/:id/comentarios]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PATCH /api/tickets/:ticketId/comentarios/:comentarioId — solo el autor puede editar sus adjuntos
+router.patch('/:ticketId/comentarios/:comentarioId', autenticar, soloTickets, async (req, res) => {
+  try {
+    const { ticketId, comentarioId } = req.params;
+    const { adjuntos } = req.body;
+
+    if (!Array.isArray(adjuntos)) {
+      return res.status(400).json({ error: 'adjuntos debe ser un array' });
+    }
+
+    const [rows] = await pool.query(
+      'SELECT autor_id FROM comentarios WHERE comentarioId = ? AND ticketId = ?',
+      [comentarioId, ticketId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Comentario no encontrado' });
+    if (rows[0].autor_id !== req.usuario.usuarioId) {
+      return res.status(403).json({ error: 'Solo el autor puede editar este comentario' });
+    }
+
+    await pool.query(
+      'UPDATE comentarios SET adjuntos = ? WHERE comentarioId = ?',
+      [adjuntos.length > 0 ? JSON.stringify(adjuntos) : null, comentarioId]
+    );
+
+    return res.status(200).json({ ok: true, adjuntos });
+  } catch (err) {
+    console.error('[PATCH /tickets/:id/comentarios/:cid]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

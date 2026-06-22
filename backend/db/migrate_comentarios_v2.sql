@@ -1,0 +1,1 @@
+ALTER TABLE comentarios ADD COLUMN tipo VARCHAR(30) NOT NULL DEFAULT 'comentario';
