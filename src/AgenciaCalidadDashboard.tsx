@@ -1958,6 +1958,7 @@ export default function AgenciaCalidadDashboard() {
         setOperativos(
           (data.usuarios as Array<{ usuarioId: string; nombre: string; rol: string; activo: boolean; modulo: string }>)
             .filter((u) => u.activo && (u.rol === 'admin' || (u.rol === 'contribuidor' && u.modulo === 'tickets')))
+            .filter((u) => !['Administrador', 'Director Savean', 'Manuel Rodriguez', 'Lucas Quevedo', 'Savean'].includes(u.nombre))
             .map(({ usuarioId, nombre }) => ({ usuarioId, nombre }))
         );
       } catch { /* silencioso */ }
