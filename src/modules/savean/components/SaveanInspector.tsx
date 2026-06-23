@@ -251,6 +251,15 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
   const { barreras, verificarGuia, denegarGuia, modificarYVerificarGuia, obtenerGuia } = useSavean();
 
   const [barreraId, setBarreraId] = useState(guia.barreraId ?? '');
+  const [guiaFresca, setGuiaFresca] = useState<GuiaSavean | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/savean/guias/token/${guia.token}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: GuiaSavean | null) => { if (data) setGuiaFresca(data); })
+      .catch(() => {});
+  }, [guia.token]);
+
   const [showDenegarModal, setShowDenegarModal] = useState(false);
   const [motivo, setMotivo] = useState('');
   const [showModificarModal, setShowModificarModal] = useState(false);
@@ -275,7 +284,7 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
   const [accionMsg, setAccionMsg] = useState('');
 
   const barrerasActivas = barreras.filter((b) => b.activa);
-  const guiaActual = obtenerGuia(guia.id) ?? guia;
+  const guiaActual = guiaFresca ?? obtenerGuia(guia.id) ?? guia;
   const puedeActuar = guiaActual.estado === 'pendiente';
 
   const actualizarItem = (idx: number, campo: keyof ItemMercaderia, valor: string | number) => {
@@ -287,12 +296,13 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
     const barrera = barreras.find((b) => b.id === barreraId);
     try {
       await verificarGuia(guiaActual.id, barreraId);
+      setGuiaFresca(null);
       setAccion('ok');
       setAccionMsg(`Guía verificada en ${barrera?.nombre ?? barreraId}`);
       setTimeout(() => onVolver(), 2000);
-    } catch {
+    } catch (error) {
       setAccion('err');
-      setAccionMsg('Error al verificar la guía. Intentá de nuevo.');
+      setAccionMsg((error instanceof Error ? error.message : null) || 'Error al verificar la guía. Intentá de nuevo.');
     }
   };
 
@@ -302,13 +312,14 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
     const barrera = barreras.find((b) => b.id === barreraId);
     try {
       await denegarGuia(guiaActual.id, barreraId, motivo.trim());
+      setGuiaFresca(null);
       setShowDenegarModal(false);
       setAccion('ok');
       setAccionMsg(`Guía denegada en ${barrera?.nombre ?? barreraId}`);
       setTimeout(() => onVolver(), 2000);
-    } catch {
+    } catch (error) {
       setAccion('err');
-      setAccionMsg('Error al denegar la guía. Intentá de nuevo.');
+      setAccionMsg((error instanceof Error ? error.message : null) || 'Error al denegar la guía. Intentá de nuevo.');
     }
   };
 
@@ -317,13 +328,14 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
     const barrera = barreras.find((b) => b.id === barreraId);
     try {
       await modificarYVerificarGuia(guiaActual.id, barreraId, { ...cambios, items: itemsCambios });
+      setGuiaFresca(null);
       setShowModificarModal(false);
       setAccion('ok');
       setAccionMsg(`Guía modificada y verificada en ${barrera?.nombre ?? barreraId}`);
       setTimeout(() => onVolver(), 2000);
-    } catch {
+    } catch (error) {
       setAccion('err');
-      setAccionMsg('Error al modificar la guía. Intentá de nuevo.');
+      setAccionMsg((error instanceof Error ? error.message : null) || 'Error al modificar la guía. Intentá de nuevo.');
     }
   };
 
@@ -363,18 +375,24 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
             <Shield size={14} className="inline mr-1" />
             Barrera de control
           </label>
-          <select
-            value={barreraId}
-            onChange={(e) => setBarreraId(e.target.value)}
-            className="w-full border border-orange-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none bg-white"
-          >
-            <option value="">— Seleccioná tu barrera —</option>
-            {barrerasActivas.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.nombre}
-              </option>
-            ))}
-          </select>
+          {barrerasActivas.length === 0 ? (
+            <p className="text-sm text-red-600 mt-1">
+              No hay barreras activas configuradas. Contactá al administrador para habilitarlas.
+            </p>
+          ) : (
+            <select
+              value={barreraId}
+              onChange={(e) => setBarreraId(e.target.value)}
+              className="w-full border border-orange-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none bg-white"
+            >
+              <option value="">— Seleccioná tu barrera —</option>
+              {barrerasActivas.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.nombre}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       )}
 

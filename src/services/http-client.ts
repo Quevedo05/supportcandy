@@ -19,6 +19,20 @@ export class HttpClient {
     return localStorage.getItem('sc_token');
   }
 
+  private async throwError(response: Response): Promise<never> {
+    let message = `HTTP ${response.status}: ${response.statusText}`;
+    try {
+      const body = await response.json();
+      if (body?.error) message = body.error;
+    } catch {}
+    if (response.status === 401) {
+      localStorage.removeItem('sc_token');
+      localStorage.removeItem('sc_sesion');
+      window.location.reload();
+    }
+    throw new Error(message);
+  }
+
   private getHeaders(contentType = 'application/json'): HeadersInit {
     const headers: HeadersInit = {
       'Content-Type': contentType,
@@ -43,9 +57,7 @@ export class HttpClient {
         headers: this.getHeaders(),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      if (!response.ok) await this.throwError(response);
 
       return await response.json() as T;
     } catch (error) {
@@ -66,9 +78,7 @@ export class HttpClient {
         body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      if (!response.ok) await this.throwError(response);
 
       return await response.json() as T;
     } catch (error) {
@@ -89,9 +99,7 @@ export class HttpClient {
         body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      if (!response.ok) await this.throwError(response);
 
       return await response.json() as T;
     } catch (error) {
@@ -111,9 +119,7 @@ export class HttpClient {
         headers: this.getHeaders(),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      if (!response.ok) await this.throwError(response);
 
       if (response.status === 204) {
         return {} as T;
