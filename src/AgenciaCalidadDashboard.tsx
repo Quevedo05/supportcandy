@@ -2219,8 +2219,7 @@ export default function AgenciaCalidadDashboard() {
         const data = await res.json();
         setOperativos(
           (data.usuarios as Array<{ usuarioId: string; nombre: string; rol: string; activo: boolean; modulo: string }>)
-            .filter((u) => u.activo && (u.rol === 'admin' || u.modulo === 'tickets'))
-            .filter((u) => !['Administrador', 'Director Savean', 'Manuel Rodriguez', 'Lucas Quevedo', 'Savean'].includes(u.nombre))
+            .filter((u) => u.activo && u.modulo === 'tickets' && u.rol === 'contribuidor')
             .map(({ usuarioId, nombre }) => ({ usuarioId, nombre }))
         );
       } catch { /* silencioso */ }
@@ -2405,28 +2404,48 @@ export default function AgenciaCalidadDashboard() {
           const tieneTexto = state.comentarioNuevo.trim().length > 0;
           const tieneAdjuntos = adjuntos.length > 0;
           if (token && apiUrl && state.ticketAbierto && (tieneTexto || tieneAdjuntos)) {
-            await fetch(`${apiUrl}/tickets/${state.ticketAbierto.id}/comentarios`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({
-                contenido: state.comentarioNuevo,
-                adjuntos: tieneAdjuntos ? adjuntos : undefined,
-              }),
-            }).catch(() => {});
+            try {
+              const res = await fetch(`${apiUrl}/tickets/${state.ticketAbierto.id}/comentarios`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                  contenido: state.comentarioNuevo,
+                  adjuntos: tieneAdjuntos ? adjuntos : undefined,
+                }),
+              });
+              if (!res.ok) {
+                const errBody = await res.json().catch(() => ({})) as { error?: string };
+                alert(errBody.error || 'No se pudo guardar el comentario. Intentá de nuevo.');
+                return;
+              }
+            } catch {
+              alert('Error de conexión al guardar el comentario.');
+              return;
+            }
           }
           dispatch({ type: 'AGREGAR_COMENTARIO', payload: { autor: usuario?.nombre || 'Usuario', autorRol, adjuntos } });
         }}
         onChangeEstado={async (id, estado) => {
-          dispatch({ type: 'CAMBIAR_ESTADO_TICKET', payload: { id, estado, autor: usuario?.nombre || 'Usuario' } });
           const token = localStorage.getItem('sc_token');
           const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
           if (token && apiUrl) {
-            await fetch(`${apiUrl}/tickets/${id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ etapa: estado }),
-            }).catch(() => {});
+            try {
+              const res = await fetch(`${apiUrl}/tickets/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ etapa: estado }),
+              });
+              if (!res.ok) {
+                const errBody = await res.json().catch(() => ({})) as { error?: string };
+                alert(errBody.error || 'No se pudo cambiar el estado. Intentá de nuevo.');
+                return;
+              }
+            } catch {
+              alert('Error de conexión al cambiar el estado.');
+              return;
+            }
           }
+          dispatch({ type: 'CAMBIAR_ESTADO_TICKET', payload: { id, estado, autor: usuario?.nombre || 'Usuario' } });
         }}
         onChangeAgentes={async (id, agentes) => {
           const token = localStorage.getItem('sc_token');
@@ -2486,12 +2505,23 @@ export default function AgenciaCalidadDashboard() {
             if (fields.telefono !== undefined) body.ciudadanoTelefono = fields.telefono;
             if (fields.legajo !== undefined) body.legajo = fields.legajo;
             if (fields.numeroActa !== undefined) body.numeroActa = fields.numeroActa;
+            if (fields.importe !== undefined) body.importe = fields.importe ?? null;
+            if (fields.codigoExterno !== undefined) body.codigoExterno = fields.codigoExterno || null;
+            if (fields.observaciones !== undefined) body.observaciones = fields.observaciones || null;
             if (Object.keys(body).length > 0) {
-              await fetch(`${apiUrl}/tickets/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(body),
-              }).catch(() => {});
+              try {
+                const res = await fetch(`${apiUrl}/tickets/${id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                  body: JSON.stringify(body),
+                });
+                if (!res.ok) {
+                  const errBody = await res.json().catch(() => ({})) as { error?: string };
+                  alert(errBody.error || 'No se pudo guardar. Recargá la página.');
+                }
+              } catch {
+                alert('Error de conexión al guardar.');
+              }
             }
           }
         }}

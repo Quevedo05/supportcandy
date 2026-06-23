@@ -29,6 +29,9 @@ function formatTicket(row) {
     tipoTramite: row.tipo_tramite || null,
     numeroLegajo: row.numero_legajo || null,
     numeroActa: row.numero_acta || null,
+    importe: row.importe != null ? Number(row.importe) : null,
+    codigoExterno: row.codigo_externo || null,
+    observaciones: row.observaciones || null,
     leido: row.leido === 1 || row.leido === true,
     fechaCreacion: row.fecha_creacion instanceof Date
       ? row.fecha_creacion.toISOString()
@@ -198,6 +201,7 @@ router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
+              t.importe, t.codigo_externo, t.observaciones,
               t.leido, t.fecha_creacion, t.fecha_cierre,
               f.programa AS formulario_programa
        FROM tickets t
@@ -256,6 +260,7 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
+              t.importe, t.codigo_externo, t.observaciones,
               t.leido, t.fecha_creacion, t.fecha_cierre, f.programa AS formulario_programa
        FROM tickets t
        LEFT JOIN formularios f ON f.formularioId = t.formularioId
@@ -316,6 +321,7 @@ router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
+              t.importe, t.codigo_externo, t.observaciones,
               t.leido, t.fecha_creacion, t.fecha_cierre,
               f.programa AS formulario_programa
        FROM tickets t
@@ -337,7 +343,7 @@ router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
 router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { estado, prioridad, asignadoA, etapa, agentes, descripcion, ciudadanoNombre, ciudadanoEmail, ciudadanoTelefono, ciudadanoDni, legajo, numeroActa } = req.body;
+    const { estado, prioridad, asignadoA, etapa, agentes, descripcion, ciudadanoNombre, ciudadanoEmail, ciudadanoTelefono, ciudadanoDni, legajo, numeroActa, importe, codigoExterno, observaciones } = req.body;
 
     const [rows] = await pool.query(
       'SELECT ticketId, agentes FROM tickets WHERE ticketId = ?',
@@ -433,6 +439,15 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
       if (numeroActa !== undefined) { setClauses.push('numero_acta = ?'); params.push(numeroActa || null); }
     }
 
+    if (importe !== undefined || codigoExterno !== undefined || observaciones !== undefined) {
+      if (req.usuario.rol !== 'admin' && !req.usuario.puedeEditarDatos) {
+        return res.status(403).json({ error: 'Solo los supervisores pueden editar estos campos' });
+      }
+      if (importe !== undefined) { setClauses.push('importe = ?'); params.push(importe !== null && importe !== '' ? Number(importe) : null); }
+      if (codigoExterno !== undefined) { setClauses.push('codigo_externo = ?'); params.push(codigoExterno || null); }
+      if (observaciones !== undefined) { setClauses.push('observaciones = ?'); params.push(observaciones || null); }
+    }
+
     if (setClauses.length === 0) {
       return res.status(400).json({ error: 'Debe proporcionar al menos un campo para actualizar' });
     }
@@ -487,6 +502,7 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
+              t.importe, t.codigo_externo, t.observaciones,
               t.leido, t.fecha_creacion, t.fecha_cierre,
               f.programa AS formulario_programa
        FROM tickets t
