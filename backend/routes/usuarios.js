@@ -10,8 +10,8 @@ const { enviarInvitacion } = require('../services/mailer');
 
 const router = express.Router();
 
-// Todas las rutas de usuarios son exclusivas del módulo tickets
-router.use(autenticar, soloModulo('tickets'), soloAdmin);
+// Todas las rutas requieren autenticación y módulo tickets; las de escritura requieren además soloAdmin
+router.use(autenticar, soloModulo('tickets'));
 
 function formatUsuario(row) {
   return {
@@ -45,7 +45,7 @@ router.get('/', async (_req, res) => {
 });
 
 // POST /api/usuarios — crea usuario y envía invitación por email
-router.post('/', async (req, res) => {
+router.post('/', soloAdmin, async (req, res) => {
   try {
     const { nombre, email, rol, modulo = 'tickets' } = req.body;
 
@@ -94,7 +94,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/usuarios/:usuarioId/estados-asignados
-router.patch('/:usuarioId/estados-asignados', async (req, res) => {
+router.patch('/:usuarioId/estados-asignados', soloAdmin, async (req, res) => {
   try {
     const { usuarioId } = req.params;
     const { estados } = req.body;
@@ -115,7 +115,7 @@ router.patch('/:usuarioId/estados-asignados', async (req, res) => {
 });
 
 // PATCH /api/usuarios/:usuarioId/toggle-activo
-router.patch('/:usuarioId/toggle-activo', async (req, res) => {
+router.patch('/:usuarioId/toggle-activo', soloAdmin, async (req, res) => {
   try {
     const { usuarioId } = req.params;
 
@@ -146,7 +146,7 @@ router.patch('/:usuarioId/toggle-activo', async (req, res) => {
 });
 
 // PATCH /api/usuarios/:usuarioId/toggle-editar-datos
-router.patch('/:usuarioId/toggle-editar-datos', async (req, res) => {
+router.patch('/:usuarioId/toggle-editar-datos', soloAdmin, async (req, res) => {
   try {
     const { usuarioId } = req.params;
     const [rows] = await pool.query(
@@ -164,7 +164,7 @@ router.patch('/:usuarioId/toggle-editar-datos', async (req, res) => {
 });
 
 // PATCH /api/usuarios/:usuarioId/rol
-router.patch('/:usuarioId/rol', async (req, res) => {
+router.patch('/:usuarioId/rol', soloAdmin, async (req, res) => {
   try {
     const { usuarioId } = req.params;
     const { rol } = req.body;
@@ -190,7 +190,7 @@ router.patch('/:usuarioId/rol', async (req, res) => {
 });
 
 // DELETE /api/usuarios/:usuarioId
-router.delete('/:usuarioId', async (req, res) => {
+router.delete('/:usuarioId', soloAdmin, async (req, res) => {
   try {
     const { usuarioId } = req.params;
 
