@@ -2429,16 +2429,32 @@ export default function AgenciaCalidadDashboard() {
           }
         }}
         onChangeAgentes={async (id, agentes) => {
-          dispatch({ type: 'CAMBIAR_AGENTES_TICKET', payload: { id, agentes, autor: usuario?.nombre || 'Usuario' } });
           const token = localStorage.getItem('sc_token');
           const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
           if (token && apiUrl) {
-            await fetch(`${apiUrl}/tickets/${id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ agentes }),
-            }).catch(() => {});
+            try {
+              const res = await fetch(`${apiUrl}/tickets/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ agentes }),
+              });
+              if (!res.ok) {
+                const errBody = await res.json().catch(() => ({})) as { error?: string };
+                if (res.status === 401) {
+                  localStorage.removeItem('sc_token');
+                  localStorage.removeItem('sc_sesion');
+                  window.location.reload();
+                  return;
+                }
+                alert(errBody.error || 'No se pudo reasignar el ticket. Intentá recargar la página.');
+                return;
+              }
+            } catch {
+              alert('Error de conexión al reasignar. Revisá tu conexión e intentá de nuevo.');
+              return;
+            }
           }
+          dispatch({ type: 'CAMBIAR_AGENTES_TICKET', payload: { id, agentes, autor: usuario?.nombre || 'Usuario' } });
         }}
         operativos={operativos}
         onEliminarTicket={async (id) => {
@@ -2468,6 +2484,8 @@ export default function AgenciaCalidadDashboard() {
             }
             if (fields.emailSolicitante !== undefined) body.ciudadanoEmail = fields.emailSolicitante;
             if (fields.telefono !== undefined) body.ciudadanoTelefono = fields.telefono;
+            if (fields.legajo !== undefined) body.legajo = fields.legajo;
+            if (fields.numeroActa !== undefined) body.numeroActa = fields.numeroActa;
             if (Object.keys(body).length > 0) {
               await fetch(`${apiUrl}/tickets/${id}`, {
                 method: 'PATCH',
