@@ -22,8 +22,12 @@ export function SaveanProvider({ children }: { children: ReactNode }) {
             setErrorCarga('No se pudieron cargar las guías. Verificá tu conexión e intentá recargar la página.');
           }
         }),
-      httpClient.get<{ barreras: Barrera[] }>('/savean/barreras').then(({ barreras: list }) => setBarreras(list)).catch(() => {}),
-      httpClient.get<{ barreristas: Barrerista[] }>('/savean/barreristas').then(({ barreristas: list }) => setBarreristas(list)).catch(() => {}),
+      httpClient.get<{ barreras: Barrera[] }>('/savean/barreras')
+        .then(({ barreras: list }) => setBarreras(list))
+        .catch(() => { setErrorCarga('No se pudieron cargar las barreras. Verificá tu conexión e intentá recargar.'); }),
+      httpClient.get<{ barreristas: Barrerista[] }>('/savean/barreristas')
+        .then(({ barreristas: list }) => setBarreristas(list))
+        .catch((err: unknown) => { console.error('[SaveanContext] Error cargando barreristas:', err); }),
     ]).finally(() => setLoading(false));
   }, []);
 

@@ -128,9 +128,11 @@ export function SaveanAdmin() {
     fetch(`${API_URL}/savean/usuarios`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
-      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then(data => setSaveanUsers(data.usuarios ?? []))
-      .catch(() => {});
+      .catch((err: unknown) => {
+        setErrAdmin(`No se pudieron cargar los inspectores: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+      });
   }, []);
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
@@ -276,12 +278,19 @@ export function SaveanAdmin() {
 
   const handleDeleteUser = async (usuarioId: string) => {
     try {
-      await fetch(`${API_URL}/savean/usuarios/${usuarioId}`, {
+      const res = await fetch(`${API_URL}/savean/usuarios/${usuarioId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${getToken()}` },
       });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({})) as { error?: string };
+        setErrAdmin(errBody.error || 'No se pudo eliminar el usuario.');
+        return;
+      }
       setSaveanUsers(prev => prev.filter(u => u.usuarioId !== usuarioId));
-    } catch { /* ignore */ }
+    } catch {
+      setErrAdmin('Error de conexión al eliminar el usuario.');
+    }
   };
 
   const openGuiaFromModal = (g: GuiaSavean) => {
@@ -638,7 +647,7 @@ export function SaveanAdmin() {
                     <td className="px-3 py-2 text-gray-800 font-medium">{b.nombre}</td>
                     <td className="px-3 py-2 text-gray-500 font-mono">{b.usuario}</td>
                     <td className="px-3 py-2">
-                      <button onClick={() => eliminarBarrerista(b.id)} className={btnRed}>
+                      <button onClick={async () => { try { await eliminarBarrerista(b.id); } catch (err: unknown) { setErrBr(err instanceof Error ? err.message : 'No se pudo eliminar el barrerista.'); } }} className={btnRed}>
                         <Trash2 size={11} /> Eliminar
                       </button>
                     </td>

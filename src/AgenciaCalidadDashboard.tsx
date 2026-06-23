@@ -2479,14 +2479,22 @@ export default function AgenciaCalidadDashboard() {
         onEliminarTicket={async (id) => {
           const token = localStorage.getItem('sc_token');
           const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
-          try {
-            if (token && apiUrl) {
-              await fetch(`${apiUrl}/tickets/${id}`, {
+          if (token && apiUrl) {
+            try {
+              const res = await fetch(`${apiUrl}/tickets/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
               });
+              if (!res.ok) {
+                const errBody = await res.json().catch(() => ({})) as { error?: string };
+                alert(errBody.error || 'No se pudo eliminar el ticket. Intentá de nuevo.');
+                return;
+              }
+            } catch {
+              alert('Error de conexión al eliminar el ticket.');
+              return;
             }
-          } catch { /* si falla el API igual elimina del estado local */ }
+          }
           dispatch({ type: 'ELIMINAR_TICKET', payload: id });
         }}
         onNuevoTicket={() => dispatch({ type: 'CERRAR_TICKET_DETAIL' })}
