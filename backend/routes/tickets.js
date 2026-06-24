@@ -343,7 +343,7 @@ router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
 router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { estado, prioridad, asignadoA, etapa, agentes, descripcion, ciudadanoNombre, ciudadanoEmail, ciudadanoTelefono, ciudadanoDni, legajo, numeroActa, importe, codigoExterno, observaciones } = req.body;
+    const { estado, prioridad, asignadoA, etapa, agentes, descripcion, ciudadanoNombre, ciudadanoEmail, ciudadanoTelefono, ciudadanoDni, legajo, numeroActa, importe, codigoExterno, observaciones, formularioId: nuevoFormularioId } = req.body;
 
     const [rows] = await pool.query(
       'SELECT ticketId, agentes FROM tickets WHERE ticketId = ?',
@@ -446,6 +446,28 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
       if (importe !== undefined) { setClauses.push('importe = ?'); params.push(importe !== null && importe !== '' ? Number(importe) : null); }
       if (codigoExterno !== undefined) { setClauses.push('codigo_externo = ?'); params.push(codigoExterno || null); }
       if (observaciones !== undefined) { setClauses.push('observaciones = ?'); params.push(observaciones || null); }
+    }
+
+    if (nuevoFormularioId !== undefined) {
+      if (req.usuario.rol !== 'admin' && !req.usuario.puedeEditarDatos) {
+        return res.status(403).json({ error: 'Solo los supervisores pueden cambiar el programa del ticket' });
+      }
+      const [formRows] = await pool.query(
+        'SELECT formularioId, programa FROM formularios WHERE formularioId = ?',
+        [nuevoFormularioId]
+      );
+      if (formRows.length === 0) {
+        return res.status(404).json({ error: 'Formulario no encontrado' });
+      }
+      setClauses.push('formularioId = ?');
+      params.push(nuevoFormularioId);
+      // Actualizar el título del ticket para reflejar el nuevo programa
+      const [ticketRow] = await pool.query('SELECT ciudadano_nombre FROM tickets WHERE ticketId = ?', [ticketId]);
+      if (ticketRow.length > 0) {
+        const nuevoTitulo = `Solicitud de ${ticketRow[0].ciudadano_nombre} - ${formRows[0].programa}`;
+        setClauses.push('titulo = ?');
+        params.push(nuevoTitulo);
+      }
     }
 
     if (setClauses.length === 0) {

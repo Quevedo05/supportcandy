@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useReducer, useMemo, useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, CheckCircle, Trash2, Pencil, UserCircle, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, CheckCircle, Check, Trash2, Pencil, UserCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useFormularios } from './context/FormulariosContext';
 
@@ -87,6 +87,7 @@ interface Ticket {
   observaciones?: string;
   eliminado?: boolean;
   leido?: boolean;
+  formularioId?: string;
 }
 
 interface FiltrosActivos {
@@ -820,6 +821,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [estadoTmp, setEstadoTmp] = useState<TicketEstado | ''>('');
   const [derivarAbierto, setDerivarAbierto] = useState(false);
   const [pendingAgente, setPendingAgente] = useState<{ nombre: string; accion: 'asignar' | 'quitar' | 'derivar' } | null>(null);
+  const [editandoPrograma, setEditandoPrograma] = useState(false);
+  const [programaTmp, setProgramaTmp] = useState('');
   const [editandoSolicitud, setEditandoSolicitud] = useState(false);
   const [solicitudTmp, setSolicitudTmp] = useState({ nombre: '', dni: '', email: '', telefono: '' });
   const [editandoLegajo, setEditandoLegajo] = useState(false);
@@ -1293,7 +1296,47 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                   )}
                 </div>
               )}
-              <InfoRow label="Programa" value={ticket.programa} />
+              {puedeEditarDatos ? (
+                editandoPrograma ? (
+                  <div className="flex gap-2 items-center py-0.5">
+                    <span className="text-slate-500 text-xs min-w-[100px] flex-shrink-0">Programa:</span>
+                    <select
+                      value={programaTmp}
+                      onChange={(e) => setProgramaTmp(e.target.value)}
+                      className="flex-1 px-2 py-0.5 border border-slate-300 rounded text-xs"
+                    >
+                      {formularios.filter(f => f.activo).map(f => (
+                        <option key={f.id} value={f.id}>{f.programa}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={async () => {
+                        if (programaTmp && programaTmp !== ticket.formularioId) {
+                          const formSeleccionado = formularios.find(f => f.id === programaTmp);
+                          await onActualizarTicket(ticket.id, {
+                            formularioId: programaTmp,
+                            programa: formSeleccionado?.programa ?? ticket.programa,
+                          });
+                        }
+                        setEditandoPrograma(false);
+                      }}
+                      className="text-green-600 hover:text-green-700"
+                    ><Check size={12} /></button>
+                    <button onClick={() => setEditandoPrograma(false)} className="text-slate-400 hover:text-slate-600"><X size={12} /></button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 py-0.5 items-center">
+                    <span className="text-slate-500 text-xs min-w-[100px] flex-shrink-0">Programa:</span>
+                    <span className="text-slate-800 text-xs font-medium break-words">{ticket.programa}</span>
+                    <button
+                      onClick={() => { setProgramaTmp(ticket.formularioId ?? ''); setEditandoPrograma(true); }}
+                      className="text-slate-400 hover:text-slate-600 ml-auto"
+                    ><Pencil size={12} /></button>
+                  </div>
+                )
+              ) : (
+                <InfoRow label="Programa" value={ticket.programa} />
+              )}
               <InfoRow label="Prioridad"><PrioridadBadge prioridad={ticket.prioridad} /></InfoRow>
 
               {editandoSolicitud ? (
@@ -2170,6 +2213,7 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
     legajo: t.numeroLegajo ? String(t.numeroLegajo) : undefined,
     numeroActa: t.numeroActa ? String(t.numeroActa) : undefined,
     leido: t.leido === true,
+    formularioId: t.formularioId ? String(t.formularioId) : undefined,
   };
 }
 
@@ -2219,7 +2263,7 @@ export default function AgenciaCalidadDashboard() {
         const data = await res.json();
         setOperativos(
           (data.usuarios as Array<{ usuarioId: string; nombre: string; rol: string; activo: boolean; modulo: string }>)
-            .filter((u) => u.activo && u.modulo === 'tickets' && u.rol === 'contribuidor')
+            .filter((u) => u.activo && u.modulo === 'tickets')
             .map(({ usuarioId, nombre }) => ({ usuarioId, nombre }))
         );
       } catch { /* silencioso */ }
@@ -2516,6 +2560,7 @@ export default function AgenciaCalidadDashboard() {
             if (fields.importe !== undefined) body.importe = fields.importe ?? null;
             if (fields.codigoExterno !== undefined) body.codigoExterno = fields.codigoExterno || null;
             if (fields.observaciones !== undefined) body.observaciones = fields.observaciones || null;
+            if (fields.formularioId !== undefined) body.formularioId = fields.formularioId;
             if (Object.keys(body).length > 0) {
               try {
                 const res = await fetch(`${apiUrl}/tickets/${id}`, {
