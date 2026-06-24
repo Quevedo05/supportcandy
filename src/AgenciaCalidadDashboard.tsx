@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useReducer, useMemo, useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, CheckCircle, Check, Trash2, Pencil, UserCircle, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, CheckCircle, Trash2, Pencil, UserCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useFormularios } from './context/FormulariosContext';
 
@@ -1302,26 +1302,21 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     <span className="text-slate-500 text-xs min-w-[100px] flex-shrink-0">Programa:</span>
                     <select
                       value={programaTmp}
-                      onChange={(e) => setProgramaTmp(e.target.value)}
+                      onChange={async (e) => {
+                        const nuevoId = e.target.value;
+                        const formSeleccionado = formularios.find(f => f.id === nuevoId);
+                        await onActualizarTicket(ticket.id, {
+                          formularioId: nuevoId,
+                          programa: formSeleccionado?.programa ?? ticket.programa,
+                        });
+                        setEditandoPrograma(false);
+                      }}
                       className="flex-1 px-2 py-0.5 border border-slate-300 rounded text-xs"
                     >
                       {formularios.map(f => (
                         <option key={f.id} value={f.id}>{f.programa}</option>
                       ))}
                     </select>
-                    <button
-                      onClick={async () => {
-                        if (programaTmp && programaTmp !== ticket.formularioId) {
-                          const formSeleccionado = formularios.find(f => f.id === programaTmp);
-                          await onActualizarTicket(ticket.id, {
-                            formularioId: programaTmp,
-                            programa: formSeleccionado?.programa ?? ticket.programa,
-                          });
-                        }
-                        setEditandoPrograma(false);
-                      }}
-                      className="text-green-600 hover:text-green-700"
-                    ><Check size={12} /></button>
                     <button onClick={() => setEditandoPrograma(false)} className="text-slate-400 hover:text-slate-600"><X size={12} /></button>
                   </div>
                 ) : (
