@@ -1305,7 +1305,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       onChange={(e) => setProgramaTmp(e.target.value)}
                       className="flex-1 px-2 py-0.5 border border-slate-300 rounded text-xs"
                     >
-                      {formularios.filter(f => f.activo).map(f => (
+                      {formularios.map(f => (
                         <option key={f.id} value={f.id}>{f.programa}</option>
                       ))}
                     </select>
