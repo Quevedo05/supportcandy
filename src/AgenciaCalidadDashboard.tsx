@@ -266,7 +266,7 @@ function aplicarFiltros(
         case 'Asunto':
           return t.asunto.toLowerCase().includes(q);
         case 'Beneficiario':
-          return `${t.beneficiario.apellido} ${t.beneficiario.nombre}`
+          return `${t.beneficiario.nombre} ${t.beneficiario.apellido}`
             .toLowerCase()
             .includes(q);
         case 'DNI':
@@ -410,7 +410,7 @@ const TicketRow: React.FC<TicketRowProps> = ({
           {ticket.legajo ?? '—'}
         </td>
         <td className={`px-4 py-3 text-sm text-slate-800 ${textWeight}`}>
-          {ticket.beneficiario.apellido} {ticket.beneficiario.nombre}
+          {ticket.beneficiario.nombre} {ticket.beneficiario.apellido}
         </td>
         <td className="px-4 py-3">
           <EstadoBadge estado={ticket.estado} />
@@ -964,7 +964,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       {/* Título */}
       <div className="border-b border-slate-200 px-6 py-3 bg-white">
         <h1 className="text-base font-semibold text-slate-900">
-          [Ticket #{ticket.numero}] {ticket.beneficiario.apellido} {ticket.beneficiario.nombre}
+          [Ticket #{ticket.numero}] {ticket.beneficiario.nombre} {ticket.beneficiario.apellido}
         </h1>
       </div>
 
@@ -1404,7 +1404,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       <button
                         onClick={() => {
                           setSolicitudTmp({
-                            nombre: `${ticket.beneficiario.apellido} ${ticket.beneficiario.nombre}`.trim(),
+                            nombre: `${ticket.beneficiario.nombre} ${ticket.beneficiario.apellido}`.trim(),
                             dni: ticket.beneficiario.dni,
                             email: ticket.emailSolicitante ?? '',
                             telefono: ticket.telefono ?? '',
@@ -1415,7 +1415,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       ><Pencil size={12} /></button>
                     </div>
                   )}
-                  <InfoRow label="Nombre" value={`${ticket.beneficiario.apellido} ${ticket.beneficiario.nombre}`} />
+                  <InfoRow label="Nombre" value={`${ticket.beneficiario.nombre} ${ticket.beneficiario.apellido}`} />
                   <InfoRow label="Tipo Doc." value={ticket.tipoDocumento ?? '—'} />
                   <InfoRow label="N° Documento" value={ticket.beneficiario.dni} />
                   <InfoRow label="Email" value={ticket.emailSolicitante ?? '—'} />
@@ -2572,7 +2572,7 @@ export default function AgenciaCalidadDashboard() {
             const body: Record<string, unknown> = {};
             if (fields.descripcion !== undefined) body.descripcion = fields.descripcion;
             if (fields.beneficiario !== undefined) {
-              body.ciudadanoNombre = `${fields.beneficiario.apellido} ${fields.beneficiario.nombre}`.trim();
+              body.ciudadanoNombre = `${fields.beneficiario.nombre} ${fields.beneficiario.apellido}`.trim();
               body.ciudadanoDni = fields.beneficiario.dni;
             }
             if (fields.emailSolicitante !== undefined) body.ciudadanoEmail = fields.emailSolicitante;
