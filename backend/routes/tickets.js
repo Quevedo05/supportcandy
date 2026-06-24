@@ -698,4 +698,28 @@ router.patch('/:ticketId/comentarios/:comentarioId', autenticar, soloTickets, as
   }
 });
 
+// DELETE /api/tickets/:ticketId/comentarios/:comentarioId — autor o admin puede eliminar
+router.delete('/:ticketId/comentarios/:comentarioId', autenticar, soloTickets, async (req, res) => {
+  try {
+    const { ticketId, comentarioId } = req.params;
+
+    const [rows] = await pool.query(
+      'SELECT autor_id, tipo FROM comentarios WHERE comentarioId = ? AND ticketId = ?',
+      [comentarioId, ticketId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Comentario no encontrado' });
+
+    if (rows[0].autor_id !== req.usuario.usuarioId && req.usuario.rol !== 'admin') {
+      return res.status(403).json({ error: 'Solo el autor puede eliminar este comentario' });
+    }
+
+    await pool.query('DELETE FROM comentarios WHERE comentarioId = ?', [comentarioId]);
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('[DELETE /tickets/:id/comentarios/:cid]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 module.exports = router;

@@ -1122,6 +1122,33 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                             <span className="text-xs bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">{entrada.autorRol}</span>
                           )}
                           <span className="text-xs text-slate-400">respondió {formatearFechaHora(entrada.fecha)}</span>
+                          {(esPropio || usuario?.rol === 'admin') && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm('¿Eliminar este comentario?')) return;
+                                const token = localStorage.getItem('sc_token');
+                                const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+                                try {
+                                  const res = await fetch(`${apiUrl}/tickets/${ticket.id}/comentarios/${entrada.id}`, {
+                                    method: 'DELETE',
+                                    headers: { Authorization: `Bearer ${token}` },
+                                  });
+                                  if (res.ok) {
+                                    onActualizarTicket(ticket.id, {
+                                      comentarios: ticket.comentarios.filter((c) => c.id !== entrada.id),
+                                    });
+                                  } else {
+                                    const errBody = await res.json().catch(() => ({})) as { error?: string };
+                                    alert(errBody.error || 'No se pudo eliminar el comentario.');
+                                  }
+                                } catch { alert('Error de conexión.'); }
+                              }}
+                              className="ml-auto text-slate-300 hover:text-red-500 transition-colors"
+                              title="Eliminar comentario"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </div>
                         {entrada.email && (
                           <p className="text-xs text-slate-400">{entrada.email}</p>
@@ -2566,6 +2593,11 @@ export default function AgenciaCalidadDashboard() {
                 if (!res.ok) {
                   const errBody = await res.json().catch(() => ({})) as { error?: string };
                   alert(errBody.error || 'No se pudo guardar. Recargá la página.');
+                } else if (body.formularioId !== undefined) {
+                  const updated = await res.json().catch(() => null) as Record<string, unknown> | null;
+                  if (updated?.titulo) {
+                    dispatch({ type: 'ACTUALIZAR_TICKET', payload: { id, fields: { asunto: String(updated.titulo) } } });
+                  }
                 }
               } catch {
                 alert('Error de conexión al guardar.');
