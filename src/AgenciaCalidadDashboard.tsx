@@ -2346,9 +2346,9 @@ export default function AgenciaCalidadDashboard() {
     fetchDescripcion();
   }, [state.ticketAbierto?.id]);
 
-  // Programas activos para el filtro del sidebar
+  // Todos los programas (activos e inactivos) para el filtro del sidebar
   const programasDisponibles = useMemo(() => {
-    const set = new Set(formularios.filter(f => f.activo).map(f => f.programa).filter(Boolean));
+    const set = new Set(formularios.map(f => f.programa).filter(Boolean));
     return Array.from(set).sort();
   }, [formularios]);
 
