@@ -1,4 +1,15 @@
+import { useState } from 'react';
 import { CampoFormulario, ErroresCampos, ValoresCampos } from '../types/formularios';
+
+const EXPLICACION_CHEQUE = `Documentación a adjuntar para la evaluación crediticia del garante:
+
+• En caso de presentar cheque de pago diferido físico, deberá adjuntarse una fotografía clara del cheque en blanco, donde se visualicen correctamente sus datos identificatorios.
+
+• En caso de presentar cheque electrónico (Echeq), deberá adjuntarse una captura de pantalla de la simulación del cheque, en la que consten de manera visible la razón social o nombre y apellido del librador y su CUIT.
+
+La documentación requerida será utilizada exclusivamente para verificar la situación crediticia de la persona física o jurídica que postula como garante del crédito.
+
+En caso de aprobarse el crédito, el cheque de pago diferido presentado como garantía deberá ser completado y entregado en la Agencia Calidad San Juan al momento de la firma del convenio correspondiente.`;
 
 interface FormularioDinamicoProps {
   campos: CampoFormulario[];
@@ -17,6 +28,8 @@ export function FormularioDinamico({
   modo = 'staff',
   disabled = false,
 }: FormularioDinamicoProps) {
+  const [tooltipChequeVisible, setTooltipChequeVisible] = useState(false);
+
   const renderInput = (campo: CampoFormulario) => {
     const base = 'w-full px-3 py-2 border rounded-md text-sm';
     const errorClass = errores?.[campo.id]
@@ -116,22 +129,59 @@ export function FormularioDinamico({
   };
 
   return (
-    <div className={spacingClass}>
-      {camposOrdenados.map((campo) => {
-        if (!esCampoVisible(campo)) return null;
-        return (
-          <div key={campo.id}>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              {campo.label}
-              {campo.requerido && <span className="text-red-500 ml-1">*</span>}
-            </label>
-            {renderInput(campo)}
-            {errores?.[campo.id] && (
-              <p className="text-xs text-red-600 mt-1">{errores[campo.id]}</p>
-            )}
+    <>
+      {tooltipChequeVisible && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setTooltipChequeVisible(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-semibold text-slate-900 mb-3 text-base">
+              Garantía - Copia del Cheque
+            </h3>
+            <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+              {EXPLICACION_CHEQUE}
+            </p>
+            <button
+              type="button"
+              onClick={() => setTooltipChequeVisible(false)}
+              className="mt-5 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              Entendido
+            </button>
           </div>
-        );
-      })}
-    </div>
+        </div>
+      )}
+
+      <div className={spacingClass}>
+        {camposOrdenados.map((campo) => {
+          if (!esCampoVisible(campo)) return null;
+          return (
+            <div key={campo.id}>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                {campo.label}
+                {campo.requerido && <span className="text-red-500 ml-1">*</span>}
+                {campo.campo === 'cf_garantia_cheque' && (
+                  <button
+                    type="button"
+                    onClick={() => setTooltipChequeVisible(true)}
+                    className="ml-2 inline-flex items-center gap-1 text-xs font-normal text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    ❔ ¿Por qué pedimos esto?
+                  </button>
+                )}
+              </label>
+              {renderInput(campo)}
+              {errores?.[campo.id] && (
+                <p className="text-xs text-red-600 mt-1">{errores[campo.id]}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }

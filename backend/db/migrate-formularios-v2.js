@@ -2,7 +2,7 @@
  * Migración v2: campos condicionales
  * - Microcréditos Emprendedores: selector de proveedores (1-4) con Presupuesto + ARCA + CBU por proveedor
  * - Bienes de Capital: formulario unificado Persona Física/Jurídica + selector de proveedores (1-4)
- * - Potenciar Emprendedores: selector de proveedores (1-3) con Presupuesto + ARCA (sin CBU del proveedor)
+ * - Potenciar Emprendedores: selector de proveedores (1-4) con Presupuesto + ARCA (sin CBU del proveedor)
  *
  * Ejecutar con: node backend/db/migrate-formularios-v2.js
  */
@@ -124,11 +124,12 @@ const camposPotenciar = [
   { id: uuidv4(), label: 'Garantía con Cheque de Pago Diferido', campo: 'cf_garantia_cheque',     tipo: 'archivo',  requerido: true,  orden: 12 },
   { id: uuidv4(), label: 'Constancia de Ingresos Brutos (si corresponde)', campo: 'cf_constancia_iibb', tipo: 'archivo', requerido: false, orden: 13 },
   { id: uuidv4(), label: 'Comprobante CBU o CVU del Beneficiario', campo: 'cf_cbu_beneficiario',  tipo: 'archivo',  requerido: true,  orden: 14 },
-  // Selector proveedores (1-3) solo con Presupuesto + ARCA (sin CBU del proveedor)
-  { id: uuidv4(), label: 'Seleccione la cantidad de proveedores', campo: SLUG_CANT_PROVEEDORES,   tipo: 'selector', requerido: true, orden: 15, opciones: ['1', '2', '3'] },
-  ...proveedorGroupSinCBU(1, SLUG_CANT_PROVEEDORES, ['1', '2', '3'], 16),
-  ...proveedorGroupSinCBU(2, SLUG_CANT_PROVEEDORES, ['2', '3'],       18),
-  ...proveedorGroupSinCBU(3, SLUG_CANT_PROVEEDORES, ['3'],             20),
+  // Selector proveedores (1-4) solo con Presupuesto + ARCA (sin CBU del proveedor)
+  { id: uuidv4(), label: 'Seleccione la cantidad de proveedores', campo: SLUG_CANT_PROVEEDORES,   tipo: 'selector', requerido: true, orden: 15, opciones: ['1', '2', '3', '4'] },
+  ...proveedorGroupSinCBU(1, SLUG_CANT_PROVEEDORES, ['1', '2', '3', '4'], 16),
+  ...proveedorGroupSinCBU(2, SLUG_CANT_PROVEEDORES, ['2', '3', '4'],       18),
+  ...proveedorGroupSinCBU(3, SLUG_CANT_PROVEEDORES, ['3', '4'],             20),
+  ...proveedorGroupSinCBU(4, SLUG_CANT_PROVEEDORES, ['4'],                  22),
 ];
 
 // ─── MIGRACIÓN ──────────────────────────────────────────────────────────────
