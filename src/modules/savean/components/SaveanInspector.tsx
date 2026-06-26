@@ -41,6 +41,7 @@ function QRScanner({ onClose, onFound }: QRScannerProps) {
   }
 
   const handleInput = async (raw: string) => {
+    stopCamera();
     const token = extractToken(raw);
     const numero = raw.trim();
 
@@ -56,7 +57,6 @@ function QRScanner({ onClose, onFound }: QRScannerProps) {
     }
 
     if (encontrada) {
-      stopCamera();
       onFound(encontrada);
     } else {
       setErr('No se encontró la guía. Revisá el código o actualizá la lista.');
@@ -65,9 +65,13 @@ function QRScanner({ onClose, onFound }: QRScannerProps) {
 
   const startCamera = async () => {
     setErr('');
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErr('Tu navegador no soporta la cámara. Usá HTTPS o el ingreso manual.');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -91,15 +95,24 @@ function QRScanner({ onClose, onFound }: QRScannerProps) {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height);
         if (code?.data) {
-          stopCamera();
           handleInput(code.data);
           return;
         }
         rafRef.current = requestAnimationFrame(loop);
       };
       rafRef.current = requestAnimationFrame(loop);
-    } catch {
-      setErr('No se pudo acceder a la cámara. Usá el ingreso manual.');
+    } catch (e: unknown) {
+      const name = e instanceof Error ? e.name : '';
+      if (name === 'NotAllowedError') {
+        setErr('Permiso de cámara denegado. Habilitalo en la configuración del navegador.');
+      } else if (name === 'NotFoundError') {
+        setErr('No se encontró ninguna cámara en este dispositivo.');
+      } else if (name === 'OverconstrainedError') {
+        setErr('La cámara no cumple los requisitos mínimos. Usá el ingreso manual.');
+      } else {
+        setErr('No se pudo acceder a la cámara. Verificá permisos y que uses HTTPS.');
+      }
+      console.error('[QRScanner] startCamera:', e);
     }
   };
 
@@ -115,14 +128,25 @@ function QRScanner({ onClose, onFound }: QRScannerProps) {
     if (!file) return;
     setErr('');
     try {
-      const img = await createImageBitmap(file);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const imageData = await new Promise<ImageData>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) { reject(new Error('no ctx')); return; }
+            ctx.drawImage(img, 0, 0);
+            resolve(ctx.getImageData(0, 0, canvas.width, canvas.height));
+          };
+          img.onerror = reject;
+          img.src = reader.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
       const code = jsQR(imageData.data, imageData.width, imageData.height);
       if (code?.data) { await handleInput(code.data); return; }
       setErr('No se encontró un QR válido en la imagen.');
