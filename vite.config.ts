@@ -13,4 +13,14 @@ export default defineConfig({
     port: 4173,
     allowedHosts: true,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['lucide-react'],
+        },
+      },
+    },
+  },
 })

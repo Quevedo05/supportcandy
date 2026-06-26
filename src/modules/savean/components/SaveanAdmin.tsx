@@ -118,7 +118,12 @@ export function SaveanAdmin() {
   const [formBr, setFormBr] = useState({ nombre: '', usuario: '', contrasena: '' });
   const [errBr, setErrBr] = useState('');
   const [migrando, setMigrando] = useState(false);
-  const [migResult, setMigResult] = useState<{ creados: { nombre: string; usuario: string; contrasena: string }[]; saltados: string[] } | null>(null);
+  const [migResult, setMigResult] = useState<{
+    total: number;
+    creados: { nombre: string; usuario: string; contrasena?: string; reparado?: boolean }[];
+    saltados: { nombre: string; usuario: string }[];
+    errores: { nombre: string; usuario?: string; error: string }[];
+  } | null>(null);
 
   const [saveanUsers, setSaveanUsers] = useState<SaveanUser[]>([]);
   const [formAdmin, setFormAdmin] = useState({ nombre: '', username: '', password: '' });
@@ -247,7 +252,7 @@ export function SaveanAdmin() {
         setErrBr(data?.error ?? `Error del servidor (${res.status}). Revisá los logs del backend.`);
         return;
       }
-      setMigResult({ creados: data.creados ?? [], saltados: data.saltados ?? [] });
+      setMigResult({ total: data.total ?? 0, creados: data.creados ?? [], saltados: data.saltados ?? [], errores: data.errores ?? [] });
     } catch {
       setErrBr('Error de conexión al migrar.');
     } finally {
@@ -583,9 +588,13 @@ export function SaveanAdmin() {
           </button>
           {migResult && (
             <div className="mt-3 space-y-2">
+              <p className="text-xs text-gray-600">
+                Total encontrados: <strong>{migResult.total}</strong> · Creados: <strong className="text-green-700">{migResult.creados.length}</strong> · Ya tenían cuenta: <strong>{migResult.saltados.length}</strong>{migResult.errores.length > 0 && <> · <strong className="text-red-600">{migResult.errores.length} con error</strong></>}
+              </p>
+
               {migResult.creados.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-green-700 mb-1">✓ Cuentas creadas ({migResult.creados.length}):</p>
+                  <p className="text-xs font-semibold text-green-700 mb-1">✓ Cuentas creadas / reparadas ({migResult.creados.length}):</p>
                   <div className="bg-white border border-green-200 rounded p-2 max-h-40 overflow-y-auto">
                     <table className="w-full text-xs">
                       <thead><tr className="text-gray-400 border-b"><th className="text-left pb-1">Nombre</th><th className="text-left pb-1">Usuario</th><th className="text-left pb-1">Contraseña inicial</th></tr></thead>
@@ -594,7 +603,7 @@ export function SaveanAdmin() {
                           <tr key={c.usuario} className="border-b border-gray-50">
                             <td className="py-1 text-gray-800">{c.nombre}</td>
                             <td className="py-1 font-mono text-gray-600">{c.usuario}</td>
-                            <td className="py-1 font-mono text-orange-700 font-semibold">{c.contrasena}</td>
+                            <td className="py-1 font-mono text-orange-700 font-semibold">{c.reparado ? '(sin cambio)' : c.contrasena}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -602,13 +611,23 @@ export function SaveanAdmin() {
                   </div>
                 </div>
               )}
-              {migResult.saltados.length > 0 && (
-                <p className="text-xs text-gray-500">
-                  Ya tenían cuenta: {migResult.saltados.join(', ')}
-                </p>
+
+              {migResult.errores.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-red-700 mb-1">✗ Errores ({migResult.errores.length}):</p>
+                  <div className="bg-red-50 border border-red-200 rounded p-2 max-h-32 overflow-y-auto space-y-1">
+                    {migResult.errores.map((e, i) => (
+                      <p key={i} className="text-xs text-red-700"><strong>{e.nombre}</strong>: {e.error}</p>
+                    ))}
+                  </div>
+                </div>
               )}
-              {migResult.creados.length === 0 && migResult.saltados.length > 0 && (
-                <p className="text-xs text-green-700 font-semibold">✓ Todos los barreristas ya tienen cuenta de inspector.</p>
+
+              {migResult.creados.length === 0 && migResult.errores.length === 0 && migResult.saltados.length > 0 && (
+                <p className="text-xs text-green-700 font-semibold">✓ Todos los barreristas ya tienen cuenta de inspector activa.</p>
+              )}
+              {migResult.total === 0 && (
+                <p className="text-xs text-yellow-700 font-semibold">⚠ No se encontraron barreristas en la base de datos.</p>
               )}
             </div>
           )}
