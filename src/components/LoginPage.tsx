@@ -65,7 +65,7 @@ export function LoginPage() {
                     type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tu.email@agencia.gob.ar o tu_usuario"
+                    placeholder=""
                     className="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition"
                     required
                     disabled={isLoading}
@@ -85,7 +85,7 @@ export function LoginPage() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder=""
                     className="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition"
                     required
                     disabled={isLoading}
