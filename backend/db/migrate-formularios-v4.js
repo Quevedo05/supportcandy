@@ -35,7 +35,8 @@ async function migrate() {
   }
 
   const formularioId = peRows[0].formularioId;
-  const camposActuales = JSON.parse(peRows[0].campos);
+  const raw = peRows[0].campos;
+  const camposActuales = typeof raw === 'string' ? JSON.parse(raw) : raw;
 
   // Actualizar el selector de cantidad de proveedores a ['1','2','3','4']
   const camposActualizados = camposActuales.map((c) => {
