@@ -96,6 +96,7 @@ interface FiltrosActivos {
   vista: VistaFiltro;
   programa: TipoPrograma | 'Todos';
   prioridad: TicketPrioridad | 'Todos';
+  estado: TicketEstado | 'Todos';
 }
 
 interface ModalState {
@@ -141,6 +142,7 @@ type DashboardAction =
   | { type: 'SET_VISTA'; payload: VistaFiltro }
   | { type: 'SET_FILTRO_PROGRAMA'; payload: TipoPrograma | 'Todos' }
   | { type: 'SET_FILTRO_PRIORIDAD'; payload: TicketPrioridad | 'Todos' }
+  | { type: 'SET_FILTRO_ESTADO'; payload: TicketEstado | 'Todos' }
   | { type: 'RESTABLECER_FILTROS' }
   | { type: 'TOGGLE_SIDEBAR' }
   | { type: 'TOGGLE_SELECCION'; payload: string }
@@ -256,6 +258,9 @@ function aplicarFiltros(
     )
     .filter((t) =>
       filtros.prioridad === 'Todos' ? true : t.prioridad === filtros.prioridad
+    )
+    .filter((t) =>
+      filtros.estado === 'Todos' ? true : t.estado === filtros.estado
     )
     .filter((t) => {
       if (!filtros.busqueda.trim()) return true;
@@ -1870,6 +1875,12 @@ function dashboardReducer(
         filtros: { ...state.filtros, prioridad: action.payload },
         paginaActual: 1,
       };
+    case 'SET_FILTRO_ESTADO':
+      return {
+        ...state,
+        filtros: { ...state.filtros, estado: action.payload },
+        paginaActual: 1,
+      };
     case 'RESTABLECER_FILTROS':
       return {
         ...state,
@@ -1879,6 +1890,7 @@ function dashboardReducer(
           vista: 'todos',
           programa: 'Todos',
           prioridad: 'Todos',
+          estado: 'Todos',
         },
         paginaActual: 1,
         seleccionados: new Set(),
@@ -2138,6 +2150,7 @@ const getInitialState = (): DashboardState => {
       vista: 'todos',
       programa: 'Todos',
       prioridad: 'Todos',
+      estado: 'Todos',
     },
     paginaActual: 1,
     porPagina: 50,
@@ -2657,19 +2670,19 @@ export default function AgenciaCalidadDashboard() {
           </div>
 
           <select
-            value={state.filtros.campoBusqueda}
+            value={state.filtros.estado}
             onChange={(e) =>
               dispatch({
-                type: 'SET_CAMPO_BUSQUEDA',
-                payload: e.target.value as CampoBusqueda,
+                type: 'SET_FILTRO_ESTADO',
+                payload: e.target.value as TicketEstado | 'Todos',
               })
             }
             className="px-3 py-2 border border-slate-300 rounded-md text-sm text-slate-600 bg-white"
           >
-            <option value="ID">ID</option>
-            <option value="Asunto">Asunto</option>
-            <option value="Beneficiario">Beneficiario</option>
-            <option value="DNI">DNI</option>
+            <option value="Todos">Todos los estados</option>
+            {ESTADOS.map((e) => (
+              <option key={e} value={e}>{e}</option>
+            ))}
           </select>
         </div>
 
