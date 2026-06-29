@@ -29,7 +29,7 @@ type TicketPrioridad = 'Normal' | 'Alta' | 'Urgente';
 type TipoPrograma = string;
 type TicketPrefix = string;
 
-type CampoBusqueda = 'ID' | 'Asunto' | 'Beneficiario' | 'DNI';
+type CampoBusqueda = 'ID' | 'Nombre' | 'CUIT';
 
 interface Beneficiario {
   apellido: string;
@@ -268,13 +268,11 @@ function aplicarFiltros(
       switch (filtros.campoBusqueda) {
         case 'ID':
           return t.id.toLowerCase().includes(q);
-        case 'Asunto':
-          return t.asunto.toLowerCase().includes(q);
-        case 'Beneficiario':
+        case 'Nombre':
           return `${t.beneficiario.nombre} ${t.beneficiario.apellido}`
             .toLowerCase()
             .includes(q);
-        case 'DNI':
+        case 'CUIT':
           return t.beneficiario.dni.includes(q);
         default:
           return true;
@@ -1886,7 +1884,7 @@ function dashboardReducer(
         ...state,
         filtros: {
           busqueda: '',
-          campoBusqueda: 'ID',
+          campoBusqueda: 'Nombre',
           vista: 'todos',
           programa: 'Todos',
           prioridad: 'Todos',
@@ -2146,7 +2144,7 @@ const getInitialState = (): DashboardState => {
     seleccionados: new Set(),
     filtros: {
       busqueda: '',
-      campoBusqueda: 'ID',
+      campoBusqueda: 'Nombre',
       vista: 'todos',
       programa: 'Todos',
       prioridad: 'Todos',
@@ -2660,7 +2658,11 @@ export default function AgenciaCalidadDashboard() {
             />
             <input
               type="text"
-              placeholder="Buscar..."
+              placeholder={
+                state.filtros.campoBusqueda === 'Nombre' ? 'Buscar por nombre...' :
+                state.filtros.campoBusqueda === 'CUIT' ? 'Buscar por CUIT...' :
+                'Buscar por ID...'
+              }
               value={state.filtros.busqueda}
               onChange={(e) =>
                 dispatch({ type: 'SET_BUSQUEDA', payload: e.target.value })
@@ -2670,19 +2672,18 @@ export default function AgenciaCalidadDashboard() {
           </div>
 
           <select
-            value={state.filtros.estado}
+            value={state.filtros.campoBusqueda}
             onChange={(e) =>
               dispatch({
-                type: 'SET_FILTRO_ESTADO',
-                payload: e.target.value as TicketEstado | 'Todos',
+                type: 'SET_CAMPO_BUSQUEDA',
+                payload: e.target.value as CampoBusqueda,
               })
             }
             className="px-3 py-2 border border-slate-300 rounded-md text-sm text-slate-600 bg-white"
           >
-            <option value="Todos">Todos los estados</option>
-            {ESTADOS.map((e) => (
-              <option key={e} value={e}>{e}</option>
-            ))}
+            <option value="Nombre">Nombre del emprendedor</option>
+            <option value="CUIT">CUIT</option>
+            <option value="ID">ID</option>
           </select>
         </div>
 
