@@ -20,6 +20,7 @@ type TicketEstado =
   | 'Certificación de firma'
   | 'Transferencia'
   | 'Seguimiento de verificable'
+  | 'Seguimiento de cobranzas'
   | 'Cerrado';
 
 type VistaFiltro = 'todos' | 'no_resuelto' | 'sin_asignar' | 'mio' | 'cerrado' | 'eliminado';
@@ -181,6 +182,7 @@ const ESTADO_CONFIG: Record<TicketEstado, { color: string; bg: string }> = {
   'Certificación de firma':    { color: '#D946EF', bg: '#FDF4FF' },
   'Transferencia':             { color: '#22C55E', bg: '#F0FDF4' },
   'Seguimiento de verificable':{ color: '#14B8A6', bg: '#F0FDFA' },
+  'Seguimiento de cobranzas':  { color: '#F59E0B', bg: '#FFFBEB' },
   'Cerrado':                   { color: '#6B7280', bg: '#F9FAFB' },
 };
 
@@ -204,6 +206,7 @@ const ESTADOS: TicketEstado[] = [
   'Certificación de firma',
   'Transferencia',
   'Seguimiento de verificable',
+  'Seguimiento de cobranzas',
   'Cerrado',
 ];
 
