@@ -222,7 +222,7 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
   try {
     const { estado, formularioId, asignadoA } = req.query;
     const skip = Math.max(0, parseInt(req.query.skip || '0', 10));
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const limit = Math.min(2000, Math.max(1, parseInt(req.query.limit || '20', 10)));
 
     const conditions = [];
     const params = [];
