@@ -165,6 +165,7 @@ type DashboardAction =
   | { type: 'CAMBIAR_ESTADO_TICKET'; payload: { id: string; estado: TicketEstado; autor: string } }
   | { type: 'CAMBIAR_AGENTES_TICKET'; payload: { id: string; agentes: string[]; autor: string } }
   | { type: 'ELIMINAR_TICKET'; payload: string }
+  | { type: 'RESTAURAR_TICKET'; payload: string }
   | { type: 'ACTUALIZAR_TICKET'; payload: { id: string; fields: Partial<Ticket> } };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -792,6 +793,7 @@ interface TicketDetailModalProps {
   onChangeEstado: (id: string, estado: TicketEstado) => void;
   onChangeAgentes: (id: string, agentes: string[]) => void;
   onEliminarTicket: (id: string) => void;
+  onRestaurarTicket: (id: string) => void;
   onNuevoTicket: () => void;
   onActualizarTicket: (id: string, fields: Partial<Ticket>) => void;
   operativos: { usuarioId: string; nombre: string }[];
@@ -817,6 +819,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   onChangeEstado,
   onChangeAgentes,
   onEliminarTicket,
+  onRestaurarTicket,
   onNuevoTicket,
   onActualizarTicket,
   operativos,
@@ -957,14 +960,23 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         >
           <CheckCircle size={13} /> Cerrar
         </button>
-        <button
-          onClick={() => {
-            if (window.confirm('¿Eliminár este ticket?')) onEliminarTicket(ticket.id);
-          }}
-          className="flex items-center gap-1.5 bg-white/10 hover:bg-red-600 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
-        >
-          <Trash2 size={13} /> Borrar
-        </button>
+        {ticket.eliminado ? (
+          <button
+            onClick={() => onRestaurarTicket(ticket.id)}
+            className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
+          >
+            ↩ Restaurar
+          </button>
+        ) : (
+          <button
+            onClick={() => {
+              if (window.confirm('¿Mover este ticket a la papelera?')) onEliminarTicket(ticket.id);
+            }}
+            className="flex items-center gap-1.5 bg-white/10 hover:bg-red-600 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
+          >
+            <Trash2 size={13} /> Borrar
+          </button>
+        )}
       </div>
 
       {/* Título */}
@@ -2125,6 +2137,16 @@ function dashboardReducer(
         ),
         ticketAbierto: null,
       };
+    case 'RESTAURAR_TICKET':
+      return {
+        ...state,
+        tickets: state.tickets.map((t) =>
+          t.id === action.payload ? { ...t, eliminado: false } : t
+        ),
+        ticketAbierto: state.ticketAbierto?.id === action.payload
+          ? { ...state.ticketAbierto, eliminado: false }
+          : state.ticketAbierto,
+      };
     case 'SET_TICKETS':
       return { ...state, tickets: action.payload, cargandoTickets: false };
     case 'SET_CARGANDO_TICKETS':
@@ -2249,6 +2271,7 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
     legajo: t.numeroLegajo ? String(t.numeroLegajo) : undefined,
     numeroActa: t.numeroActa ? String(t.numeroActa) : undefined,
     leido: t.leido === true,
+    eliminado: t.eliminado === true,
     formularioId: t.formularioId ? String(t.formularioId) : undefined,
   };
 }
@@ -2271,7 +2294,7 @@ export default function AgenciaCalidadDashboard() {
       const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
       if (!token || !apiUrl) return;
       try {
-        const res = await fetch(`${apiUrl}/tickets?limit=200`, {
+        const res = await fetch(`${apiUrl}/tickets?limit=2000&incluir_eliminados=1`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) { dispatch({ type: 'SET_CARGANDO_TICKETS', payload: false }); return; }
@@ -2576,6 +2599,27 @@ export default function AgenciaCalidadDashboard() {
             }
           }
           dispatch({ type: 'ELIMINAR_TICKET', payload: id });
+        }}
+        onRestaurarTicket={async (id) => {
+          const token = localStorage.getItem('sc_token');
+          const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+          if (token && apiUrl) {
+            try {
+              const res = await fetch(`${apiUrl}/tickets/${id}/restaurar`, {
+                method: 'PATCH',
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (!res.ok) {
+                const errBody = await res.json().catch(() => ({})) as { error?: string };
+                alert(errBody.error || 'No se pudo restaurar el ticket.');
+                return;
+              }
+            } catch {
+              alert('Error de conexión al restaurar el ticket.');
+              return;
+            }
+          }
+          dispatch({ type: 'RESTAURAR_TICKET', payload: id });
         }}
         onNuevoTicket={() => dispatch({ type: 'CERRAR_TICKET_DETAIL' })}
         onActualizarTicket={async (id, fields) => {

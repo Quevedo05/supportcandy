@@ -33,6 +33,10 @@ function formatTicket(row) {
     codigoExterno: row.codigo_externo || null,
     observaciones: row.observaciones || null,
     leido: row.leido === 1 || row.leido === true,
+    eliminado: row.eliminado === 1 || row.eliminado === true,
+    fechaEliminacion: row.fecha_eliminacion
+      ? (row.fecha_eliminacion instanceof Date ? row.fecha_eliminacion.toISOString() : row.fecha_eliminacion)
+      : null,
     fechaCreacion: row.fecha_creacion instanceof Date
       ? row.fecha_creacion.toISOString()
       : row.fecha_creacion,
@@ -223,9 +227,14 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
     const { estado, formularioId, asignadoA } = req.query;
     const skip = Math.max(0, parseInt(req.query.skip || '0', 10));
     const limit = Math.min(2000, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const incluirEliminados = req.query.incluir_eliminados === '1';
 
     const conditions = [];
     const params = [];
+
+    if (!incluirEliminados) {
+      conditions.push('t.eliminado = 0');
+    }
 
     if (estado) {
       const estadosValidos = ['abierto', 'en_progreso', 'cerrado'];
@@ -261,7 +270,8 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
               t.importe, t.codigo_externo, t.observaciones,
-              t.leido, t.fecha_creacion, t.fecha_cierre, f.programa AS formulario_programa
+              t.leido, t.eliminado, t.fecha_eliminacion, t.fecha_creacion, t.fecha_cierre,
+              f.programa AS formulario_programa
        FROM tickets t
        LEFT JOIN formularios f ON f.formularioId = t.formularioId
        ${whereClause}
@@ -564,7 +574,7 @@ router.patch('/:ticketId/leido', autenticar, soloTickets, async (req, res) => {
   }
 });
 
-// DELETE /api/tickets/:ticketId — JWT required
+// DELETE /api/tickets/:ticketId — JWT required (soft delete — mueve a papelera)
 router.delete('/:ticketId', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
@@ -572,10 +582,32 @@ router.delete('/:ticketId', autenticar, soloTickets, async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Ticket no encontrado' });
     }
-    await pool.query('DELETE FROM tickets WHERE ticketId = ?', [ticketId]);
-    return res.status(200).json({ mensaje: 'Ticket eliminado' });
+    await pool.query(
+      'UPDATE tickets SET eliminado = 1, fecha_eliminacion = NOW() WHERE ticketId = ?',
+      [ticketId]
+    );
+    return res.status(200).json({ mensaje: 'Ticket movido a la papelera' });
   } catch (err) {
     console.error('[DELETE /tickets/:id]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PATCH /api/tickets/:ticketId/restaurar — JWT required (restaura desde papelera)
+router.patch('/:ticketId/restaurar', autenticar, soloTickets, async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const [rows] = await pool.query('SELECT ticketId FROM tickets WHERE ticketId = ?', [ticketId]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+    await pool.query(
+      'UPDATE tickets SET eliminado = 0, fecha_eliminacion = NULL WHERE ticketId = ?',
+      [ticketId]
+    );
+    return res.status(200).json({ mensaje: 'Ticket restaurado' });
+  } catch (err) {
+    console.error('[PATCH /tickets/:id/restaurar]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
