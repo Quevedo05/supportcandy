@@ -87,6 +87,7 @@ interface Ticket {
   codigoExterno?: string;
   observaciones?: string;
   eliminado?: boolean;
+  eliminadoPor?: string | null;
   leido?: boolean;
   formularioId?: string;
 }
@@ -961,12 +962,17 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
           <CheckCircle size={13} /> Cerrar
         </button>
         {ticket.eliminado ? (
-          <button
-            onClick={() => onRestaurarTicket(ticket.id)}
-            className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
-          >
-            ↩ Restaurar
-          </button>
+          <>
+            <span className="text-white/70 text-xs">
+              🗑 Eliminado por <strong className="text-white">{ticket.eliminadoPor ?? 'desconocido'}</strong>
+            </span>
+            <button
+              onClick={() => onRestaurarTicket(ticket.id)}
+              className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
+            >
+              ↩ Restaurar
+            </button>
+          </>
         ) : (
           <button
             onClick={() => {
@@ -2272,6 +2278,7 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
     numeroActa: t.numeroActa ? String(t.numeroActa) : undefined,
     leido: t.leido === true,
     eliminado: t.eliminado === true,
+    eliminadoPor: t.eliminadoPor ? String(t.eliminadoPor) : null,
     formularioId: t.formularioId ? String(t.formularioId) : undefined,
   };
 }

@@ -34,6 +34,7 @@ function formatTicket(row) {
     observaciones: row.observaciones || null,
     leido: row.leido === 1 || row.leido === true,
     eliminado: row.eliminado === 1 || row.eliminado === true,
+    eliminadoPor: row.eliminado_por || null,
     fechaEliminacion: row.fecha_eliminacion
       ? (row.fecha_eliminacion instanceof Date ? row.fecha_eliminacion.toISOString() : row.fecha_eliminacion)
       : null,
@@ -270,7 +271,7 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
               t.importe, t.codigo_externo, t.observaciones,
-              t.leido, t.eliminado, t.fecha_eliminacion, t.fecha_creacion, t.fecha_cierre,
+              t.leido, t.eliminado, t.eliminado_por, t.fecha_eliminacion, t.fecha_creacion, t.fecha_cierre,
               f.programa AS formulario_programa
        FROM tickets t
        LEFT JOIN formularios f ON f.formularioId = t.formularioId
@@ -583,8 +584,8 @@ router.delete('/:ticketId', autenticar, soloTickets, async (req, res) => {
       return res.status(404).json({ error: 'Ticket no encontrado' });
     }
     await pool.query(
-      'UPDATE tickets SET eliminado = 1, fecha_eliminacion = NOW() WHERE ticketId = ?',
-      [ticketId]
+      'UPDATE tickets SET eliminado = 1, fecha_eliminacion = NOW(), eliminado_por = ? WHERE ticketId = ?',
+      [req.usuario.nombre, ticketId]
     );
     return res.status(200).json({ mensaje: 'Ticket movido a la papelera' });
   } catch (err) {
@@ -602,7 +603,7 @@ router.patch('/:ticketId/restaurar', autenticar, soloTickets, async (req, res) =
       return res.status(404).json({ error: 'Ticket no encontrado' });
     }
     await pool.query(
-      'UPDATE tickets SET eliminado = 0, fecha_eliminacion = NULL WHERE ticketId = ?',
+      'UPDATE tickets SET eliminado = 0, fecha_eliminacion = NULL, eliminado_por = NULL WHERE ticketId = ?',
       [ticketId]
     );
     return res.status(200).json({ mensaje: 'Ticket restaurado' });
