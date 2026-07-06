@@ -272,7 +272,7 @@ function aplicarFiltros(
       const q = filtros.busqueda.toLowerCase();
       switch (filtros.campoBusqueda) {
         case 'ID':
-          return t.id.toLowerCase().includes(q);
+          return String(t.numero).includes(q);
         case 'Nombre':
           return `${t.beneficiario.nombre} ${t.beneficiario.apellido}`
             .toLowerCase()
@@ -2715,7 +2715,7 @@ export default function AgenciaCalidadDashboard() {
               placeholder={
                 state.filtros.campoBusqueda === 'Nombre' ? 'Buscar por nombre...' :
                 state.filtros.campoBusqueda === 'CUIT' ? 'Buscar por CUIT...' :
-                'Buscar por ID...'
+                'Buscar por nº de trámite...'
               }
               value={state.filtros.busqueda}
               onChange={(e) =>
@@ -2737,7 +2737,7 @@ export default function AgenciaCalidadDashboard() {
           >
             <option value="Nombre">Nombre del emprendedor</option>
             <option value="CUIT">CUIT</option>
-            <option value="ID">ID</option>
+            <option value="ID">Nº de trámite</option>
           </select>
         </div>
 

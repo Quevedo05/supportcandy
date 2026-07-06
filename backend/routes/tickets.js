@@ -4,6 +4,7 @@ const { pool } = require('../db/connection');
 const { autenticar } = require('../middleware/auth');
 const { soloModulo } = require('../middleware/soloModulo');
 const { enviarAsignacionTicket } = require('../services/mailer');
+const sheetsService = require('../services/sheetsService');
 
 const soloTickets = soloModulo('tickets');
 
@@ -121,6 +122,20 @@ router.post('/crear-desde-formulario', async (req, res) => {
     const idSeq = result.insertId;
     await pool.query('UPDATE tickets SET numero = ? WHERE id_seq = ?', [idSeq, idSeq]);
 
+    sheetsService.appendTicketRow(
+      {
+        ticketId,
+        numero: idSeq,
+        ciudadano_nombre: nombreCiudadano.trim(),
+        ciudadano_email: emailCiudadano.trim().toLowerCase(),
+        ciudadano_telefono: telefonoCiudadano ? telefonoCiudadano.trim() : null,
+        numero_legajo: null,
+        descripcion: descripcion.trim(),
+        fecha_creacion: new Date(),
+      },
+      formRows[0].programa
+    ).catch((err) => console.error('[Sheets] Error al agregar fila:', err.message));
+
     return res.status(201).json({
       ticketId,
       estado: 'abierto',
@@ -214,6 +229,9 @@ router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
        WHERE t.ticketId = ?`,
       [ticketId]
     );
+
+    sheetsService.appendTicketRow(rows[0], rows[0].formulario_programa)
+      .catch((err) => console.error('[Sheets] Error al agregar fila:', err.message));
 
     return res.status(201).json(formatTicket(rows[0]));
   } catch (err) {
