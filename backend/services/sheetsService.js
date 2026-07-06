@@ -89,12 +89,22 @@ function buildRow(ticket, parsed) {
   ];
 }
 
-// Crea la pestaña si no existe en el spreadsheet.
+const HEADERS = [
+  'Fecha Solicitud', 'Fecha doc. completa', 'Fecha Comité',
+  'Legajo', 'Beneficiario', 'CUIT/CUIL', 'Fecha de nacimiento',
+  'Teléfono', 'E-mail', 'Domicilio', 'Departamento', 'Inscripto ARCA',
+  'Rubro', 'Descripción Proyecto', 'Destino de los fondos', 'Impacto del Proyecto',
+  'DNI/ESTATUTO', 'ARCA BENEFICIARIO', 'FOTOS EMPRENDIMIENTO', 'PRESUPUESTOS',
+  'ARCA PROVEEDORES', 'CBU BENEFICIARIO', 'CERTIFICADO MIPYME', 'CHEQUE',
+];
+
+// Crea la pestaña si no existe y asegura que la fila 1 tenga los encabezados.
 async function asegurarPestana(sheets, spreadsheetId, sheetName) {
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
   const existe = spreadsheet.data.sheets.some(
     (s) => s.properties.title === sheetName
   );
+
   if (!existe) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
@@ -103,6 +113,41 @@ async function asegurarPestana(sheets, spreadsheetId, sheetName) {
       },
     });
     console.log(`[Sheets] Pestaña "${sheetName}" creada automáticamente.`);
+  }
+
+  // Verificar si la fila 1 ya tiene los encabezados
+  const check = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `'${sheetName}'!A1`,
+  });
+  const celdaA1 = (check.data.values?.[0]?.[0] ?? '').toString().trim();
+
+  if (celdaA1 !== 'Fecha Solicitud') {
+    if (celdaA1 !== '') {
+      // Hay datos en fila 1 sin encabezado — insertar fila vacía arriba primero
+      const sheetId = (await sheets.spreadsheets.get({ spreadsheetId }))
+        .data.sheets.find((s) => s.properties.title === sheetName)
+        .properties.sheetId;
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [{
+            insertDimension: {
+              range: { sheetId, dimension: 'ROWS', startIndex: 0, endIndex: 1 },
+              inheritFromBefore: false,
+            },
+          }],
+        },
+      });
+    }
+    // Escribir encabezados en fila 1
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${sheetName}'!A1`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [HEADERS] },
+    });
+    console.log(`[Sheets] Encabezados escritos en "${sheetName}".`);
   }
 }
 
