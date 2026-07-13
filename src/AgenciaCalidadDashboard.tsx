@@ -1457,8 +1457,46 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             <>
               <SeccionHeader title="Descripción de la Solicitud" sKey="campos" />
               {seccionesAbiertas.campos && (
-                <div className="p-4 border-b border-slate-100">
-                  <p className="text-xs text-slate-700 whitespace-pre-wrap">{ticket.descripcion}</p>
+                <div className="p-4 border-b border-slate-100 space-y-1">
+                  {ticket.descripcion.split('\n').map((linea, i) => {
+                    const idx = linea.indexOf(': ');
+                    if (idx !== -1) {
+                      const label = linea.slice(0, idx).trim();
+                      let valor = linea.slice(idx + 2).trim();
+                      if (valor.startsWith('[Adjunto]')) valor = valor.slice(9);
+                      if (valor.startsWith('data:')) {
+                        const esImagen = valor.startsWith('data:image/');
+                        return (
+                          <div key={i} className="py-0.5">
+                            <span className="text-slate-500 text-xs block mb-1">{label}:</span>
+                            {esImagen ? (
+                              <div className="space-y-1">
+                                <img src={valor} alt={label} className="max-w-full rounded border border-slate-200 max-h-48 object-contain" />
+                                <a href={valor} download={`${label}.jpg`} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                  <File size={11} /> Descargar imagen
+                                </a>
+                              </div>
+                            ) : (
+                              <a href={valor} download={label} className="inline-flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded transition-colors">
+                                <File size={12} /> Descargar archivo
+                              </a>
+                            )}
+                          </div>
+                        );
+                      }
+                      if (label && valor) {
+                        return (
+                          <div key={i} className="flex gap-2 py-0.5">
+                            <span className="text-slate-500 text-xs min-w-[100px] flex-shrink-0">{label}:</span>
+                            <span className="text-slate-800 text-xs font-medium break-words">{valor}</span>
+                          </div>
+                        );
+                      }
+                    }
+                    return linea.trim() ? (
+                      <p key={i} className="text-xs text-slate-700">{linea}</p>
+                    ) : null;
+                  })}
                 </div>
               )}
             </>
