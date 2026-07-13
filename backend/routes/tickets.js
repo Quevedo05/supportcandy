@@ -102,12 +102,13 @@ router.post('/crear-desde-formulario', async (req, res) => {
     const titulo = `Solicitud de ${nombreCiudadano.trim()} - ${formRows[0].programa}`;
     const ticketId = uuidv4();
 
-    // Insert with numero=0 as placeholder; then set numero = id_seq (the AUTO_INCREMENT PK)
+    // Insert without numero; after INSERT use id_seq (AUTO_INCREMENT) as the tracking number.
+    // numero is nullable so there is no UNIQUE=0 placeholder conflict under concurrent load.
     const [result] = await pool.query(
       `INSERT INTO tickets
          (ticketId, titulo, descripcion, estado, prioridad, formularioId,
-          ciudadano_nombre, ciudadano_email, ciudadano_telefono, numero)
-       VALUES (?, ?, ?, 'abierto', 'media', ?, ?, ?, ?, 0)`,
+          ciudadano_nombre, ciudadano_email, ciudadano_telefono)
+       VALUES (?, ?, ?, 'abierto', 'media', ?, ?, ?, ?)`,
       [
         ticketId,
         titulo,
@@ -197,8 +198,8 @@ router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
       `INSERT INTO tickets
          (ticketId, titulo, descripcion, estado, prioridad, formularioId,
           ciudadano_nombre, ciudadano_email, ciudadano_telefono,
-          ciudadano_dni, tipo_tramite, numero_legajo, numero_acta, numero)
-       VALUES (?, ?, ?, 'abierto', 'media', ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+          ciudadano_dni, tipo_tramite, numero_legajo, numero_acta)
+       VALUES (?, ?, ?, 'abierto', 'media', ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         ticketId,
         asunto.trim(),
