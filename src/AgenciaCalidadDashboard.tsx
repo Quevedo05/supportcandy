@@ -1463,7 +1463,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     if (idx !== -1) {
                       const label = linea.slice(0, idx).trim();
                       let valor = linea.slice(idx + 2).trim();
-                      if (valor.startsWith('[Adjunto]')) valor = valor.slice(9);
+                      if (valor.startsWith('[Adjunto]')) valor = valor.slice(9).trim();
                       if (valor.startsWith('data:')) {
                         const esImagen = valor.startsWith('data:image/');
                         return (
@@ -2309,7 +2309,7 @@ function parsearDescripcion(descripcion: string): Record<string, string> {
     if (idx === -1) return;
     const label = linea.slice(0, idx).trim();
     let valor = linea.slice(idx + 2).trim();
-    if (valor.startsWith('[Adjunto]')) valor = valor.slice(9);
+    if (valor.startsWith('[Adjunto]')) valor = valor.slice(9).trim();
     if (label) resultado[label] = valor;
   });
   return resultado;
