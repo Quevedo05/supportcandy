@@ -1198,11 +1198,11 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                             </div>
                             {entrada.adjuntos.map((adj, idx) => (
                               adj.contenido ? (
-                                <a key={idx} href={adj.contenido} download={adj.nombre}
-                                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline">
+                                <button key={idx} type="button" onClick={() => descargarBase64(adj.contenido!, adj.nombre)}
+                                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline text-left">
                                   <File size={12} /> {adj.nombre}
                                   <span className="text-slate-400">({formatBytes(adj.tamano)})</span>
-                                </a>
+                                </button>
                               ) : (
                                 <span key={idx} className="flex items-center gap-1.5 text-xs text-slate-500">
                                   <File size={12} /> {adj.nombre}
@@ -1472,14 +1472,14 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                             {esImagen ? (
                               <div className="space-y-1">
                                 <img src={valor} alt={label} className="max-w-full rounded border border-slate-200 max-h-48 object-contain" />
-                                <a href={valor} download={`${label}.jpg`} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                <button type="button" onClick={() => descargarBase64(valor, nombreArchivoDesdeDataUrl(valor, label))} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
                                   <File size={11} /> Descargar imagen
-                                </a>
+                                </button>
                               </div>
                             ) : (
-                              <a href={valor} download={label} className="inline-flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded transition-colors">
+                              <button type="button" onClick={() => descargarBase64(valor, nombreArchivoDesdeDataUrl(valor, label))} className="inline-flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded transition-colors">
                                 <File size={12} /> Descargar archivo
-                              </a>
+                              </button>
                             )}
                           </div>
                         );
@@ -1617,14 +1617,14 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                               {esImagen ? (
                                 <div className="space-y-1">
                                   <img src={v} alt={label} className="max-w-full rounded border border-slate-200 max-h-48 object-contain" />
-                                  <a href={v} download={`${label}.jpg`} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                  <button type="button" onClick={() => descargarBase64(v, nombreArchivoDesdeDataUrl(v, label))} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
                                     <File size={11} /> Descargar imagen
-                                  </a>
+                                  </button>
                                 </div>
                               ) : (
-                                <a href={v} download={label} className="inline-flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded transition-colors">
+                                <button type="button" onClick={() => descargarBase64(v, nombreArchivoDesdeDataUrl(v, label))} className="inline-flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded transition-colors">
                                   <File size={12} /> Descargar archivo
-                                </a>
+                                </button>
                               )}
                             </div>
                           );
@@ -1771,11 +1771,11 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                   <div className="space-y-1">
                     {ticket.adjuntos.map((adj, i) =>
                       adj.contenido ? (
-                        <a key={i} href={adj.contenido} download={adj.nombre}
-                          className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline">
+                        <button key={i} type="button" onClick={() => descargarBase64(adj.contenido!, adj.nombre)}
+                          className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline text-left">
                           <File size={11} className="flex-shrink-0" />
                           <span className="flex-1 truncate">{adj.nombre}</span>
-                        </a>
+                        </button>
                       ) : (
                         <div key={i} className="flex items-center gap-1.5 text-xs text-slate-500">
                           <File size={11} className="flex-shrink-0" />
@@ -2251,6 +2251,55 @@ const getInitialState = (): DashboardState => {
 // ═════════════════════════════════════════════════════════════════════════════
 // SECTION 8: MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════════════════
+
+function descargarBase64(base64DataUrl: string, filename: string) {
+  try {
+    const commaIdx = base64DataUrl.indexOf(',');
+    if (commaIdx === -1) return;
+    const header = base64DataUrl.slice(0, commaIdx);
+    const data = base64DataUrl.slice(commaIdx + 1);
+    const mimeMatch = header.match(/:(.*?);/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    const byteChars = atob(data);
+    const byteArr = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([byteArr], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'archivo';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  } catch (e) {
+    console.error('Error al descargar archivo:', e);
+  }
+}
+
+function extensionDesdeMime(mimeType: string): string {
+  const map: Record<string, string> = {
+    'application/pdf': '.pdf',
+    'application/msword': '.doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp',
+    'text/plain': '.txt',
+  };
+  return map[mimeType] ?? '';
+}
+
+function nombreArchivoDesdeDataUrl(dataUrl: string, fallback: string): string {
+  const mimeMatch = dataUrl.match(/data:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : '';
+  const ext = extensionDesdeMime(mime);
+  if (fallback.includes('.')) return fallback;
+  return fallback + ext;
+}
 
 function parsearDescripcion(descripcion: string): Record<string, string> {
   if (!descripcion || descripcion === 'Sin información adicional') return {};
