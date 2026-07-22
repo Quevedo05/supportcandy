@@ -547,13 +547,28 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
 }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const MAX_MODAL_FILE_SIZE = 8 * 1024 * 1024; // 8 MB por archivo
+
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
+    const demasiado = Array.from(files).filter((f) => f.size > MAX_MODAL_FILE_SIZE);
+    if (demasiado.length > 0) {
+      alert(`Los siguientes archivos superan el límite de 8 MB:\n${demasiado.map((f) => f.name).join('\n')}`);
+      return;
+    }
+    const acumulado = modal.adjuntos.reduce((s, a) => s + a.tamano, 0);
+    const nuevos = Array.from(files).reduce((s, f) => s + f.size, 0);
+    if (acumulado + nuevos > 20 * 1024 * 1024) {
+      alert('El total de archivos adjuntos supera los 20 MB. Eliminá algún archivo antes de agregar más.');
+      return;
+    }
+    let adjuntosActuales = [...modal.adjuntos];
     Array.from(files).forEach((file) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const contenido = e.target?.result as string;
-        onAdjuntosChange([...modal.adjuntos, { nombre: file.name, tipo: file.type, tamano: file.size, contenido }]);
+        adjuntosActuales = [...adjuntosActuales, { nombre: file.name, tipo: file.type, tamano: file.size, contenido }];
+        onAdjuntosChange(adjuntosActuales);
       };
       reader.readAsDataURL(file);
     });
@@ -906,16 +921,30 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     </button>
   );
 
+  const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8 MB por archivo
+
   const handleAgregarArchivos = (files: FileList | null) => {
     if (!files) return;
+    const demasiado = Array.from(files).filter((f) => f.size > MAX_FILE_SIZE);
+    if (demasiado.length > 0) {
+      alert(`Los siguientes archivos superan el límite de 8 MB y no pueden adjuntarse:\n${demasiado.map((f) => f.name).join('\n')}`);
+      if (adjuntosRef.current) adjuntosRef.current.value = '';
+      return;
+    }
+    const acumulado = comentarioAdjuntos.reduce((s, a) => s + a.tamano, 0);
+    const nuevos = Array.from(files).reduce((s, f) => s + f.size, 0);
+    if (acumulado + nuevos > 20 * 1024 * 1024) {
+      alert('El total de archivos adjuntos supera los 20 MB. Eliminá algún archivo antes de agregar más.');
+      if (adjuntosRef.current) adjuntosRef.current.value = '';
+      return;
+    }
+    let adjuntosActuales = [...comentarioAdjuntos];
     Array.from(files).forEach((file) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const contenido = e.target?.result as string;
-        onAdjuntosChange([
-          ...comentarioAdjuntos,
-          { nombre: file.name, tipo: file.type, tamano: file.size, contenido },
-        ]);
+        adjuntosActuales = [...adjuntosActuales, { nombre: file.name, tipo: file.type, tamano: file.size, contenido }];
+        onAdjuntosChange(adjuntosActuales);
       };
       reader.readAsDataURL(file);
     });
@@ -2611,6 +2640,10 @@ export default function AgenciaCalidadDashboard() {
                 }),
               });
               if (!res.ok) {
+                if (res.status === 413) {
+                  alert('Los archivos adjuntos son demasiado grandes. El servidor no puede recibirlos. Intentá con archivos más pequeños o consultá con el administrador.');
+                  return;
+                }
                 const errBody = await res.json().catch(() => ({})) as { error?: string };
                 alert(errBody.error || 'No se pudo guardar el comentario. Intentá de nuevo.');
                 return;

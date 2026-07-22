@@ -58,6 +58,9 @@ app.use((_req, res) => {
 // 4-parameter signature is required by Express to recognise this as an error handler
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
+  if (err.type === 'entity.too.large' || err.status === 413) {
+    return res.status(413).json({ error: 'El archivo adjunto es demasiado grande. Máximo permitido: 50 MB por solicitud.' });
+  }
   console.error('[UNHANDLED ERROR]', err.message);
   res.status(500).json({ error: 'Error interno del servidor' });
 });
