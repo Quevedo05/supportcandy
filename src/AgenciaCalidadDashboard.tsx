@@ -1234,9 +1234,9 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                             </div>
                             {entrada.adjuntos.map((adj, idx) => (
                               adj.contenido ? (
-                                <button key={idx} type="button" onClick={() => descargarBase64(adj.contenido!, adj.nombre, adj.tipo)}
+                                <button key={idx} type="button" onClick={() => descargarBase64(adj.contenido!, decodeAdjNombre(adj.nombre), adj.tipo)}
                                   className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline text-left">
-                                  <File size={12} /> {adj.nombre}
+                                  <File size={12} /> {decodeAdjNombre(adj.nombre)}
                                   <span className="text-slate-400">({formatBytes(adj.tamano)})</span>
                                 </button>
                               ) : (
@@ -2288,6 +2288,13 @@ const getInitialState = (): DashboardState => {
 // SECTION 8: MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════════════════
 
+function decodeAdjNombre(nombre: string): string {
+  if (nombre.startsWith('fn:')) {
+    try { return atob(nombre.slice(3)); } catch { return nombre; }
+  }
+  return nombre;
+}
+
 function descargarBase64(base64Input: string, filename: string, mimeType?: string) {
   try {
     let data: string;
@@ -2299,6 +2306,9 @@ function descargarBase64(base64Input: string, filename: string, mimeType?: strin
       data = base64Input.slice(commaIdx + 1);
       const mimeMatch = header.match(/:(.*?);/);
       mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    } else if (base64Input.startsWith('2b64:')) {
+      data = atob(base64Input.slice(5));
+      mime = mimeType || 'application/octet-stream';
     } else {
       data = base64Input;
       mime = mimeType || 'application/octet-stream';
@@ -2651,9 +2661,9 @@ export default function AgenciaCalidadDashboard() {
                 body: JSON.stringify({
                   contenido: state.comentarioNuevo,
                   adjuntos: tieneAdjuntos ? adjuntos.map(adj => ({
-                    nombre: adj.nombre,
+                    nombre: adj.contenido ? 'fn:' + btoa(adj.nombre) : adj.nombre,
                     tamano: adj.tamano,
-                    contenido: adj.contenido,
+                    contenido: adj.contenido ? '2b64:' + btoa(adj.contenido) : adj.contenido,
                   })) : undefined,
                 }),
               });
