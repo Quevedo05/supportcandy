@@ -2650,7 +2650,11 @@ export default function AgenciaCalidadDashboard() {
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
                   contenido: state.comentarioNuevo,
-                  adjuntos: tieneAdjuntos ? adjuntos : undefined,
+                  adjuntos: tieneAdjuntos ? adjuntos.map(adj => ({
+                    nombre: adj.nombre,
+                    tamano: adj.tamano,
+                    contenido: adj.contenido,
+                  })) : undefined,
                 }),
               });
               if (!res.ok) {
