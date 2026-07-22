@@ -942,11 +942,18 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     Array.from(files).forEach((file) => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const contenido = e.target?.result as string;
+        const buffer = e.target?.result as ArrayBuffer;
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        const chunk = 65536;
+        for (let i = 0; i < bytes.byteLength; i += chunk) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+        }
+        const contenido = btoa(binary);
         adjuntosActuales = [...adjuntosActuales, { nombre: file.name, tipo: file.type, tamano: file.size, contenido }];
         onAdjuntosChange(adjuntosActuales);
       };
-      reader.readAsDataURL(file);
+      reader.readAsArrayBuffer(file);
     });
     if (adjuntosRef.current) adjuntosRef.current.value = '';
   };
@@ -1227,7 +1234,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                             </div>
                             {entrada.adjuntos.map((adj, idx) => (
                               adj.contenido ? (
-                                <button key={idx} type="button" onClick={() => descargarBase64(adj.contenido!, adj.nombre)}
+                                <button key={idx} type="button" onClick={() => descargarBase64(adj.contenido!, adj.nombre, adj.tipo)}
                                   className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline text-left">
                                   <File size={12} /> {adj.nombre}
                                   <span className="text-slate-400">({formatBytes(adj.tamano)})</span>
@@ -2281,18 +2288,25 @@ const getInitialState = (): DashboardState => {
 // SECTION 8: MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════════════════
 
-function descargarBase64(base64DataUrl: string, filename: string) {
+function descargarBase64(base64Input: string, filename: string, mimeType?: string) {
   try {
-    const commaIdx = base64DataUrl.indexOf(',');
-    if (commaIdx === -1) return;
-    const header = base64DataUrl.slice(0, commaIdx);
-    const data = base64DataUrl.slice(commaIdx + 1);
-    const mimeMatch = header.match(/:(.*?);/);
-    const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    let data: string;
+    let mime: string;
+    if (base64Input.startsWith('data:')) {
+      const commaIdx = base64Input.indexOf(',');
+      if (commaIdx === -1) return;
+      const header = base64Input.slice(0, commaIdx);
+      data = base64Input.slice(commaIdx + 1);
+      const mimeMatch = header.match(/:(.*?);/);
+      mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    } else {
+      data = base64Input;
+      mime = mimeType || 'application/octet-stream';
+    }
     const byteChars = atob(data);
     const byteArr = new Uint8Array(byteChars.length);
     for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-    const blob = new Blob([byteArr], { type: mimeType });
+    const blob = new Blob([byteArr], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
