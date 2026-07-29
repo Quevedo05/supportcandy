@@ -5,8 +5,9 @@ import { GuiaDetalle } from './SaveanInspector';
 import { GuiaSavean } from '../types/savean';
 import {
   Users, MapPin, Plus, RefreshCw, Clock,
-  FileText, Shield, Trash2, UserPlus, Eye,
+  FileText, Shield, Trash2, UserPlus, Eye, BarChart2,
 } from 'lucide-react';
+import { SaveanInformes } from './SaveanInformes';
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 function getToken() { return localStorage.getItem('sc_token') || ''; }
@@ -110,6 +111,7 @@ export function SaveanAdmin() {
   const [guiaVista, setGuiaVista] = useState<GuiaSavean | null>(null);
   const [kpiModal, setKpiModal] = useState<{ title: string; guias: GuiaSavean[] } | null>(null);
   const [fechaFiltro, setFechaFiltro] = useState(hoyISO());
+  const [vistaInformes, setVistaInformes] = useState(false);
   const [busquedaPendientes, setBusquedaPendientes] = useState('');
   const [verTodasGuias, setVerTodasGuias] = useState(false);
   const [verTodasPendientes, setVerTodasPendientes] = useState(false);
@@ -313,13 +315,32 @@ export function SaveanAdmin() {
       {/* ── 1. BANNER ── */}
       <div className="rounded-xl overflow-hidden shadow">
         <div className="bg-gradient-to-r from-orange-900 via-orange-700 to-orange-500 px-6 py-5">
-          <p className="text-orange-200 text-xs font-semibold mb-1">Director</p>
-          <h2 className="text-white text-xl font-extrabold tracking-wide">
-            Panel de Administración — SAVEAN
-          </h2>
-          <p className="text-orange-200 text-xs mt-1">{usuario?.nombre}</p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-orange-200 text-xs font-semibold mb-1">Director</p>
+              <h2 className="text-white text-xl font-extrabold tracking-wide">
+                {vistaInformes ? 'Informes y Estadísticas' : 'Panel de Administración — SAVEAN'}
+              </h2>
+              <p className="text-orange-200 text-xs mt-1">{usuario?.nombre}</p>
+            </div>
+            <button
+              onClick={() => setVistaInformes(v => !v)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap mt-1 ${
+                vistaInformes
+                  ? 'bg-white text-orange-700 hover:bg-orange-50'
+                  : 'bg-orange-800 hover:bg-orange-900 text-white border border-orange-600'
+              }`}
+            >
+              <BarChart2 size={14} />
+              {vistaInformes ? '← Panel' : 'Informes'}
+            </button>
+          </div>
         </div>
       </div>
+
+      {vistaInformes && <SaveanInformes />}
+      {vistaInformes && null /* ocultar el resto */}
+      {!vistaInformes && (<>
 
       {/* ── 2. DATE BAR ── */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap items-center gap-3">
@@ -792,6 +813,8 @@ export function SaveanAdmin() {
           </div>
         </div>
       )}
+
+    </>)}
 
     </div>
   );
