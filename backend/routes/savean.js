@@ -6,6 +6,7 @@ const { pool } = require('../db/connection');
 const { autenticar } = require('../middleware/auth');
 const { soloAdmin } = require('../middleware/adminOnly');
 const { soloModulo } = require('../middleware/soloModulo');
+const { enviarGuiaPorEmail } = require('../services/mailer');
 
 const soloSavean = soloModulo('savean');
 
@@ -146,7 +147,11 @@ router.post('/guias', async (req, res) => {
 
     const [[row]] = await conn.query('SELECT * FROM guias_savean WHERE guiaId = ?', [guiaId]);
     conn.release();
-    return res.status(201).json(formatGuia(row));
+    const guia = formatGuia(row);
+    if (guia.emailContacto) {
+      enviarGuiaPorEmail(guia).catch(err => console.error('[Email guía SAVEAN]', err));
+    }
+    return res.status(201).json(guia);
   } catch (err) {
     await conn.rollback();
     conn.release();
