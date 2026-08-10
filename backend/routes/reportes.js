@@ -139,8 +139,8 @@ router.get('/tiempo-resolucion', autenticar, soloSupervisor, async (req, res) =>
 
     const porPrograma = Object.entries(progMap).map(([programa, dias]) => ({
       programa,
-      promedioDias: Math.round((dias as number[]).reduce((a: number, b: number) => a + b, 0) / (dias as number[]).length * 10) / 10,
-      total: (dias as number[]).length,
+      promedioDias: Math.round(dias.reduce((a, b) => a + b, 0) / dias.length * 10) / 10,
+      total: dias.length,
     })).sort((a, b) => a.promedioDias - b.promedioDias);
 
     // Tiempo promedio en cada etapa (requiere eventos registrados con tipo='evento_etapa')
