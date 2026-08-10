@@ -182,13 +182,36 @@ router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
       return res.status(400).json({ error: 'Datos inválidos', errores });
     }
 
+    let esCosechaAcarreo = false;
     if (formularioId) {
       const [formRows] = await pool.query(
-        'SELECT formularioId FROM formularios WHERE formularioId = ?',
+        'SELECT formularioId, programa FROM formularios WHERE formularioId = ?',
         [formularioId]
       );
       if (formRows.length === 0) {
         return res.status(404).json({ error: 'Programa no encontrado' });
+      }
+      esCosechaAcarreo = /cosecha.*acarreo/i.test(formRows[0].programa || '');
+    }
+
+    if (!esCosechaAcarreo) {
+      const [dupRows] = await pool.query(
+        `SELECT COUNT(*) AS cnt
+         FROM tickets t
+         LEFT JOIN formularios f ON f.formularioId = t.formularioId
+         WHERE t.ciudadano_dni = ?
+           AND t.eliminado = 0
+           AND (
+             t.formularioId IS NULL
+             OR f.programa IS NULL
+             OR LOWER(f.programa) NOT LIKE '%cosecha%acarreo%'
+           )`,
+        [dni.trim()]
+      );
+      if (dupRows[0].cnt > 0) {
+        return res.status(409).json({
+          error: 'El DNI ingresado ya tiene un ticket registrado en el sistema. Una persona solo puede registrar un ticket por vez (excepto Cosecha y Acarreo).',
+        });
       }
     }
 
