@@ -201,6 +201,7 @@ router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
          LEFT JOIN formularios f ON f.formularioId = t.formularioId
          WHERE t.ciudadano_dni = ?
            AND t.eliminado = 0
+           AND t.estado != 'cerrado'
            AND (
              t.formularioId IS NULL
              OR f.programa IS NULL
