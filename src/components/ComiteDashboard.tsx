@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ChevronDown, ChevronRight, Send, LogOut, ClipboardList } from 'lucide-react';
+import { ChevronDown, ChevronRight, Send, LogOut, ClipboardList, Paperclip, Download } from 'lucide-react';
 
 interface TicketComite {
   ticketId: string;
@@ -18,6 +18,13 @@ interface TicketComite {
   programa: string;
 }
 
+interface AdjuntoItem {
+  nombre: string;
+  tipo: string;
+  tamano: number;
+  contenido: string;
+}
+
 interface ComentarioComite {
   id: string;
   autor: string;
@@ -25,6 +32,39 @@ interface ComentarioComite {
   contenido: string;
   tipo: 'comentario' | 'comite';
   fecha: string;
+  adjuntos: AdjuntoItem[];
+}
+
+// Parsea la descripción del ticket separando texto de adjuntos embebidos
+function parsearDescripcion(raw: string): { texto: string; adjuntos: { nombre: string; dataUrl: string }[] } {
+  const lineas = raw.split('\n');
+  const adjuntos: { nombre: string; dataUrl: string }[] = [];
+  const textoLineas: string[] = [];
+
+  for (const linea of lineas) {
+    const match = linea.match(/^(.+?): \[Adjunto\](data:.+)$/);
+    if (match) {
+      adjuntos.push({ nombre: match[1], dataUrl: match[2] });
+    } else {
+      // Quitar el prefijo "Descripción: " de la primera línea de texto
+      textoLineas.push(linea.replace(/^Descripción: /, ''));
+    }
+  }
+
+  return { texto: textoLineas.join('\n').trim(), adjuntos };
+}
+
+function descargar(nombre: string, dataUrl: string) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function formatBytes(b: number) {
+  return b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function formatFecha(iso: string) {
@@ -32,6 +72,25 @@ function formatFecha(iso: string) {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+function ListaAdjuntos({ adjuntos }: { adjuntos: { nombre: string; dataUrl: string; tamano?: number }[] }) {
+  if (adjuntos.length === 0) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {adjuntos.map((adj, i) => (
+        <button
+          key={i}
+          onClick={() => descargar(adj.nombre, adj.dataUrl)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-colors"
+        >
+          <Download size={12} />
+          <span className="font-medium">{adj.nombre}</span>
+          {adj.tamano !== undefined && <span className="text-gray-400">({formatBytes(adj.tamano)})</span>}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function TicketCard({ ticket, apiUrl, token, usuarioId }: {
@@ -45,6 +104,8 @@ function TicketCard({ ticket, apiUrl, token, usuarioId }: {
   const [cargandoComentarios, setCargandoComentarios] = useState(false);
   const [nuevoComentario, setNuevoComentario] = useState('');
   const [enviando, setEnviando] = useState(false);
+
+  const { texto: descripcionTexto, adjuntos: adjuntosTicket } = parsearDescripcion(ticket.descripcion ?? '');
 
   const cargarComentarios = useCallback(async () => {
     if (!abierto) return;
@@ -75,7 +136,7 @@ function TicketCard({ ticket, apiUrl, token, usuarioId }: {
       });
       if (res.ok) {
         const nuevo = await res.json();
-        setComentarios((prev) => [...prev, nuevo]);
+        setComentarios((prev) => [...prev, { ...nuevo, adjuntos: [] }]);
         setNuevoComentario('');
       }
     } finally {
@@ -97,6 +158,11 @@ function TicketCard({ ticket, apiUrl, token, usuarioId }: {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {adjuntosTicket.length > 0 && (
+            <span className="flex items-center gap-1 text-xs text-gray-400">
+              <Paperclip size={12} />{adjuntosTicket.length}
+            </span>
+          )}
           <span className="text-xs text-gray-400">{formatFecha(ticket.fechaCreacion)}</span>
           {abierto ? <ChevronDown size={16} className="text-gray-400" /> : <ChevronRight size={16} className="text-gray-400" />}
         </div>
@@ -115,10 +181,19 @@ function TicketCard({ ticket, apiUrl, token, usuarioId }: {
             {ticket.numeroActa && <InfoRow label="N° de acta" value={ticket.numeroActa} />}
           </div>
 
-          {ticket.descripcion && (
+          {/* Descripción + adjuntos del ticket */}
+          {(descripcionTexto || adjuntosTicket.length > 0) && (
             <div className="px-5 py-3 border-t border-gray-100">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Descripción</p>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{ticket.descripcion}</p>
+              {descripcionTexto && <p className="text-sm text-gray-700 whitespace-pre-wrap">{descripcionTexto}</p>}
+              {adjuntosTicket.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                    <Paperclip size={11} /> Adjuntos del solicitante
+                  </p>
+                  <ListaAdjuntos adjuntos={adjuntosTicket} />
+                </div>
+              )}
             </div>
           )}
 
@@ -134,6 +209,9 @@ function TicketCard({ ticket, apiUrl, token, usuarioId }: {
                       <span className="text-xs text-gray-400">{formatFecha(c.fecha)}</span>
                     </div>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.contenido}</p>
+                    {c.adjuntos?.length > 0 && (
+                      <ListaAdjuntos adjuntos={c.adjuntos.map((a) => ({ nombre: a.nombre, dataUrl: a.contenido, tamano: a.tamano }))} />
+                    )}
                   </div>
                 ))}
               </div>
@@ -223,7 +301,6 @@ export function ComiteDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -251,7 +328,6 @@ export function ComiteDashboard() {
         </div>
       </header>
 
-      {/* Contenido */}
       <main className="max-w-4xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>

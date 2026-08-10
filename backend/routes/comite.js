@@ -79,7 +79,7 @@ router.get('/tickets/:ticketId/comentarios', autenticar, soloComite, async (req,
     if (ticketRows.length === 0) return res.status(404).json({ error: 'Ticket no encontrado' });
 
     const [rows] = await pool.query(
-      `SELECT c.comentarioId, c.contenido, c.fecha, c.autor_id, c.tipo, u.nombre
+      `SELECT c.comentarioId, c.contenido, c.adjuntos, c.fecha, c.autor_id, c.tipo, u.nombre
        FROM comentarios c
        JOIN usuarios u ON u.usuarioId = c.autor_id
        WHERE c.ticketId = ? AND c.tipo IN ('comentario', 'comite')
@@ -93,6 +93,7 @@ router.get('/tickets/:ticketId/comentarios', autenticar, soloComite, async (req,
         autor: c.nombre,
         autorId: c.autor_id,
         contenido: c.contenido,
+        adjuntos: c.adjuntos ? JSON.parse(c.adjuntos) : [],
         fecha: c.fecha,
         tipo: c.tipo,
       })),
