@@ -41,7 +41,7 @@ export function AdminPanel() {
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
-    rol: 'contribuidor' as 'admin' | 'contribuidor' | 'inspector',
+    rol: 'contribuidor' as 'admin' | 'contribuidor' | 'inspector' | 'supervisor',
     modulo: 'tickets' as 'tickets' | 'savean' | 'comite',
     formularioId: '',
   });
@@ -278,12 +278,14 @@ export function AdminPanel() {
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
                         u.rol === 'admin'
                           ? 'bg-purple-100 text-purple-800'
-                          : u.rol === 'inspector'
-                            ? 'bg-cyan-100 text-cyan-800'
-                            : 'bg-blue-100 text-blue-800'
+                          : u.rol === 'supervisor'
+                            ? 'bg-indigo-100 text-indigo-800'
+                            : u.rol === 'inspector'
+                              ? 'bg-cyan-100 text-cyan-800'
+                              : 'bg-blue-100 text-blue-800'
                       }`}
                     >
-                      {u.rol === 'admin' ? 'Supervisor' : u.rol === 'inspector' ? 'Inspector' : 'Operativo'}
+                      {u.rol === 'admin' ? 'Admin' : u.rol === 'supervisor' ? 'Supervisor' : u.rol === 'inspector' ? 'Inspector' : 'Operativo'}
                     </span>
                   )}
                 </td>
@@ -452,13 +454,14 @@ export function AdminPanel() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
                     <select
                       value={formData.rol}
-                      onChange={(e) => setFormData({ ...formData, rol: e.target.value as 'admin' | 'contribuidor' | 'inspector' })}
+                      onChange={(e) => setFormData({ ...formData, rol: e.target.value as 'admin' | 'contribuidor' | 'inspector' | 'supervisor' })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       {formData.modulo === 'tickets' ? (
                         <>
                           <option value="contribuidor">Operativo</option>
-                          <option value="admin">Supervisor</option>
+                          <option value="supervisor">Supervisor (reportes)</option>
+                          <option value="admin">Administrador</option>
                         </>
                       ) : (
                         <>

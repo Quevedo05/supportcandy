@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useReducer, useMemo, useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, CheckCircle, Trash2, Pencil, UserCircle, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, CheckCircle, Trash2, Pencil, UserCircle, ArrowLeft, BarChart2 } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useFormularios } from './context/FormulariosContext';
+import { ReportesDashboard } from './components/ReportesDashboard';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SECTION 1: TYPE DEFINITIONS
@@ -2457,6 +2458,7 @@ export default function AgenciaCalidadDashboard() {
   const { formularios } = useFormularios();
   const [state, dispatch] = useReducer(dashboardReducer, undefined, getInitialState);
   const [operativos, setOperativos] = useState<OperativoInfo[]>([]);
+  const [verReportes, setVerReportes] = useState(false);
 
   // Fetch tickets from API on mount and on focus
   useEffect(() => {
@@ -2846,6 +2848,10 @@ export default function AgenciaCalidadDashboard() {
     );
   }
 
+  if (verReportes) {
+    return <ReportesDashboard onVolver={() => setVerReportes(false)} />;
+  }
+
   // Dashboard list view
   return (
     <div className="flex flex-col h-screen bg-white">
@@ -2872,6 +2878,16 @@ export default function AgenciaCalidadDashboard() {
         >
           Restablecer filtros
         </button>
+
+        {(usuario?.rol === 'supervisor' || usuario?.rol === 'admin') && (
+          <button
+            onClick={() => setVerReportes(true)}
+            className="flex items-center gap-2 border border-blue-200 text-blue-600 text-sm px-3 py-2 rounded-md hover:bg-blue-50 transition-colors"
+          >
+            <BarChart2 size={15} />
+            Reportes
+          </button>
+        )}
 
         <div className="flex-1" />
 

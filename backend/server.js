@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const { testConnection } = require('./db/connection');
 
 const authRoutes = require('./routes/auth');
@@ -9,9 +10,13 @@ const ticketsRoutes = require('./routes/tickets');
 const formulariosRoutes = require('./routes/formularios');
 const saveanRoutes = require('./routes/savean');
 const comiteRoutes = require('./routes/comite');
+const reportesRoutes = require('./routes/reportes');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
+
+// ─── Helmet (HTTP security headers) ──────────────────────────────────────────
+app.use(helmet());
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
 // CORS_ORIGIN is a comma-separated list of allowed origins
@@ -50,6 +55,7 @@ app.use('/api/tickets', ticketsRoutes);
 app.use('/api/formularios', formulariosRoutes);
 app.use('/api/savean', saveanRoutes);
 app.use('/api/comite', comiteRoutes);
+app.use('/api/reportes', reportesRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
@@ -69,6 +75,10 @@ app.use((err, _req, res, _next) => {
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 async function start() {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    console.error('FATAL: JWT_SECRET must be set and at least 32 characters long');
+    process.exit(1);
+  }
   try {
     await testConnection();
     app.listen(PORT, () => {

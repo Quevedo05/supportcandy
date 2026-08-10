@@ -1,12 +1,22 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { pool } = require('../db/connection');
 
 const router = express.Router();
 
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiados intentos de inicio de sesión. Por favor, espere 15 minutos e intente nuevamente.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+});
+
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -116,8 +126,8 @@ router.get('/invitacion/:token', async (req, res) => {
 router.post('/activar', async (req, res) => {
   try {
     const { token, password } = req.body;
-    if (!token || !password || password.length < 6) {
-      return res.status(400).json({ error: 'Token y contraseña (mínimo 6 caracteres) son requeridos' });
+    if (!token || !password || password.length < 8) {
+      return res.status(400).json({ error: 'Token y contraseña (mínimo 8 caracteres) son requeridos' });
     }
 
     const [rows] = await pool.query(

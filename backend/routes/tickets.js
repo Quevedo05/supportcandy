@@ -400,7 +400,7 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
     const { estado, prioridad, asignadoA, etapa, agentes, descripcion, ciudadanoNombre, ciudadanoEmail, ciudadanoTelefono, ciudadanoDni, legajo, numeroActa, importe, codigoExterno, observaciones, formularioId: nuevoFormularioId } = req.body;
 
     const [rows] = await pool.query(
-      'SELECT ticketId, agentes FROM tickets WHERE ticketId = ?',
+      'SELECT ticketId, agentes, etapa AS etapaActual FROM tickets WHERE ticketId = ?',
       [ticketId]
     );
     if (rows.length === 0) {
@@ -535,6 +535,15 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
       `UPDATE tickets SET ${setClauses.join(', ')} WHERE ticketId = ?`,
       params
     );
+
+    // Registrar cambio de etapa para estadísticas de tiempo por etapa
+    if (etapa !== undefined && etapa !== rows[0].etapaActual) {
+      await pool.query(
+        `INSERT INTO comentarios (comentarioId, ticketId, autor_id, contenido, tipo, fecha)
+         VALUES (?, ?, ?, ?, 'evento_etapa', NOW())`,
+        [uuidv4(), ticketId, req.usuario.usuarioId, JSON.stringify({ anterior: rows[0].etapaActual, nueva: etapa })]
+      );
+    }
 
     // Notificar por email y registrar evento cuando cambian los agentes
     if (agentes !== undefined && Array.isArray(agentes)) {
