@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, Building2 } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
 
 export function LoginPage() {
   const { login, error } = useAuth();
@@ -8,124 +8,123 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
     setIsLoading(true);
-
     try {
       await login(email, password);
-    } catch (err) {
-      setLocalError(error || 'Error al iniciar sesión');
+    } catch {
+      setLocalError(error || 'Email o contraseña incorrectos');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-      {/* Elementos decorativos de fondo */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl"></div>
-      </div>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
 
-      {/* Contenedor principal */}
-      <div className="relative z-10 w-full max-w-md">
-        {/* Card de login */}
-        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl overflow-hidden">
-          {/* Header corporativo */}
-          <div className="bg-gradient-to-r from-slate-800 to-blue-900 px-8 py-12">
-            <div className="flex items-center justify-center mb-6">
-              <div className="bg-white/20 p-3 rounded-xl backdrop-blur">
-                <Building2 size={32} className="text-white" />
+        {/* Logo / marca */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 mb-4 shadow-lg shadow-blue-200">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <path d="M8 21h8M12 17v4" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Agencia Calidad</h1>
+          <p className="text-sm text-gray-400 mt-1">San Juan · Ministerio de Producción</p>
+        </div>
+
+        {/* Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+          <h2 className="text-base font-semibold text-gray-700 mb-6">Iniciá sesión en tu cuenta</h2>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
+                Correo o usuario
+              </label>
+              <div className="relative">
+                <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
+                <input
+                  id="email"
+                  type="text"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-gray-300"
+                  placeholder="usuario@agencia.gob.ar"
+                  required
+                  disabled={isLoading}
+                  autoComplete="username"
+                />
               </div>
             </div>
-            <h1 className="text-center text-2xl font-bold text-white mb-2">
-              Agencia Calidad
-            </h1>
-            <p className="text-center text-sm text-blue-100">
-              San Juan - Sistema de Gestión de Tickets
-            </p>
-          </div>
 
-          {/* Contenido del formulario */}
-          <div className="px-8 py-10">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email / usuario */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-3">
-                  Correo Electrónico o Usuario
-                </label>
-                <div className="relative">
-                  <Mail size={18} className="absolute left-3 top-3.5 text-slate-400" />
-                  <input
-                    id="email"
-                    type="text"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder=""
-                    className="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
+            {/* Contraseña */}
+            <div>
+              <label htmlFor="password" className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
+                Contraseña
+              </label>
+              <div className="relative">
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-9 pr-10 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-gray-300"
+                  placeholder="••••••••"
+                  required
+                  disabled={isLoading}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
               </div>
+            </div>
 
-              {/* Contraseña */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-3">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <Lock size={18} className="absolute left-3 top-3.5 text-slate-400" />
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder=""
-                    className="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
+            {/* Error */}
+            {localError && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-100 text-red-600 px-3.5 py-3 rounded-lg text-sm">
+                <span className="mt-0.5 flex-shrink-0">⚠</span>
+                <span>{localError}</span>
               </div>
+            )}
 
-              {/* Errores */}
-              {localError && (
-                <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
-                  ⚠️ {localError}
-                </div>
+            {/* Botón */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold py-2.5 px-4 rounded-lg transition-colors mt-2 flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                'Iniciar Sesión'
               )}
-
-              {/* Botón */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-slate-800 to-blue-900 hover:from-slate-700 hover:to-blue-800 disabled:from-slate-400 disabled:to-slate-400 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 mt-6 shadow-lg hover:shadow-xl"
-              >
-                {isLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                    Iniciando sesión...
-                  </span>
-                ) : (
-                  'Iniciar Sesión'
-                )}
-              </button>
-            </form>
-
-          </div>
-
-          {/* Footer */}
-          <div className="bg-slate-50 px-8 py-4 border-t border-slate-200 text-center">
-            <p className="text-xs text-slate-600">
-              © 2024 Agencia Calidad San Juan • Ministerio de Producción
-            </p>
-          </div>
+            </button>
+          </form>
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-gray-300 mt-6">
+          © {new Date().getFullYear()} Agencia de Calidad San Juan
+        </p>
+
       </div>
     </div>
   );
