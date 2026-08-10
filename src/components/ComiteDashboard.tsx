@@ -2,6 +2,48 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ChevronDown, ChevronRight, Send, LogOut, ClipboardList, Paperclip, Download } from 'lucide-react';
 
+function decodeAdjNombre(nombre: string): string {
+  if (nombre.startsWith('fn:')) {
+    try { return atob(nombre.slice(3)); } catch { return nombre; }
+  }
+  return nombre;
+}
+
+function descargarBase64(base64Input: string, filename: string, mimeType?: string) {
+  try {
+    let data: string;
+    let mime: string;
+    if (base64Input.startsWith('data:')) {
+      const commaIdx = base64Input.indexOf(',');
+      if (commaIdx === -1) return;
+      const header = base64Input.slice(0, commaIdx);
+      data = base64Input.slice(commaIdx + 1);
+      const mimeMatch = header.match(/:(.*?);/);
+      mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    } else if (base64Input.startsWith('2b64:')) {
+      data = atob(base64Input.slice(5));
+      mime = mimeType || 'application/octet-stream';
+    } else {
+      data = base64Input;
+      mime = mimeType || 'application/octet-stream';
+    }
+    const byteChars = atob(data);
+    const byteArr = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([byteArr], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'archivo';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  } catch (e) {
+    console.error('Error al descargar archivo:', e);
+  }
+}
+
 interface TicketComite {
   ticketId: string;
   numero: number;
@@ -20,7 +62,7 @@ interface TicketComite {
 
 interface AdjuntoItem {
   nombre: string;
-  tipo: string;
+  tipo?: string;
   tamano: number;
   contenido: string;
 }
@@ -46,21 +88,11 @@ function parsearDescripcion(raw: string): { texto: string; adjuntos: { nombre: s
     if (match) {
       adjuntos.push({ nombre: match[1], dataUrl: match[2] });
     } else {
-      // Quitar el prefijo "Descripción: " de la primera línea de texto
       textoLineas.push(linea.replace(/^Descripción: /, ''));
     }
   }
 
   return { texto: textoLineas.join('\n').trim(), adjuntos };
-}
-
-function descargar(nombre: string, dataUrl: string) {
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = nombre;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
 }
 
 function formatBytes(b: number) {
@@ -74,21 +106,24 @@ function formatFecha(iso: string) {
   });
 }
 
-function ListaAdjuntos({ adjuntos }: { adjuntos: { nombre: string; dataUrl: string; tamano?: number }[] }) {
+function ListaAdjuntos({ adjuntos }: { adjuntos: { nombre: string; dataUrl: string; tamano?: number; tipo?: string }[] }) {
   if (adjuntos.length === 0) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-2">
-      {adjuntos.map((adj, i) => (
-        <button
-          key={i}
-          onClick={() => descargar(adj.nombre, adj.dataUrl)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-colors"
-        >
-          <Download size={12} />
-          <span className="font-medium">{adj.nombre}</span>
-          {adj.tamano !== undefined && <span className="text-gray-400">({formatBytes(adj.tamano)})</span>}
-        </button>
-      ))}
+      {adjuntos.map((adj, i) => {
+        const nombreReal = decodeAdjNombre(adj.nombre);
+        return (
+          <button
+            key={i}
+            onClick={() => descargarBase64(adj.dataUrl, nombreReal, adj.tipo)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-colors"
+          >
+            <Download size={12} />
+            <span className="font-medium">{nombreReal}</span>
+            {adj.tamano !== undefined && <span className="text-gray-400">({formatBytes(adj.tamano)})</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -210,7 +245,7 @@ function TicketCard({ ticket, apiUrl, token, usuarioId }: {
                     </div>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.contenido}</p>
                     {c.adjuntos?.length > 0 && (
-                      <ListaAdjuntos adjuntos={c.adjuntos.map((a) => ({ nombre: a.nombre, dataUrl: a.contenido, tamano: a.tamano }))} />
+                      <ListaAdjuntos adjuntos={c.adjuntos.map((a) => ({ nombre: a.nombre, dataUrl: a.contenido, tamano: a.tamano, tipo: a.tipo }))} />
                     )}
                   </div>
                 ))}
