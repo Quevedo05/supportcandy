@@ -23,6 +23,7 @@ interface ComentarioComite {
   autor: string;
   autorId: string;
   contenido: string;
+  tipo: 'comentario' | 'comite';
   fecha: string;
 }
 
@@ -121,16 +122,34 @@ function TicketCard({ ticket, apiUrl, token, usuarioId }: {
             </div>
           )}
 
-          {/* Comentarios del comité */}
+          {/* Comentarios de la agencia (lectura) */}
+          {!cargandoComentarios && comentarios.filter((c) => c.tipo === 'comentario').length > 0 && (
+            <div className="border-t border-gray-100 px-5 py-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Comentarios del expediente</p>
+              <div className="space-y-2">
+                {comentarios.filter((c) => c.tipo === 'comentario').map((c) => (
+                  <div key={c.id} className="rounded-lg p-3 bg-gray-50 border border-gray-200">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-medium text-gray-700 text-xs">{c.autor}</span>
+                      <span className="text-xs text-gray-400">{formatFecha(c.fecha)}</span>
+                    </div>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.contenido}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Verificaciones del comité */}
           <div className="border-t border-gray-100 px-5 py-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Verificaciones</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Mis verificaciones</p>
             {cargandoComentarios ? (
               <p className="text-xs text-gray-400">Cargando...</p>
-            ) : comentarios.length === 0 ? (
+            ) : comentarios.filter((c) => c.tipo === 'comite').length === 0 ? (
               <p className="text-xs text-gray-400 italic">Sin verificaciones aún</p>
             ) : (
               <div className="space-y-3 mb-4">
-                {comentarios.map((c) => (
+                {comentarios.filter((c) => c.tipo === 'comite').map((c) => (
                   <div key={c.id} className={`rounded-lg p-3 text-sm ${c.autorId === usuarioId ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50 border border-gray-100'}`}>
                     <div className="flex justify-between items-center mb-1">
                       <span className="font-medium text-gray-800 text-xs">{c.autor}</span>
