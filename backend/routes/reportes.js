@@ -17,8 +17,8 @@ router.get('/resumen', autenticar, soloSupervisor, async (req, res) => {
     const [[totalesRow]] = await pool.query(
       `SELECT
          COUNT(*) AS total,
-         SUM(CASE WHEN estado = 'cerrado' THEN 1 ELSE 0 END) AS cerrados,
-         SUM(CASE WHEN estado != 'cerrado' THEN 1 ELSE 0 END) AS abiertos,
+         SUM(CASE WHEN etapa = 'Cerrado' THEN 1 ELSE 0 END) AS cerrados,
+         SUM(CASE WHEN (etapa IS NULL OR etapa != 'Cerrado') THEN 1 ELSE 0 END) AS abiertos,
          SUM(CASE WHEN fecha_creacion >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS ultimos30dias
        FROM tickets WHERE eliminado = 0`
     );
@@ -60,7 +60,7 @@ router.get('/resumen', autenticar, soloSupervisor, async (req, res) => {
 router.get('/por-agente', autenticar, soloSupervisor, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT agentes, estado FROM tickets WHERE eliminado = 0 AND agentes IS NOT NULL AND agentes != '[]'`
+      `SELECT agentes, etapa FROM tickets WHERE eliminado = 0 AND agentes IS NOT NULL AND agentes != '[]'`
     );
 
     const conteo = {};
@@ -71,7 +71,7 @@ router.get('/por-agente', autenticar, soloSupervisor, async (req, res) => {
         if (!agente) continue;
         if (!conteo[agente]) conteo[agente] = { nombre: agente, total: 0, abiertos: 0, cerrados: 0 };
         conteo[agente].total++;
-        if (row.estado === 'cerrado') conteo[agente].cerrados++;
+        if (row.etapa === 'Cerrado') conteo[agente].cerrados++;
         else conteo[agente].abiertos++;
       }
     }
@@ -91,7 +91,7 @@ router.get('/por-periodo', autenticar, soloSupervisor, async (req, res) => {
       `SELECT
          DATE_FORMAT(fecha_creacion, '%Y-%m') AS mes,
          COUNT(*) AS creados,
-         SUM(CASE WHEN estado = 'cerrado' THEN 1 ELSE 0 END) AS cerrados
+         SUM(CASE WHEN etapa = 'Cerrado' THEN 1 ELSE 0 END) AS cerrados
        FROM tickets
        WHERE eliminado = 0 AND fecha_creacion >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
        GROUP BY mes ORDER BY mes ASC`
@@ -106,26 +106,42 @@ router.get('/por-periodo', autenticar, soloSupervisor, async (req, res) => {
 // GET /api/reportes/tiempo-resolucion
 router.get('/tiempo-resolucion', autenticar, soloSupervisor, async (req, res) => {
   try {
-    const [[global]] = await pool.query(
-      `SELECT
-         ROUND(AVG(DATEDIFF(fecha_cierre, fecha_creacion)), 1) AS promedioDias,
-         MIN(DATEDIFF(fecha_cierre, fecha_creacion)) AS minDias,
-         MAX(DATEDIFF(fecha_cierre, fecha_creacion)) AS maxDias,
-         COUNT(*) AS total
-       FROM tickets
-       WHERE estado = 'cerrado' AND eliminado = 0 AND fecha_cierre IS NOT NULL`
+    // Tiempo de resolución usando el primer evento_etapa donde nueva='Cerrado'
+    const [cierresRaw] = await pool.query(
+      `SELECT c.ticketId, MIN(c.fecha) AS fecha_cierre, t.fecha_creacion,
+              COALESCE(f.programa, 'Sin programa') AS programa
+       FROM comentarios c
+       JOIN tickets t ON t.ticketId = c.ticketId
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
+       WHERE c.tipo = 'evento_etapa'
+         AND JSON_UNQUOTE(JSON_EXTRACT(c.contenido, '$.nueva')) = 'Cerrado'
+         AND t.eliminado = 0
+       GROUP BY c.ticketId, t.fecha_creacion, f.programa`
     );
 
-    const [porPrograma] = await pool.query(
-      `SELECT
-         COALESCE(f.programa, 'Sin programa') AS programa,
-         ROUND(AVG(DATEDIFF(t.fecha_cierre, t.fecha_creacion)), 1) AS promedioDias,
-         COUNT(*) AS total
-       FROM tickets t
-       LEFT JOIN formularios f ON f.formularioId = t.formularioId
-       WHERE t.estado = 'cerrado' AND t.eliminado = 0 AND t.fecha_cierre IS NOT NULL
-       GROUP BY f.programa ORDER BY promedioDias ASC`
-    );
+    let global = { promedioDias: null, minDias: null, maxDias: null, total: 0 };
+    const progMap = {};
+
+    if (cierresRaw.length > 0) {
+      const dias = cierresRaw.map((r) => {
+        const d = (new Date(r.fecha_cierre) - new Date(r.fecha_creacion)) / (1000 * 60 * 60 * 24);
+        if (!progMap[r.programa]) progMap[r.programa] = [];
+        progMap[r.programa].push(d);
+        return d;
+      });
+      global = {
+        promedioDias: Math.round(dias.reduce((a, b) => a + b, 0) / dias.length * 10) / 10,
+        minDias: Math.round(Math.min(...dias) * 10) / 10,
+        maxDias: Math.round(Math.max(...dias) * 10) / 10,
+        total: dias.length,
+      };
+    }
+
+    const porPrograma = Object.entries(progMap).map(([programa, dias]) => ({
+      programa,
+      promedioDias: Math.round((dias as number[]).reduce((a: number, b: number) => a + b, 0) / (dias as number[]).length * 10) / 10,
+      total: (dias as number[]).length,
+    })).sort((a, b) => a.promedioDias - b.promedioDias);
 
     // Tiempo promedio en cada etapa (requiere eventos registrados con tipo='evento_etapa')
     const [eventosEtapa] = await pool.query(
@@ -179,7 +195,7 @@ router.get('/exportar', autenticar, soloSupervisor, async (req, res) => {
          t.agentes, t.importe,
          DATE_FORMAT(t.fecha_creacion, '%d/%m/%Y %H:%i') AS fecha_creacion,
          DATE_FORMAT(t.fecha_cierre, '%d/%m/%Y %H:%i') AS fecha_cierre,
-         DATEDIFF(COALESCE(t.fecha_cierre, NOW()), t.fecha_creacion) AS dias_abierto
+         DATEDIFF(NOW(), t.fecha_creacion) AS dias_abierto
        FROM tickets t
        LEFT JOIN formularios f ON f.formularioId = t.formularioId
        WHERE t.eliminado = 0
