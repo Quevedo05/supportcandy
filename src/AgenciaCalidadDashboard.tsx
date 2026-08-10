@@ -54,7 +54,7 @@ interface Comentario {
   fecha: Date;
   contenido: string;
   adjuntos: Adjunto[];
-  tipo?: 'comentario' | 'evento_estado' | 'evento_agente';
+  tipo?: 'comentario' | 'evento_estado' | 'evento_agente' | 'comite';
   estadoAnterior?: string;
   estadoNuevo?: string;
   agenteAnterior?: string;
@@ -862,7 +862,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [adjuntosEditandoTmp, setAdjuntosEditandoTmp] = useState<Adjunto[]>([]);
   const adjuntosComentarioRef = React.useRef<HTMLInputElement>(null);
   const [seccionesAbiertas, setSeccionesAbiertas] = useState<Record<string, boolean>>({
-    solicitud: true, campos: true, legajo: true, asignaciones: true, observaciones: true, auditoria: false,
+    solicitud: true, campos: true, legajo: true, asignaciones: true, observaciones: true, auditoria: false, comite: true,
   });
   const adjuntosRef = React.useRef<HTMLInputElement>(null);
 
@@ -1137,10 +1137,10 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
           {/* Hilo de actividad */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-            {ticket.comentarios.length === 0 ? (
+            {ticket.comentarios.filter((c) => c.tipo !== 'comite').length === 0 ? (
               <p className="text-sm text-slate-500 text-center py-8">No hay actividad aún</p>
             ) : (
-              [...ticket.comentarios].reverse().map((entrada) => {
+              [...ticket.comentarios].filter((c) => c.tipo !== 'comite').reverse().map((entrada) => {
                 if (entrada.tipo === 'evento_estado') {
                   return (
                     <div key={entrada.id} className="text-center">
@@ -1887,6 +1887,30 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                           : <>cambió agente: <span className="font-medium">{c.agenteAnterior}</span> → <span className="font-medium">{c.agenteNuevo}</span></>
                         }
                         <div className="text-slate-400 mt-0.5">{formatearFechaHora(c.fecha)}</div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Verificaciones del Comité */}
+          <SeccionHeader title="Verificaciones del Comité" sKey="comite" />
+          {seccionesAbiertas.comite && (
+            <div className="p-4">
+              {ticket.comentarios.filter((c) => c.tipo === 'comite').length === 0 ? (
+                <p className="text-xs text-slate-400 italic">Sin verificaciones del comité aún</p>
+              ) : (
+                <div className="space-y-2">
+                  {ticket.comentarios
+                    .filter((c) => c.tipo === 'comite')
+                    .map((c) => (
+                      <div key={c.id} className="text-xs bg-amber-50 border border-amber-100 rounded p-2.5">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-semibold text-amber-800">{c.autor}</span>
+                          <span className="text-slate-400">{formatearFechaHora(c.fecha)}</span>
+                        </div>
+                        <p className="text-slate-700 whitespace-pre-wrap">{c.contenido}</p>
                       </div>
                     ))}
                 </div>

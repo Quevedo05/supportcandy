@@ -5,6 +5,7 @@ import { TicketsApp } from './components/TicketsApp';
 import { SaveanApp } from './modules/savean/SaveanApp';
 import { DevPanel } from './components/DevPanel';
 import { ActivarCuenta } from './components/ActivarCuenta';
+import { ComiteDashboard } from './components/ComiteDashboard';
 import { CheckCircle2, XCircle, Clock, AlertCircle, ArrowLeft, User, Truck, Package, Shield } from 'lucide-react';
 
 // ─── Public guide verification (accessible without login) ──────────────────
@@ -171,6 +172,8 @@ function AppContent() {
   if (usuario.rol === 'dev') return <DevPanel />;
 
   if (usuario.modulo === 'savean') return <SaveanApp />;
+
+  if (usuario.modulo === 'comite') return <ComiteDashboard />;
 
   return <TicketsApp />;
 }

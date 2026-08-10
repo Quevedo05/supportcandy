@@ -47,19 +47,23 @@ router.get('/', async (_req, res) => {
 // POST /api/usuarios — crea usuario y envía invitación por email
 router.post('/', soloAdmin, async (req, res) => {
   try {
-    const { nombre, email, rol, modulo = 'tickets' } = req.body;
+    const { nombre, email, rol, modulo = 'tickets', formularioId } = req.body;
 
     const errores = {};
     if (!nombre || nombre.trim().length < 2) errores.nombre = 'El nombre debe tener al menos 2 caracteres';
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email.trim())) errores.email = 'El email no es válido';
-    if (!rol || !['admin', 'contribuidor', 'inspector'].includes(rol)) errores.rol = 'Rol inválido';
-    if (!['tickets', 'savean'].includes(modulo)) errores.modulo = 'Módulo inválido';
+    if (!['tickets', 'savean', 'comite'].includes(modulo)) errores.modulo = 'Módulo inválido';
+    if (modulo !== 'comite' && (!rol || !['admin', 'contribuidor', 'inspector'].includes(rol))) {
+      errores.rol = 'Rol inválido';
+    }
+    if (modulo === 'comite' && !formularioId) errores.formularioId = 'El programa es requerido para usuarios de comité';
 
     if (Object.keys(errores).length > 0) {
       return res.status(400).json({ error: 'Datos inválidos', errores });
     }
 
+    const rolFinal = modulo === 'comite' ? 'contribuidor' : rol;
     const emailNorm = email.trim().toLowerCase();
     const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [emailNorm]);
     if (existing.length > 0) return res.status(409).json({ error: 'Este email ya está registrado' });
@@ -69,13 +73,13 @@ router.post('/', soloAdmin, async (req, res) => {
     const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     await pool.query(
-      `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, modulo, activo, invitation_token, invitation_expires_at)
-       VALUES (?, ?, ?, '', ?, ?, 1, ?, ?)`,
-      [usuarioId, nombre.trim(), emailNorm, rol, modulo, token, expires]
+      `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, modulo, activo, invitation_token, invitation_expires_at, formularioId)
+       VALUES (?, ?, ?, '', ?, ?, 1, ?, ?, ?)`,
+      [usuarioId, nombre.trim(), emailNorm, rolFinal, modulo, token, expires, formularioId || null]
     );
 
     try {
-      await enviarInvitacion({ nombre: nombre.trim(), email: emailNorm, token, modulo, rol });
+      await enviarInvitacion({ nombre: nombre.trim(), email: emailNorm, token, modulo, rol: rolFinal });
     } catch (mailErr) {
       console.error('[Mailer] Error enviando invitación:', mailErr.message);
       // No fallar el request si el mail falla — el admin puede reenviar

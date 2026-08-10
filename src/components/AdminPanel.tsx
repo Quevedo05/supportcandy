@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useFormularios } from '../context/FormulariosContext';
 import { X, Plus, Trash2, Eye, EyeOff, Users, FileText, Mail, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { FormulariosPanel } from './FormulariosPanel';
 
@@ -31,6 +32,7 @@ interface UsuarioDB {
 
 export function AdminPanel() {
   const { usuario } = useAuth();
+  const { formularios } = useFormularios();
   const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
   const [usuariosDB, setUsuariosDB] = useState<UsuarioDB[]>([]);
   const [cargandoUsuarios, setCargandoUsuarios] = useState(true);
@@ -40,7 +42,8 @@ export function AdminPanel() {
     nombre: '',
     email: '',
     rol: 'contribuidor' as 'admin' | 'contribuidor' | 'inspector',
-    modulo: 'tickets' as 'tickets' | 'savean',
+    modulo: 'tickets' as 'tickets' | 'savean' | 'comite',
+    formularioId: '',
   });
   const [erroresForm, setErroresForm] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
@@ -67,7 +70,7 @@ export function AdminPanel() {
   useEffect(() => { fetchUsuarios(); }, [fetchUsuarios]);
 
   const resetModal = () => {
-    setFormData({ nombre: '', email: '', rol: 'contribuidor', modulo: 'tickets' });
+    setFormData({ nombre: '', email: '', rol: 'contribuidor', modulo: 'tickets', formularioId: '' });
     setErroresForm({});
     setInvitacionEnviada(false);
     setMostrarModal(false);
@@ -91,7 +94,13 @@ export function AdminPanel() {
       const res = await fetch(`${apiUrl}/usuarios`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ nombre: formData.nombre.trim(), email: formData.email.trim(), rol: formData.rol, modulo: formData.modulo }),
+        body: JSON.stringify({
+          nombre: formData.nombre.trim(),
+          email: formData.email.trim(),
+          rol: formData.rol,
+          modulo: formData.modulo,
+          formularioId: formData.modulo === 'comite' ? formData.formularioId : undefined,
+        }),
       });
       if (res.status === 409) { setErroresForm({ email: 'Este email ya está registrado' }); return; }
       if (!res.ok) { setErroresForm({ email: 'Error al crear el usuario. Intentá de nuevo.' }); return; }
@@ -242,10 +251,12 @@ export function AdminPanel() {
                     className={`px-3 py-1 rounded-full text-xs font-medium ${
                       u.modulo === 'savean'
                         ? 'bg-cyan-100 text-cyan-800'
-                        : 'bg-indigo-100 text-indigo-800'
+                        : u.modulo === 'comite'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-indigo-100 text-indigo-800'
                     }`}
                   >
-                    {u.modulo === 'savean' ? 'Savean' : 'Tickets'}
+                    {u.modulo === 'savean' ? 'Savean' : u.modulo === 'comite' ? 'Comité' : 'Tickets'}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm">
@@ -402,34 +413,62 @@ export function AdminPanel() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Módulo</label>
                   <select
                     value={formData.modulo}
-                    onChange={(e) => setFormData({ ...formData, modulo: e.target.value as 'tickets' | 'savean', rol: e.target.value === 'savean' ? 'inspector' : 'contribuidor' })}
+                    onChange={(e) => {
+                      const m = e.target.value as 'tickets' | 'savean' | 'comite';
+                      setFormData({
+                        ...formData,
+                        modulo: m,
+                        rol: m === 'savean' ? 'inspector' : 'contribuidor',
+                        formularioId: '',
+                      });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="tickets">Tickets (Portal de Créditos)</option>
                     <option value="savean">Savean (Control Fitosanitario)</option>
+                    <option value="comite">Comité de Análisis</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                  <select
-                    value={formData.rol}
-                    onChange={(e) => setFormData({ ...formData, rol: e.target.value as 'admin' | 'contribuidor' | 'inspector' })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {formData.modulo === 'tickets' ? (
-                      <>
-                        <option value="contribuidor">Operativo</option>
-                        <option value="admin">Supervisor</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="inspector">Inspector Fitosanitario</option>
-                        <option value="admin">Director / Agencia</option>
-                      </>
-                    )}
-                  </select>
-                </div>
+                {formData.modulo === 'comite' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Programa asignado</label>
+                    <select
+                      value={formData.formularioId}
+                      onChange={(e) => setFormData({ ...formData, formularioId: e.target.value })}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${erroresForm.formularioId ? 'border-red-500' : 'border-gray-300'}`}
+                    >
+                      <option value="">Seleccioná un programa...</option>
+                      {formularios.map((f) => (
+                        <option key={f.id} value={f.id}>{f.programa}</option>
+                      ))}
+                    </select>
+                    {erroresForm.formularioId && <p className="text-xs text-red-600 mt-1">{erroresForm.formularioId}</p>}
+                  </div>
+                )}
+
+                {formData.modulo !== 'comite' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                    <select
+                      value={formData.rol}
+                      onChange={(e) => setFormData({ ...formData, rol: e.target.value as 'admin' | 'contribuidor' | 'inspector' })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {formData.modulo === 'tickets' ? (
+                        <>
+                          <option value="contribuidor">Operativo</option>
+                          <option value="admin">Supervisor</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="inspector">Inspector Fitosanitario</option>
+                          <option value="admin">Director / Agencia</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                )}
 
                 <div className="flex gap-2 pt-4">
                   <button type="button" onClick={resetModal} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition">

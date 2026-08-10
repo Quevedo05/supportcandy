@@ -1,5 +1,5 @@
 export type RolSistema = 'admin' | 'contribuidor' | 'inspector' | 'dev';
-export type Modulo = 'tickets' | 'savean';
+export type Modulo = 'tickets' | 'savean' | 'comite';
 
 export interface Usuario {
   id: string;
@@ -22,6 +22,7 @@ export interface SesionActiva {
   rol: RolSistema;
   modulo: Modulo;
   puedeEditarDatos?: boolean;
+  formularioId?: string | null;
 }
 
 export interface AuthContextType {

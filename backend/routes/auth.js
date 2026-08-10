@@ -22,7 +22,7 @@ router.post('/login', async (req, res) => {
     const emailNorm = raw.includes('@') ? raw : `${raw}@savean.local`;
 
     const [rows] = await pool.query(
-      'SELECT usuarioId, nombre, email, password_hash, rol, modulo, activo, puede_editar_datos FROM usuarios WHERE email = ?',
+      'SELECT usuarioId, nombre, email, password_hash, rol, modulo, activo, puede_editar_datos, formularioId FROM usuarios WHERE email = ?',
       [emailNorm]
     );
 
@@ -55,6 +55,7 @@ router.post('/login', async (req, res) => {
         rol: usuario.rol,
         modulo: usuario.modulo || 'tickets',
         puedeEditarDatos: Boolean(usuario.puede_editar_datos),
+        formularioId: usuario.formularioId || null,
       },
       process.env.JWT_SECRET,
       { expiresIn }
@@ -81,6 +82,7 @@ router.post('/login', async (req, res) => {
         rol: usuario.rol,
         modulo: usuario.modulo || 'tickets',
         puedeEditarDatos: Boolean(usuario.puede_editar_datos),
+        formularioId: usuario.formularioId || null,
       },
       expiresIn: expiresInSeconds,
     });

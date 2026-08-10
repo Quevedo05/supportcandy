@@ -8,6 +8,7 @@ const usuariosRoutes = require('./routes/usuarios');
 const ticketsRoutes = require('./routes/tickets');
 const formulariosRoutes = require('./routes/formularios');
 const saveanRoutes = require('./routes/savean');
+const comiteRoutes = require('./routes/comite');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
@@ -48,6 +49,7 @@ app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/tickets', ticketsRoutes);
 app.use('/api/formularios', formulariosRoutes);
 app.use('/api/savean', saveanRoutes);
+app.use('/api/comite', comiteRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
