@@ -14,6 +14,7 @@ type TicketEstado =
   | 'Solicitud inicial'
   | 'Revisión de documentación'
   | 'Veraz'
+  | 'Externo/ Comite de selección'
   | 'Comité de análisis'
   | 'Contrato'
   | 'Simulador'
@@ -178,6 +179,7 @@ const ESTADO_CONFIG: Record<TicketEstado, { color: string; bg: string }> = {
   'Solicitud inicial':         { color: '#F97316', bg: '#FFF7ED' },
   'Revisión de documentación': { color: '#EAB308', bg: '#FEFCE8' },
   'Veraz':                     { color: '#06B6D4', bg: '#ECFEFF' },
+  'Externo/ Comite de selección': { color: '#F97316', bg: '#FFF7ED' },
   'Comité de análisis':        { color: '#8B5CF6', bg: '#F5F3FF' },
   'Contrato':                  { color: '#6366F1', bg: '#EEF2FF' },
   'Simulador':                 { color: '#3B82F6', bg: '#EFF6FF' },
@@ -202,6 +204,7 @@ const ESTADOS: TicketEstado[] = [
   'Solicitud inicial',
   'Revisión de documentación',
   'Veraz',
+  'Externo/ Comite de selección',
   'Comité de análisis',
   'Contrato',
   'Simulador',

@@ -31,7 +31,7 @@ router.get('/tickets', autenticar, soloComite, async (req, res) => {
        FROM tickets t
        LEFT JOIN formularios f ON f.formularioId = t.formularioId
        WHERE t.formularioId = ?
-         AND t.etapa = 'Comité de análisis'
+         AND t.etapa = 'Externo/ Comite de selección'
          AND t.eliminado = 0
        ORDER BY t.fecha_creacion DESC`,
       [userRows[0].formularioId]
