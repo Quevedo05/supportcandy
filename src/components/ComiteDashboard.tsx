@@ -77,20 +77,47 @@ interface ComentarioComite {
   adjuntos: AdjuntoItem[];
 }
 
-// Parsea la descripción del ticket separando texto de adjuntos embebidos
+// Parsea la descripción del ticket separando texto de adjuntos embebidos.
+// Soporta tres formatos:
+//   1. "Label: [Adjunto]data:..."  (misma línea)
+//   2. "Label: data:..."           (sin prefijo [Adjunto])
+//   3. "Label: [Adjunto]\ndata:..." (data URL en línea siguiente)
 function parsearDescripcion(raw: string): { texto: string; adjuntos: { nombre: string; dataUrl: string }[] } {
   const lineas = raw.split('\n');
   const adjuntos: { nombre: string; dataUrl: string }[] = [];
   const textoLineas: string[] = [];
+  let pendingLabel: string | null = null;
 
   for (const linea of lineas) {
-    const match = linea.match(/^(.+?): (?:\[Adjunto\])?(data:.+)$/);
-    if (match) {
-      adjuntos.push({ nombre: match[1], dataUrl: match[2] });
-    } else {
-      textoLineas.push(linea.replace(/^Descripción: /, ''));
+    // Si la línea anterior era un label con [Adjunto] sin data URL
+    if (pendingLabel !== null) {
+      if (linea.trim().startsWith('data:')) {
+        adjuntos.push({ nombre: pendingLabel, dataUrl: linea.trim() });
+        pendingLabel = null;
+        continue;
+      }
+      textoLineas.push(pendingLabel + ': [Adjunto]');
+      pendingLabel = null;
     }
+
+    // Formatos 1 y 2: label y data URL en la misma línea
+    const matchInline = linea.match(/^(.+?): (?:\[Adjunto\])?(data:.+)$/);
+    if (matchInline) {
+      adjuntos.push({ nombre: matchInline[1], dataUrl: matchInline[2] });
+      continue;
+    }
+
+    // Formato 3: label con [Adjunto] al final, data URL en la siguiente línea
+    const matchPending = linea.match(/^(.+?): \[Adjunto\]\s*$/);
+    if (matchPending) {
+      pendingLabel = matchPending[1];
+      continue;
+    }
+
+    textoLineas.push(linea.replace(/^Descripción: /, ''));
   }
+
+  if (pendingLabel !== null) textoLineas.push(pendingLabel + ': [Adjunto]');
 
   return { texto: textoLineas.join('\n').trim(), adjuntos };
 }
