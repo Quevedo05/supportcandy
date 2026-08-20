@@ -78,46 +78,21 @@ interface ComentarioComite {
 }
 
 // Parsea la descripción del ticket separando texto de adjuntos embebidos.
-// Soporta tres formatos:
-//   1. "Label: [Adjunto]data:..."  (misma línea)
-//   2. "Label: data:..."           (sin prefijo [Adjunto])
-//   3. "Label: [Adjunto]\ndata:..." (data URL en línea siguiente)
 function parsearDescripcion(raw: string): { texto: string; adjuntos: { nombre: string; dataUrl: string }[] } {
-  const lineas = raw.split('\n');
+  // Normalizar: unir "Label: [Adjunto]\ndata:..." en una sola línea
+  const normalizado = raw.replace(/\[Adjunto\]\r?\n(data:)/g, '[Adjunto]$1');
+
   const adjuntos: { nombre: string; dataUrl: string }[] = [];
   const textoLineas: string[] = [];
-  let pendingLabel: string | null = null;
 
-  for (const linea of lineas) {
-    // Si la línea anterior era un label con [Adjunto] sin data URL
-    if (pendingLabel !== null) {
-      if (linea.trim().startsWith('data:')) {
-        adjuntos.push({ nombre: pendingLabel, dataUrl: linea.trim() });
-        pendingLabel = null;
-        continue;
-      }
-      textoLineas.push(pendingLabel + ': [Adjunto]');
-      pendingLabel = null;
+  for (const linea of normalizado.split(/\r?\n/)) {
+    const match = linea.match(/^(.+?): (?:\[Adjunto\])?(data:.+)$/);
+    if (match) {
+      adjuntos.push({ nombre: match[1], dataUrl: match[2] });
+    } else if (!linea.trim().startsWith('data:')) {
+      textoLineas.push(linea.replace(/^Descripción: /, ''));
     }
-
-    // Formatos 1 y 2: label y data URL en la misma línea
-    const matchInline = linea.match(/^(.+?): (?:\[Adjunto\])?(data:.+)$/);
-    if (matchInline) {
-      adjuntos.push({ nombre: matchInline[1], dataUrl: matchInline[2] });
-      continue;
-    }
-
-    // Formato 3: label con [Adjunto] al final, data URL en la siguiente línea
-    const matchPending = linea.match(/^(.+?): \[Adjunto\]\s*$/);
-    if (matchPending) {
-      pendingLabel = matchPending[1];
-      continue;
-    }
-
-    textoLineas.push(linea.replace(/^Descripción: /, ''));
   }
-
-  if (pendingLabel !== null) textoLineas.push(pendingLabel + ': [Adjunto]');
 
   return { texto: textoLineas.join('\n').trim(), adjuntos };
 }
