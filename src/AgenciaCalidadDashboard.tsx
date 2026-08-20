@@ -3090,6 +3090,40 @@ export default function AgenciaCalidadDashboard() {
                 ))}
               </div>
             </div>
+
+            <div>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">
+                Filtrar por Estado
+              </h3>
+              <div className="space-y-2 px-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="estado"
+                    checked={state.filtros.estado === 'Todos'}
+                    onChange={() =>
+                      dispatch({ type: 'SET_FILTRO_ESTADO', payload: 'Todos' })
+                    }
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-slate-700">Todos</span>
+                </label>
+                {ESTADOS.map((e) => (
+                  <label key={e} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="estado"
+                      checked={state.filtros.estado === e}
+                      onChange={() =>
+                        dispatch({ type: 'SET_FILTRO_ESTADO', payload: e })
+                      }
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm text-slate-700">{e}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
