@@ -2521,16 +2521,31 @@ export default function AgenciaCalidadDashboard() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        const comentariosApi: Comentario[] = (data.comentarios as Array<Record<string, unknown>>).map((c) => ({
-          id: String(c.comentarioId),
-          autorId: c.autorId ? String(c.autorId) : undefined,
-          tipo: (c.tipo as Comentario['tipo']) ?? 'comentario',
-          autor: String(c.autorNombre),
-          autorRol: String(c.autorRol),
-          fecha: new Date(String(c.fecha)),
-          contenido: String(c.contenido),
-          adjuntos: Array.isArray(c.adjuntos) ? (c.adjuntos as Adjunto[]) : [],
-        }));
+        const comentariosApi: Comentario[] = (data.comentarios as Array<Record<string, unknown>>).map((c) => {
+          const tipoRaw = String(c.tipo ?? 'comentario');
+          const esEventoEtapa = tipoRaw === 'evento_etapa';
+          let estadoAnterior: string | undefined;
+          let estadoNuevo: string | undefined;
+          if (esEventoEtapa) {
+            try {
+              const parsed = JSON.parse(String(c.contenido));
+              estadoAnterior = parsed.anterior ?? '';
+              estadoNuevo = parsed.nueva ?? '';
+            } catch { /* contenido no es JSON válido */ }
+          }
+          return {
+            id: String(c.comentarioId),
+            autorId: c.autorId ? String(c.autorId) : undefined,
+            tipo: esEventoEtapa ? 'evento_estado' : (tipoRaw as Comentario['tipo']),
+            autor: String(c.autorNombre),
+            autorRol: String(c.autorRol),
+            fecha: new Date(String(c.fecha)),
+            contenido: String(c.contenido),
+            adjuntos: Array.isArray(c.adjuntos) ? (c.adjuntos as Adjunto[]) : [],
+            estadoAnterior,
+            estadoNuevo,
+          };
+        });
         dispatch({ type: 'ACTUALIZAR_TICKET', payload: { id: ticketId, fields: { comentarios: comentariosApi } } });
       } catch { /* silencioso */ }
     };
