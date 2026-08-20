@@ -9,10 +9,31 @@ function authHeader(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function apiFetch(path: string) {
-  const res = await fetch(`${API}${path}`, { headers: authHeader() });
+async function apiFetch(path: string, params?: Record<string, string>) {
+  const url = new URL(`${API}${path}`);
+  if (params) Object.entries(params).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
+  const res = await fetch(url.toString(), { headers: authHeader() });
   if (!res.ok) throw new Error(`Error ${res.status}`);
   return res.json();
+}
+
+const ETAPAS = [
+  'Solicitud inicial', 'Revisión de documentación', 'Documentación observada',
+  'Veraz', 'Externo/ Comite de selección', 'Comité de análisis',
+  'Contrato', 'Simulador', 'Firma de contrato', 'Certificación de firma',
+  'Transferencia', 'Seguimiento de verificable', 'Seguimiento de cobranzas', 'Cerrado',
+];
+
+function ultimos12Meses(): { value: string; label: string }[] {
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const result = [];
+  const hoy = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    result.push({ value, label: `${meses[d.getMonth()]} ${d.getFullYear()}` });
+  }
+  return result;
 }
 
 interface ResumenData {
@@ -108,29 +129,32 @@ export function ReportesDashboard({ onVolver }: { onVolver: () => void }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exportando, setExportando] = useState(false);
+  const [filtros, setFiltros] = useState({ programa: '', mes: '', etapa: '' });
 
-  const cargarTodo = useCallback(async () => {
+  const cargarTodo = useCallback(async (f = filtros) => {
     setCargando(true);
     setError(null);
     try {
-      const [r, a, p, t] = await Promise.all([
-        apiFetch('/reportes/resumen'),
-        apiFetch('/reportes/por-agente'),
-        apiFetch('/reportes/por-periodo'),
+      const p = { programa: f.programa, mes: f.mes, etapa: f.etapa };
+      const [r, a, per, t] = await Promise.all([
+        apiFetch('/reportes/resumen', p),
+        apiFetch('/reportes/por-agente', p),
+        apiFetch('/reportes/por-periodo', p),
         apiFetch('/reportes/tiempo-resolucion'),
       ]);
       setResumen(r);
       setAgentes(a.agentes);
-      setPeriodos(p.meses);
+      setPeriodos(per.meses);
       setTiempo(t);
     } catch {
       setError('No se pudieron cargar los reportes. Verificá tu conexión.');
     } finally {
       setCargando(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { cargarTodo(); }, [cargarTodo]);
+  useEffect(() => { cargarTodo(filtros); }, [filtros, cargarTodo]);
 
   const handleExportar = async () => {
     setExportando(true);
@@ -175,7 +199,7 @@ export function ReportesDashboard({ onVolver }: { onVolver: () => void }) {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={cargarTodo}
+              onClick={() => cargarTodo(filtros)}
               disabled={cargando}
               className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-40"
             >
@@ -199,6 +223,55 @@ export function ReportesDashboard({ onVolver }: { onVolver: () => void }) {
           </div>
         </div>
       </header>
+
+      {/* Filtros */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Filtrar:</span>
+
+          <select
+            value={filtros.programa}
+            onChange={(e) => setFiltros((f) => ({ ...f, programa: e.target.value }))}
+            className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todos los programas</option>
+            {(resumen?.porPrograma ?? []).filter((p) => p.programa !== 'Sin programa').map((p) => (
+              <option key={p.programa} value={p.programa}>{p.programa}</option>
+            ))}
+          </select>
+
+          <select
+            value={filtros.mes}
+            onChange={(e) => setFiltros((f) => ({ ...f, mes: e.target.value }))}
+            className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todos los meses</option>
+            {ultimos12Meses().map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+
+          <select
+            value={filtros.etapa}
+            onChange={(e) => setFiltros((f) => ({ ...f, etapa: e.target.value }))}
+            className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todas las etapas</option>
+            {ETAPAS.map((e) => (
+              <option key={e} value={e}>{e}</option>
+            ))}
+          </select>
+
+          {(filtros.programa || filtros.mes || filtros.etapa) && (
+            <button
+              onClick={() => setFiltros({ programa: '', mes: '', etapa: '' })}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors underline"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+      </div>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-8">
         {error && (

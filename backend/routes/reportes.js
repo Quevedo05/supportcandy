@@ -14,39 +14,61 @@ function soloSupervisor(req, res, next) {
 // GET /api/reportes/resumen
 router.get('/resumen', autenticar, soloSupervisor, async (req, res) => {
   try {
+    const { programa, mes, etapa } = req.query;
+
+    const condiciones = ['t.eliminado = 0'];
+    const params = [];
+    if (programa) { condiciones.push('COALESCE(f.programa, \'Sin programa\') = ?'); params.push(programa); }
+    if (mes)      { condiciones.push("DATE_FORMAT(t.fecha_creacion, '%Y-%m') = ?"); params.push(mes); }
+    if (etapa)    { condiciones.push('t.etapa = ?'); params.push(etapa); }
+    const WHERE = condiciones.join(' AND ');
+
     const [[totalesRow]] = await pool.query(
       `SELECT
          COUNT(*) AS total,
-         SUM(CASE WHEN etapa = 'Cerrado' THEN 1 ELSE 0 END) AS cerrados,
-         SUM(CASE WHEN (etapa IS NULL OR etapa != 'Cerrado') THEN 1 ELSE 0 END) AS abiertos,
-         SUM(CASE WHEN fecha_creacion >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS ultimos30dias
-       FROM tickets WHERE eliminado = 0`
+         SUM(CASE WHEN t.etapa = 'Cerrado' THEN 1 ELSE 0 END) AS cerrados,
+         SUM(CASE WHEN (t.etapa IS NULL OR t.etapa != 'Cerrado') THEN 1 ELSE 0 END) AS abiertos,
+         SUM(CASE WHEN t.fecha_creacion >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS ultimos30dias
+       FROM tickets t
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
+       WHERE ${WHERE}`,
+      params
     );
 
     const [porEtapa] = await pool.query(
-      `SELECT COALESCE(etapa, 'Sin etapa') AS etapa, COUNT(*) AS total
-       FROM tickets WHERE eliminado = 0
-       GROUP BY etapa ORDER BY total DESC`
+      `SELECT COALESCE(t.etapa, 'Sin etapa') AS etapa, COUNT(*) AS total
+       FROM tickets t
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
+       WHERE ${WHERE}
+       GROUP BY t.etapa ORDER BY total DESC`,
+      params
     );
 
     const [porEstado] = await pool.query(
-      `SELECT estado, COUNT(*) AS total
-       FROM tickets WHERE eliminado = 0
-       GROUP BY estado ORDER BY total DESC`
+      `SELECT t.estado, COUNT(*) AS total
+       FROM tickets t
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
+       WHERE ${WHERE}
+       GROUP BY t.estado ORDER BY total DESC`,
+      params
     );
 
     const [porPrograma] = await pool.query(
       `SELECT COALESCE(f.programa, 'Sin programa') AS programa, COUNT(*) AS total
        FROM tickets t
        LEFT JOIN formularios f ON f.formularioId = t.formularioId
-       WHERE t.eliminado = 0
-       GROUP BY f.programa ORDER BY total DESC`
+       WHERE ${WHERE}
+       GROUP BY f.programa ORDER BY total DESC`,
+      params
     );
 
     const [porPrioridad] = await pool.query(
-      `SELECT COALESCE(prioridad, 'sin_prioridad') AS prioridad, COUNT(*) AS total
-       FROM tickets WHERE eliminado = 0
-       GROUP BY prioridad ORDER BY total DESC`
+      `SELECT COALESCE(t.prioridad, 'sin_prioridad') AS prioridad, COUNT(*) AS total
+       FROM tickets t
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
+       WHERE ${WHERE}
+       GROUP BY t.prioridad ORDER BY total DESC`,
+      params
     );
 
     return res.json({ totales: totalesRow, porEtapa, porEstado, porPrograma, porPrioridad });
@@ -59,8 +81,19 @@ router.get('/resumen', autenticar, soloSupervisor, async (req, res) => {
 // GET /api/reportes/por-agente
 router.get('/por-agente', autenticar, soloSupervisor, async (req, res) => {
   try {
+    const { programa, mes, etapa } = req.query;
+    const condiciones = ['t.eliminado = 0', 't.agentes IS NOT NULL', "t.agentes != '[]'"];
+    const params = [];
+    if (programa) { condiciones.push('COALESCE(f.programa, \'Sin programa\') = ?'); params.push(programa); }
+    if (mes)      { condiciones.push("DATE_FORMAT(t.fecha_creacion, '%Y-%m') = ?"); params.push(mes); }
+    if (etapa)    { condiciones.push('t.etapa = ?'); params.push(etapa); }
+    const WHERE = condiciones.join(' AND ');
+
     const [rows] = await pool.query(
-      `SELECT agentes, etapa FROM tickets WHERE eliminado = 0 AND agentes IS NOT NULL AND agentes != '[]'`
+      `SELECT t.agentes, t.etapa FROM tickets t
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
+       WHERE ${WHERE}`,
+      params
     );
 
     const conteo = {};
@@ -87,14 +120,23 @@ router.get('/por-agente', autenticar, soloSupervisor, async (req, res) => {
 // GET /api/reportes/por-periodo
 router.get('/por-periodo', autenticar, soloSupervisor, async (req, res) => {
   try {
+    const { programa, etapa } = req.query;
+    const condiciones = ['t.eliminado = 0', 't.fecha_creacion >= DATE_SUB(NOW(), INTERVAL 12 MONTH)'];
+    const params = [];
+    if (programa) { condiciones.push('COALESCE(f.programa, \'Sin programa\') = ?'); params.push(programa); }
+    if (etapa)    { condiciones.push('t.etapa = ?'); params.push(etapa); }
+    const WHERE = condiciones.join(' AND ');
+
     const [meses] = await pool.query(
       `SELECT
-         DATE_FORMAT(fecha_creacion, '%Y-%m') AS mes,
+         DATE_FORMAT(t.fecha_creacion, '%Y-%m') AS mes,
          COUNT(*) AS creados,
-         SUM(CASE WHEN etapa = 'Cerrado' THEN 1 ELSE 0 END) AS cerrados
-       FROM tickets
-       WHERE eliminado = 0 AND fecha_creacion >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-       GROUP BY mes ORDER BY mes ASC`
+         SUM(CASE WHEN t.etapa = 'Cerrado' THEN 1 ELSE 0 END) AS cerrados
+       FROM tickets t
+       LEFT JOIN formularios f ON f.formularioId = t.formularioId
+       WHERE ${WHERE}
+       GROUP BY mes ORDER BY mes ASC`,
+      params
     );
     return res.json({ meses });
   } catch (err) {
