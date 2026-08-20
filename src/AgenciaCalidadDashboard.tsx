@@ -1672,7 +1672,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         return (
                           <div key={k} className="flex gap-2 py-0.5">
                             <span className="text-slate-500 text-xs min-w-[100px] flex-shrink-0">{label}:</span>
-                            <span className="text-slate-800 text-xs font-medium break-words">{v || '—'}</span>
+                            <span className="text-slate-800 text-xs font-medium break-words whitespace-pre-wrap">{v || '—'}</span>
                           </div>
                         );
                       })}
@@ -2385,13 +2385,20 @@ function nombreArchivoDesdeDataUrl(dataUrl: string, fallback: string): string {
 function parsearDescripcion(descripcion: string): Record<string, string> {
   if (!descripcion || descripcion === 'Sin información adicional') return {};
   const resultado: Record<string, string> = {};
+  let ultimoLabel: string | null = null;
   descripcion.split('\n').forEach((linea) => {
     const idx = linea.indexOf(': ');
-    if (idx === -1) return;
-    const label = linea.slice(0, idx).trim();
-    let valor = linea.slice(idx + 2).trim();
-    if (valor.startsWith('[Adjunto]')) valor = valor.slice(9).trim();
-    if (label) resultado[label] = valor;
+    if (idx !== -1) {
+      const label = linea.slice(0, idx).trim();
+      let valor = linea.slice(idx + 2).trim();
+      if (valor.startsWith('[Adjunto]')) valor = valor.slice(9).trim();
+      if (label) {
+        resultado[label] = valor;
+        ultimoLabel = label;
+      }
+    } else if (ultimoLabel !== null && linea.trim()) {
+      resultado[ultimoLabel] += '\n' + linea;
+    }
   });
   return resultado;
 }
