@@ -2400,7 +2400,8 @@ function parsearDescripcion(descripcion: string): Record<string, string> {
         ultimoLabel = label;
       }
     } else if (ultimoLabel !== null && linea.trim()) {
-      resultado[ultimoLabel] += '\n' + linea;
+      const curr = resultado[ultimoLabel];
+      resultado[ultimoLabel] = curr ? curr + '\n' + linea : linea.trim();
     }
   });
   return resultado;
