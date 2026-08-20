@@ -84,7 +84,7 @@ function parsearDescripcion(raw: string): { texto: string; adjuntos: { nombre: s
   const textoLineas: string[] = [];
 
   for (const linea of lineas) {
-    const match = linea.match(/^(.+?): \[Adjunto\](data:.+)$/);
+    const match = linea.match(/^(.+?): (?:\[Adjunto\])?(data:.+)$/);
     if (match) {
       adjuntos.push({ nombre: match[1], dataUrl: match[2] });
     } else {
