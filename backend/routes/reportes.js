@@ -148,7 +148,7 @@ router.get('/por-periodo', autenticar, soloSupervisor, async (req, res) => {
 // GET /api/reportes/tiempo-resolucion
 router.get('/tiempo-resolucion', autenticar, soloSupervisor, async (req, res) => {
   try {
-    // Tiempo de resolución usando el primer evento_etapa donde nueva='Cerrado'
+    // Tiempo de proceso: desde creación hasta el primer ingreso a 'Externo/ Comite de selección'
     const [cierresRaw] = await pool.query(
       `SELECT c.ticketId, MIN(c.fecha) AS fecha_cierre, t.fecha_creacion,
               COALESCE(f.programa, 'Sin programa') AS programa
@@ -156,7 +156,7 @@ router.get('/tiempo-resolucion', autenticar, soloSupervisor, async (req, res) =>
        JOIN tickets t ON t.ticketId = c.ticketId
        LEFT JOIN formularios f ON f.formularioId = t.formularioId
        WHERE c.tipo = 'evento_etapa'
-         AND JSON_UNQUOTE(JSON_EXTRACT(c.contenido, '$.nueva')) = 'Cerrado'
+         AND JSON_UNQUOTE(JSON_EXTRACT(c.contenido, '$.nueva')) = 'Externo/ Comite de selección'
          AND t.eliminado = 0
        GROUP BY c.ticketId, t.fecha_creacion, f.programa`
     );

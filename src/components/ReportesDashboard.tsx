@@ -349,17 +349,17 @@ export function ReportesDashboard({ onVolver }: { onVolver: () => void }) {
             {tiempo && (
               <section>
                 <SectionTitle>
-                  <span className="flex items-center gap-2"><Clock size={14} />Tiempo de resolución</span>
+                  <span className="flex items-center gap-2"><Clock size={14} />Tiempo de proceso (Solicitud → Comité de Selección)</span>
                 </SectionTitle>
 
                 {tiempo.global.total > 0 ? (
                   <div className="grid grid-cols-3 gap-4 mb-4">
-                    <Card icon={Clock} label="Promedio global" value={`${tiempo.global.promedioDias ?? '—'} días`} sub={`${tiempo.global.total} tickets cerrados`} color="bg-blue-50 text-blue-600" />
+                    <Card icon={Clock} label="Promedio global" value={`${tiempo.global.promedioDias ?? '—'} días`} sub={`${tiempo.global.total} expedientes`} color="bg-blue-50 text-blue-600" />
                     <Card icon={Clock} label="Más rápido" value={`${tiempo.global.minDias ?? '—'} días`} color="bg-green-50 text-green-600" />
                     <Card icon={Clock} label="Más lento" value={`${tiempo.global.maxDias ?? '—'} días`} color="bg-red-50 text-red-600" />
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-400 mb-4">Aún no hay tickets cerrados para calcular tiempos.</p>
+                  <p className="text-sm text-gray-400 mb-4">Aún no hay tickets que hayan llegado a "Externo/ Comite de selección" para calcular tiempos.</p>
                 )}
 
                 <div className="grid md:grid-cols-2 gap-6">
