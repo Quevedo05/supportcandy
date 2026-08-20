@@ -24,6 +24,7 @@ type TicketEstado =
   | 'Transferencia'
   | 'Seguimiento de verificable'
   | 'Seguimiento de cobranzas'
+  | 'Sin fondo'
   | 'Cerrado';
 
 type VistaFiltro = 'todos' | 'no_resuelto' | 'sin_asignar' | 'mio' | 'cerrado' | 'eliminado';
@@ -190,6 +191,7 @@ const ESTADO_CONFIG: Record<TicketEstado, { color: string; bg: string }> = {
   'Transferencia':             { color: '#22C55E', bg: '#F0FDF4' },
   'Seguimiento de verificable':{ color: '#14B8A6', bg: '#F0FDFA' },
   'Seguimiento de cobranzas':  { color: '#F59E0B', bg: '#FFFBEB' },
+  'Sin fondo':                 { color: '#EF4444', bg: '#FEF2F2' },
   'Cerrado':                   { color: '#6B7280', bg: '#F9FAFB' },
 };
 
@@ -216,6 +218,7 @@ const ESTADOS: TicketEstado[] = [
   'Transferencia',
   'Seguimiento de verificable',
   'Seguimiento de cobranzas',
+  'Sin fondo',
   'Cerrado',
 ];
 
