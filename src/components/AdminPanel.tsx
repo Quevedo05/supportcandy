@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useFormularios } from '../context/FormulariosContext';
-import { X, Plus, Trash2, Eye, EyeOff, Users, FileText, Mail, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { X, Plus, Trash2, Eye, EyeOff, Users, FileText, Mail, CheckCircle2, ShieldCheck, KeyRound } from 'lucide-react';
 import { FormulariosPanel } from './FormulariosPanel';
 
 const ESTADOS_TICKET = [
@@ -50,6 +50,8 @@ export function AdminPanel() {
   const [invitacionEnviada, setInvitacionEnviada] = useState(false);
   const [modalEstados, setModalEstados] = useState<{ usuarioId: string; nombre: string; estados: string[] } | null>(null);
   const [guardandoEstados, setGuardandoEstados] = useState(false);
+  const [resetandoId, setResetandoId] = useState<string | null>(null);
+  const [resetOkId, setResetOkId] = useState<string | null>(null);
 
   const fetchUsuarios = useCallback(async () => {
     const token = localStorage.getItem('sc_token');
@@ -153,6 +155,28 @@ export function AdminPanel() {
       headers: { Authorization: `Bearer ${token}` },
     });
     fetchUsuarios();
+  };
+
+  const handleResetearPassword = async (usuarioId: string) => {
+    setResetandoId(usuarioId);
+    try {
+      const token = localStorage.getItem('sc_token');
+      const res = await fetch(`${apiUrl}/usuarios/${usuarioId}/resetear-password`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setResetOkId(usuarioId);
+        setTimeout(() => setResetOkId(null), 3000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Error al resetear la contraseña');
+      }
+    } catch {
+      alert('Error de conexión. Intentá de nuevo.');
+    } finally {
+      setResetandoId(null);
+    }
   };
 
   const handleGuardarEstados = async () => {
@@ -327,6 +351,14 @@ export function AdminPanel() {
                       title={u.activo ? 'Desactivar' : 'Activar'}
                     >
                       {u.activo ? <Eye size={18} /> : <EyeOff size={18} />}
+                    </button>
+                    <button
+                      onClick={() => handleResetearPassword(u.usuarioId)}
+                      disabled={resetandoId === u.usuarioId || u.modulo === 'savean'}
+                      className={`p-1 transition disabled:text-gray-300 ${resetOkId === u.usuarioId ? 'text-green-600' : 'text-gray-600 hover:text-amber-600'}`}
+                      title={u.modulo === 'savean' ? 'No aplica para usuarios SAVEAN' : 'Resetear contraseña (envía email al usuario)'}
+                    >
+                      <KeyRound size={18} />
                     </button>
                     <button
                       onClick={() => handleEliminar(u.usuarioId)}

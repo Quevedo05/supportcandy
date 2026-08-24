@@ -6,7 +6,7 @@ const { pool } = require('../db/connection');
 const { autenticar } = require('../middleware/auth');
 const { soloAdmin } = require('../middleware/adminOnly');
 const { soloModulo } = require('../middleware/soloModulo');
-const { enviarInvitacion } = require('../services/mailer');
+const { enviarInvitacion, enviarResetPassword } = require('../services/mailer');
 
 const router = express.Router();
 
@@ -189,6 +189,39 @@ router.patch('/:usuarioId/rol', soloAdmin, async (req, res) => {
     return res.status(200).json({ usuarioId, rol });
   } catch (err) {
     console.error('[PATCH /usuarios/:id/rol]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PATCH /api/usuarios/:usuarioId/resetear-password
+router.patch('/:usuarioId/resetear-password', soloAdmin, async (req, res) => {
+  try {
+    const { usuarioId } = req.params;
+
+    const [rows] = await pool.query(
+      'SELECT usuarioId, nombre, email, rol, modulo FROM usuarios WHERE usuarioId = ?',
+      [usuarioId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const u = rows[0];
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+    await pool.query(
+      `UPDATE usuarios SET password_hash = '', invitation_token = ?, invitation_expires_at = ? WHERE usuarioId = ?`,
+      [token, expires, usuarioId]
+    );
+
+    try {
+      await enviarResetPassword({ nombre: u.nombre, email: u.email, token, modulo: u.modulo, rol: u.rol });
+    } catch (mailErr) {
+      console.error('[Mailer] Error enviando reset de contraseña:', mailErr.message);
+    }
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('[PATCH /usuarios/:id/resetear-password]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
