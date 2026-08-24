@@ -31,7 +31,8 @@ const itemVacio = (): ItemForm => ({
 });
 
 const ESPECIES = ['Vid', 'Tomate', 'Pimiento', 'Olivo', 'Pistacho', 'Ajo', 'Cebolla', 'Otro'];
-const VID_DESTINOS = ['Consumo fresco', 'Pasa', 'Vino', 'Mosto'];
+const VID_DESTINOS = ['Mesa', 'Pasa', 'Vino', 'Mosto'];
+const VID_VARIEDADES = ['Cereza', 'Flame Seedless', 'Red Globe', 'Thompson Seedless', 'Superior Seedless', 'Malbec', 'Cabernet Sauvignon', 'Syrah', 'Bonarda', 'Torrontés', 'Moscatel Rosado', 'Viognier'];
 const TIPOS_REMITENTE = ['Galpón de Empaque', 'Cámara de Frío', 'Productor', 'Industria'];
 const MERCADOS_INTERNOS = ['Depósito Mayorista', 'Mercado Concentrador', 'Supermercado', 'Industria'];
 const TIPOS_ENVASE = ['Cajón', 'Bolsa', 'Bins', 'Granel', 'Bandeja', 'Otro'];
@@ -348,14 +349,17 @@ export function SaveanFormulario({ onVolver }: { onVolver?: () => void }) {
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className={label}>Variedad</label>
-                        <input className={input} value={it.variedad} onChange={e => actualizarItem(it.id, 'variedad', e.target.value)} placeholder="Ej: Malbec" />
+                        <input className={input} value={it.variedad} onChange={e => actualizarItem(it.id, 'variedad', e.target.value)} placeholder="Ej: Malbec" list={`variedades-${it.id}`} />
+                        <datalist id={`variedades-${it.id}`}>
+                          {VID_VARIEDADES.map(v => <option key={v} value={v} />)}
+                        </datalist>
                       </div>
                       <div>
                         <label className={label}>Cantidad (kg) *</label>
                         <input type="number" className={input} value={it.cantidadKg} onChange={e => actualizarItem(it.id, 'cantidadKg', e.target.value)} />
                       </div>
                       <div>
-                        <label className={label}>Bultos / Bins</label>
+                        <label className={label}>Kg / Lt / Bulto</label>
                         <input type="number" className={input} value={it.cantidadBultos} onChange={e => actualizarItem(it.id, 'cantidadBultos', e.target.value)} />
                       </div>
                     </div>
@@ -383,7 +387,7 @@ export function SaveanFormulario({ onVolver }: { onVolver?: () => void }) {
                         <input type="number" className={input} value={it.cantidadKg} onChange={e => actualizarItem(it.id, 'cantidadKg', e.target.value)} />
                       </div>
                       <div>
-                        <label className={label}>Cantidad de Bultos *</label>
+                        <label className={label}>Kg / Lt / Bulto *</label>
                         <input type="number" className={input} value={it.cantidadBultos} onChange={e => actualizarItem(it.id, 'cantidadBultos', e.target.value)} />
                       </div>
                     </div>
