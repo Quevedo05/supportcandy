@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   id_seq              INT           NOT NULL AUTO_INCREMENT,
   ticketId            VARCHAR(36)   NOT NULL,
   titulo              VARCHAR(200)  NOT NULL,
-  descripcion         TEXT          NOT NULL,
+  descripcion         MEDIUMTEXT    NOT NULL,
   estado              ENUM('abierto', 'en_progreso', 'cerrado') NOT NULL DEFAULT 'abierto',
   prioridad           ENUM('baja', 'media', 'alta', 'critica')  NOT NULL DEFAULT 'media',
   asignado_a          VARCHAR(36)   NULL,
