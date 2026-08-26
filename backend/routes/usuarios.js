@@ -244,16 +244,11 @@ router.delete('/:usuarioId', soloAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
+    await pool.query('UPDATE comentarios SET autor_id = NULL WHERE autor_id = ?', [usuarioId]);
     await pool.query('DELETE FROM usuarios WHERE usuarioId = ?', [usuarioId]);
 
     return res.status(204).send();
   } catch (err) {
-    // FK constraint: user has authored comments, can't delete
-    if (err.code === 'ER_ROW_IS_REFERENCED_2') {
-      return res.status(409).json({
-        error: 'No se puede eliminar el usuario porque tiene comentarios asociados. Desactívelo en su lugar.',
-      });
-    }
     console.error('[DELETE /usuarios/:id]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }

@@ -79,9 +79,9 @@ router.get('/tickets/:ticketId/comentarios', autenticar, soloComite, async (req,
     if (ticketRows.length === 0) return res.status(404).json({ error: 'Ticket no encontrado' });
 
     const [rows] = await pool.query(
-      `SELECT c.comentarioId, c.contenido, c.adjuntos, c.fecha, c.autor_id, c.tipo, u.nombre
+      `SELECT c.comentarioId, c.contenido, c.adjuntos, c.fecha, c.autor_id, c.tipo, COALESCE(u.nombre, 'Usuario eliminado') AS nombre
        FROM comentarios c
-       JOIN usuarios u ON u.usuarioId = c.autor_id
+       LEFT JOIN usuarios u ON u.usuarioId = c.autor_id
        WHERE c.ticketId = ? AND c.tipo IN ('comentario', 'comite')
        ORDER BY c.fecha ASC`,
       [ticketId]

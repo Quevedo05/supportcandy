@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS guias_savean (
 CREATE TABLE IF NOT EXISTS comentarios (
   comentarioId  VARCHAR(36)  NOT NULL,
   ticketId      VARCHAR(36)  NOT NULL,
-  autor_id      VARCHAR(36)  NOT NULL,
+  autor_id      VARCHAR(36)  NULL,
   contenido     TEXT         NOT NULL,
   adjuntos      JSON         NULL,
   tipo          VARCHAR(50)  NULL,
@@ -190,5 +190,5 @@ CREATE TABLE IF NOT EXISTS comentarios (
   CONSTRAINT fk_comentarios_ticket
     FOREIGN KEY (ticketId) REFERENCES tickets(ticketId) ON DELETE CASCADE,
   CONSTRAINT fk_comentarios_autor
-    FOREIGN KEY (autor_id) REFERENCES usuarios(usuarioId) ON DELETE RESTRICT
+    FOREIGN KEY (autor_id) REFERENCES usuarios(usuarioId) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

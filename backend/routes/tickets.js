@@ -680,9 +680,9 @@ router.get('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) =
 
     const [rows] = await pool.query(
       `SELECT c.comentarioId, c.ticketId, c.contenido, c.adjuntos, c.fecha, c.tipo,
-              c.autor_id AS autorId, u.nombre AS autorNombre, u.rol AS autorRol
+              c.autor_id AS autorId, COALESCE(u.nombre, 'Usuario eliminado') AS autorNombre, u.rol AS autorRol
        FROM comentarios c
-       JOIN usuarios u ON u.usuarioId = c.autor_id
+       LEFT JOIN usuarios u ON u.usuarioId = c.autor_id
        WHERE c.ticketId = ?
        ORDER BY c.fecha ASC`,
       [ticketId]
