@@ -252,37 +252,58 @@ export function AdminPanel() {
           </div>
 
           {/* Tabla de usuarios */}
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Nombre</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Módulo</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Rol</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Edición de datos</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {usuariosDB.map((u) => (
-              <tr key={u.usuarioId} className="hover:bg-gray-50 transition">
+      {(() => {
+        const MODULOS_ORDEN = ['tickets', 'savean', 'comite'] as const;
+        const MODULO_LABEL: Record<string, string> = { tickets: 'Tickets', savean: 'SAVEAN', comite: 'Comité' };
+        const MODULO_COLOR: Record<string, string> = {
+          tickets: 'bg-indigo-600',
+          savean: 'bg-cyan-600',
+          comite: 'bg-amber-500',
+        };
+        const ROLES_ORDEN = ['admin', 'supervisor', 'inspector', 'contribuidor'];
+        const ROL_LABEL: Record<string, string> = { admin: 'Admin', supervisor: 'Supervisor', inspector: 'Inspector', contribuidor: 'Operativo' };
+
+        const grupos = MODULOS_ORDEN
+          .map(modulo => ({
+            modulo,
+            roles: ROLES_ORDEN
+              .map(rol => ({ rol, usuarios: usuariosDB.filter(u => u.modulo === modulo && u.rol === rol) }))
+              .filter(g => g.usuarios.length > 0),
+          }))
+          .filter(g => g.roles.length > 0);
+
+        return (
+          <div className="space-y-6">
+            {grupos.map(({ modulo, roles }) => (
+              <div key={modulo} className="bg-white rounded-lg shadow overflow-x-auto">
+                <div className={`${MODULO_COLOR[modulo]} px-6 py-2.5 flex items-center gap-2`}>
+                  <Users size={16} className="text-white" />
+                  <span className="text-white font-semibold text-sm">Módulo {MODULO_LABEL[modulo]}</span>
+                  <span className="ml-auto text-white/70 text-xs">{roles.reduce((acc, r) => acc + r.usuarios.length, 0)} usuarios</span>
+                </div>
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Nombre</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Rol</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Edición de datos</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {roles.map(({ rol, usuarios }) => (
+                      <>
+                        <tr key={`header-${modulo}-${rol}`} className="bg-gray-50/80">
+                          <td colSpan={6} className="px-6 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider border-t border-gray-200">
+                            {ROL_LABEL[rol] ?? rol}
+                          </td>
+                        </tr>
+                        {usuarios.map((u) => (
+                          <tr key={u.usuarioId} className="hover:bg-gray-50 transition">
                 <td className="px-6 py-4 text-sm text-gray-900 font-medium">{u.nombre}</td>
                 <td className="px-6 py-4 text-sm text-gray-600">{u.email}</td>
-                <td className="px-6 py-4 text-sm">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      u.modulo === 'savean'
-                        ? 'bg-cyan-100 text-cyan-800'
-                        : u.modulo === 'comite'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-indigo-100 text-indigo-800'
-                    }`}
-                  >
-                    {u.modulo === 'savean' ? 'Savean' : u.modulo === 'comite' ? 'Comité' : 'Tickets'}
-                  </span>
-                </td>
                 <td className="px-6 py-4 text-sm">
                   {u.modulo === 'tickets' && usuario?.usuarioId !== u.usuarioId ? (
                     <select
@@ -370,22 +391,27 @@ export function AdminPanel() {
                     </button>
                   </div>
                 </td>
-              </tr>
+                        </tr>
+                        ))}
+                      </>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ))}
-          </tbody>
-        </table>
-
-        {!cargandoUsuarios && usuariosDB.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <p>No hay usuarios creados aún</p>
+            {!cargandoUsuarios && usuariosDB.length === 0 && (
+              <div className="bg-white rounded-lg shadow text-center py-12 text-gray-500">
+                <p>No hay usuarios creados aún</p>
+              </div>
+            )}
+            {cargandoUsuarios && (
+              <div className="bg-white rounded-lg shadow text-center py-12 text-gray-400">
+                <p>Cargando usuarios...</p>
+              </div>
+            )}
           </div>
-        )}
-        {cargandoUsuarios && (
-          <div className="text-center py-12 text-gray-400">
-            <p>Cargando usuarios...</p>
-          </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Modal de invitar usuario */}
       {mostrarModal && (
