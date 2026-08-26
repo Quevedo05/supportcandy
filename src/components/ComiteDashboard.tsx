@@ -86,7 +86,7 @@ function parsearDescripcion(raw: string): { texto: string; adjuntos: { nombre: s
   const textoLineas: string[] = [];
 
   for (const linea of normalizado.split(/\r?\n/)) {
-    const match = linea.match(/^(.+?): (?:\[Adjunto\])?(data:.+)$/);
+    const match = linea.match(/^(.+?): (?:\[Adjunto\]\s*)?(data:.+)$/);
     if (match) {
       adjuntos.push({ nombre: match[1], dataUrl: match[2] });
     } else if (!linea.trim().startsWith('data:')) {
