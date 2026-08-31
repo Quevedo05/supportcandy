@@ -7,6 +7,12 @@ function fmtFecha(iso: string) {
   return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function fmtNum(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' M';
+  if (n >= 1_000)     return (n / 1_000).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' K';
+  return n.toLocaleString('es-AR');
+}
+
 function hoyISO() { return new Date().toISOString().slice(0, 10); }
 
 function primerDiaMesISO() {
@@ -129,8 +135,8 @@ export function SaveanInformes() {
 
       for (const item of g.items) {
         if (item.especie) byEspecie[item.especie] = (byEspecie[item.especie] ?? 0) + 1;
-        totalBultos += item.cantidadBultos ?? 0;
-        totalKg += item.cantidadKg ?? 0;
+        totalBultos += Number(item.cantidadBultos ?? 0);
+        totalKg += Number(item.cantidadKg ?? 0);
       }
     }
 
@@ -261,23 +267,37 @@ export function SaveanInformes() {
 
       {/* ── Tarjetas resumen ── */}
       {resultado.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {ESTADOS.map(e => stats.byEstado[e] ? (
-            <div key={e} className={`rounded-lg p-3 border ${ESTADO_STYLE[e]}`}>
-              <p className="text-2xl font-extrabold">{stats.byEstado[e]}</p>
-              <p className="text-xs font-medium mt-0.5 capitalize">{e}</p>
-            </div>
-          ) : null)}
-          {stats.totalBultos > 0 && (
-            <div className="rounded-lg p-3 border bg-blue-50 text-blue-700 border-blue-200">
-              <p className="text-2xl font-extrabold">{stats.totalBultos.toLocaleString('es-AR')}</p>
-              <p className="text-xs font-medium mt-0.5">Bultos</p>
-            </div>
-          )}
-          {stats.totalKg > 0 && (
-            <div className="rounded-lg p-3 border bg-purple-50 text-purple-700 border-purple-200">
-              <p className="text-2xl font-extrabold">{stats.totalKg.toLocaleString('es-AR')}</p>
-              <p className="text-xs font-medium mt-0.5">Kg totales</p>
+        <div className="space-y-3">
+          {/* Estados */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {ESTADOS.map(e => stats.byEstado[e] ? (
+              <div key={e} className={`rounded-lg p-3 border ${ESTADO_STYLE[e]}`}>
+                <p className="text-2xl font-extrabold">{stats.byEstado[e]}</p>
+                <p className="text-xs font-medium mt-0.5 capitalize">{e}</p>
+              </div>
+            ) : null)}
+          </div>
+          {/* Bultos y Kg — fila separada con números grandes formateados */}
+          {(stats.totalBultos > 0 || stats.totalKg > 0) && (
+            <div className="grid grid-cols-2 gap-3">
+              {stats.totalBultos > 0 && (
+                <div className="rounded-lg p-4 border bg-blue-50 text-blue-700 border-blue-200">
+                  <p className="text-3xl font-extrabold leading-none">{fmtNum(stats.totalBultos)}</p>
+                  <p className="text-xs font-medium mt-1.5">
+                    Bultos totales
+                    <span className="ml-2 text-blue-400 font-normal">{stats.totalBultos.toLocaleString('es-AR')}</span>
+                  </p>
+                </div>
+              )}
+              {stats.totalKg > 0 && (
+                <div className="rounded-lg p-4 border bg-purple-50 text-purple-700 border-purple-200">
+                  <p className="text-3xl font-extrabold leading-none">{fmtNum(stats.totalKg)}</p>
+                  <p className="text-xs font-medium mt-1.5">
+                    Kg totales
+                    <span className="ml-2 text-purple-400 font-normal">{stats.totalKg.toLocaleString('es-AR')}</span>
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
