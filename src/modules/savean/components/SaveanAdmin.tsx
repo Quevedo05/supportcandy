@@ -5,10 +5,9 @@ import { GuiaDetalle } from './SaveanInspector';
 import { GuiaSavean } from '../types/savean';
 import {
   Users, MapPin, Plus, RefreshCw, Clock,
-  FileText, Shield, Trash2, UserPlus, Eye, BarChart2,
+  FileText, Shield, Trash2, UserPlus, Eye,
   ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { SaveanInformes } from './SaveanInformes';
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 function getToken() { return localStorage.getItem('sc_token') || ''; }
@@ -115,7 +114,6 @@ export function SaveanAdmin() {
   const [guiaVista, setGuiaVista]               = useState<GuiaSavean | null>(null);
   const [kpiModal, setKpiModal]                 = useState<{ title: string; guias: GuiaSavean[] } | null>(null);
   const [fechaFiltro, setFechaFiltro]           = useState(hoyISO());
-  const [vistaInformes, setVistaInformes]       = useState(false);
   const [busquedaPendientes, setBusquedaPendientes] = useState('');
   const [verTodasGuias, setVerTodasGuias]       = useState(false);
   const [verTodasPendientes, setVerTodasPendientes] = useState(false);
@@ -306,34 +304,8 @@ export function SaveanAdmin() {
   if (guiaVista) return <GuiaDetalle guia={guiaVista} onVolver={() => setGuiaVista(null)} />;
 
   return (
-    <div className="space-y-4 text-sm max-w-5xl">
-
-      {/* ── HEADER ── */}
-      <div className="bg-gray-900 px-6 py-4 flex items-center justify-between">
-        <div>
-          <p className="text-gray-400 text-xs uppercase tracking-widest font-medium">SAVEAN · Director</p>
-          <h2 className="text-white text-base font-bold mt-0.5">
-            {vistaInformes ? 'Informes y Estadísticas' : 'Panel de Administración'}
-          </h2>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-gray-400 text-xs hidden sm:block">{usuario?.nombre}</span>
-          <button
-            onClick={() => setVistaInformes(v => !v)}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold transition whitespace-nowrap rounded ${
-              vistaInformes
-                ? 'bg-white text-gray-900 hover:bg-gray-100'
-                : 'bg-gray-700 hover:bg-gray-600 text-white'
-            }`}
-          >
-            <BarChart2 size={13} />
-            {vistaInformes ? '← Panel' : 'Informes'}
-          </button>
-        </div>
-      </div>
-
-      {vistaInformes && <SaveanInformes />}
-      {!vistaInformes && (<>
+    <div className="space-y-4 text-sm">
+      <>
 
       {/* ── BARRA DE FECHA ── */}
       <div className="bg-white border border-gray-200 px-4 py-3 flex flex-wrap items-center gap-3">
@@ -827,7 +799,7 @@ export function SaveanAdmin() {
         </div>
       )}
 
-    </>)}
+      </>
     </div>
   );
 }
