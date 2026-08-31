@@ -6,13 +6,13 @@ import { GuiaSavean } from '../types/savean';
 import {
   Users, MapPin, Plus, RefreshCw, Clock,
   FileText, Shield, Trash2, UserPlus, Eye, BarChart2,
+  ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { SaveanInformes } from './SaveanInformes';
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 function getToken() { return localStorage.getItem('sc_token') || ''; }
 
-// ─── helpers ────────────────────────────────────────────────────────────────
 function hoyISO() { return new Date().toISOString().slice(0, 10); }
 
 function formatFecha(iso: string) {
@@ -30,71 +30,75 @@ function mesLabel() {
     .replace(/^./, (c) => c.toUpperCase());
 }
 
-// ─── small components ────────────────────────────────────────────────────────
-function KPI({ label, value, color = 'orange', onClick }: { label: string; value: number | string; color?: string; onClick?: () => void }) {
-  const border: Record<string, string> = {
-    orange: 'border-l-4 border-orange-500', green: 'border-l-4 border-green-500',
-    red: 'border-l-4 border-red-500', yellow: 'border-l-4 border-yellow-400',
-    gray: 'border-l-4 border-gray-300', blue: 'border-l-4 border-blue-500',
+// ─── KPI card ────────────────────────────────────────────────────────────────
+function KPI({ label, value, color = 'gray', onClick }: { label: string; value: number | string; color?: string; onClick?: () => void }) {
+  const top: Record<string, string> = {
+    orange: 'border-t-2 border-orange-500',
+    green:  'border-t-2 border-green-500',
+    red:    'border-t-2 border-red-500',
+    yellow: 'border-t-2 border-amber-400',
+    gray:   'border-t-2 border-gray-400',
+    blue:   'border-t-2 border-blue-500',
   };
   const num: Record<string, string> = {
-    orange: 'text-orange-600', green: 'text-green-600', red: 'text-red-600',
-    yellow: 'text-yellow-600', gray: 'text-gray-500', blue: 'text-blue-600',
+    orange: 'text-gray-900', green: 'text-green-700', red: 'text-red-700',
+    yellow: 'text-amber-700', gray: 'text-gray-500', blue: 'text-blue-700',
   };
   return (
     <div
-      className={`bg-white rounded-lg p-4 ${border[color] ?? border.orange} shadow-sm ${onClick ? 'cursor-pointer hover:shadow-md hover:bg-gray-50 transition' : ''}`}
+      className={`bg-white border border-gray-200 ${top[color] ?? top.gray} p-4 ${onClick ? 'cursor-pointer hover:bg-gray-50' : ''} transition`}
       onClick={onClick}
     >
-      <p className={`text-3xl font-extrabold leading-none ${num[color] ?? num.orange}`}>{value}</p>
-      <p className="text-xs text-gray-500 mt-1.5 font-medium">{label}</p>
-      {onClick && <p className="text-xs text-orange-400 mt-1 font-medium">Ver listado →</p>}
+      <p className={`text-3xl font-bold leading-none ${num[color] ?? num.gray}`}>{value}</p>
+      <p className="text-xs text-gray-500 mt-2 font-medium uppercase tracking-wide leading-tight">{label}</p>
+      {onClick && <p className="text-xs text-gray-400 mt-1.5">Ver listado →</p>}
     </div>
   );
 }
 
-function MiniKPI({ label, value }: { label: string; value: number }) {
+// ─── Mini stat (mes) ─────────────────────────────────────────────────────────
+function MiniStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-center">
-      <p className="text-2xl font-extrabold text-orange-700">{value}</p>
-      <p className="text-xs text-orange-600 mt-0.5 font-medium leading-tight">{label}</p>
+    <div className="bg-gray-50 border border-gray-200 px-4 py-3 text-center">
+      <p className="text-xl font-bold text-gray-800">{value}</p>
+      <p className="text-xs text-gray-500 mt-0.5 leading-tight">{label}</p>
     </div>
   );
 }
 
+// ─── Section header ───────────────────────────────────────────────────────────
 function SectionHeader({ title, badge, icon }: { title: string; badge?: number | string; icon?: JSX.Element }) {
   return (
     <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
-      {icon && <span className="text-orange-500">{icon}</span>}
-      <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wide">{title}</h3>
+      {icon && <span className="text-gray-500">{icon}</span>}
+      <h3 className="font-semibold text-gray-600 text-xs uppercase tracking-wider">{title}</h3>
       {badge != null && (
-        <span className="ml-1 bg-orange-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">{badge}</span>
+        <span className="ml-1 bg-gray-700 text-white text-xs font-bold px-2 py-0.5 rounded">{badge}</span>
       )}
     </div>
   );
 }
 
+// ─── Estado badge ─────────────────────────────────────────────────────────────
 function EstadoBadge({ estado }: { estado: string }) {
   const cls: Record<string, string> = {
-    pendiente: 'bg-orange-100 text-orange-700 border border-orange-300',
-    verificada: 'bg-green-100 text-green-700 border border-green-300',
-    denegada: 'bg-red-100 text-red-700 border border-red-300',
-    vencida: 'bg-gray-100 text-gray-500 border border-gray-300',
-  };
-  const label: Record<string, string> = {
-    pendiente: 'pendiente', verificada: 'verificada', denegada: 'denegada', vencida: 'vencida',
+    pendiente: 'bg-amber-100 text-amber-800',
+    verificada: 'bg-green-100 text-green-800',
+    denegada: 'bg-red-100 text-red-800',
+    vencida: 'bg-gray-100 text-gray-600',
   };
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cls[estado] ?? 'bg-gray-100 text-gray-600'}`}>
-      {label[estado] ?? estado}
+    <span className={`text-xs px-2 py-0.5 rounded font-medium ${cls[estado] ?? 'bg-gray-100 text-gray-600'}`}>
+      {estado}
     </span>
   );
 }
 
-const btnOrange = 'flex items-center justify-center gap-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold px-4 py-1.5 rounded-md transition whitespace-nowrap';
-const btnRed = 'flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1 rounded-md transition';
+const btnPrimary = 'flex items-center justify-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold px-4 py-1.5 rounded transition whitespace-nowrap';
+const btnDanger  = 'flex items-center gap-1 bg-red-700 hover:bg-red-800 text-white text-xs font-semibold px-3 py-1 rounded transition';
+const inputCls   = 'flex-1 min-w-24 border border-gray-300 rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gray-400';
 
-// ─── main component ──────────────────────────────────────────────────────────
+// ─── main component ───────────────────────────────────────────────────────────
 interface SaveanUser {
   usuarioId: string;
   nombre: string;
@@ -108,17 +112,22 @@ export function SaveanAdmin() {
   const { usuario } = useAuth();
   const { guias, barreras, barreristas, agregarBarrerista, eliminarBarrerista } = useSavean();
 
-  const [guiaVista, setGuiaVista] = useState<GuiaSavean | null>(null);
-  const [kpiModal, setKpiModal] = useState<{ title: string; guias: GuiaSavean[] } | null>(null);
-  const [fechaFiltro, setFechaFiltro] = useState(hoyISO());
-  const [vistaInformes, setVistaInformes] = useState(false);
+  const [guiaVista, setGuiaVista]               = useState<GuiaSavean | null>(null);
+  const [kpiModal, setKpiModal]                 = useState<{ title: string; guias: GuiaSavean[] } | null>(null);
+  const [fechaFiltro, setFechaFiltro]           = useState(hoyISO());
+  const [vistaInformes, setVistaInformes]       = useState(false);
   const [busquedaPendientes, setBusquedaPendientes] = useState('');
-  const [verTodasGuias, setVerTodasGuias] = useState(false);
+  const [verTodasGuias, setVerTodasGuias]       = useState(false);
   const [verTodasPendientes, setVerTodasPendientes] = useState(false);
-  const [verTodosBarreristas, setVerTodosBarreristas] = useState(false);
 
-  const [formBr, setFormBr] = useState({ nombre: '', usuario: '', contrasena: '' });
-  const [errBr, setErrBr] = useState('');
+  // Listas ocultas por defecto — solo aparecen al hacer clic en "Ver todos"
+  const [verListaBarreristas, setVerListaBarreristas] = useState(false);
+  const [verListaInspectores, setVerListaInspectores] = useState(false);
+
+  const [tabGestion, setTabGestion]             = useState<'barreristas' | 'inspectores'>('barreristas');
+
+  const [formBr, setFormBr]   = useState({ nombre: '', usuario: '', contrasena: '' });
+  const [errBr, setErrBr]     = useState('');
   const [migrando, setMigrando] = useState(false);
   const [migResult, setMigResult] = useState<{
     total: number;
@@ -128,8 +137,8 @@ export function SaveanAdmin() {
   } | null>(null);
 
   const [saveanUsers, setSaveanUsers] = useState<SaveanUser[]>([]);
-  const [formAdmin, setFormAdmin] = useState({ nombre: '', username: '', password: '' });
-  const [errAdmin, setErrAdmin] = useState('');
+  const [formAdmin, setFormAdmin]     = useState({ nombre: '', username: '', password: '' });
+  const [errAdmin, setErrAdmin]       = useState('');
 
   useEffect(() => {
     fetch(`${API_URL}/savean/usuarios`, {
@@ -144,28 +153,28 @@ export function SaveanAdmin() {
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
   const hoy = hoyISO();
-  const guiasEmitidasHoy = guias.filter(g => g.fechaEmision.slice(0, 10) === hoy);
+  const guiasEmitidasHoy    = guias.filter(g => g.fechaEmision.slice(0, 10) === hoy);
   const guiasVerificadasHoy = guias.filter(g => g.estado === 'verificada' && g.fechaVerificacion?.slice(0, 10) === hoy);
   const guiasPendientesAhora = guias.filter(g => g.estado === 'pendiente');
-  const guiasDenegadasHoy = guias.filter(g => g.estado === 'denegada' && g.fechaVerificacion?.slice(0, 10) === hoy);
-  const guiasVencidas = guias.filter(g => g.estado === 'vencida');
+  const guiasDenegadasHoy   = guias.filter(g => g.estado === 'denegada' && g.fechaVerificacion?.slice(0, 10) === hoy);
+  const guiasVencidas       = guias.filter(g => g.estado === 'vencida');
 
-  const totalGuias = guias.length;
-  const emitidasHoy = guiasEmitidasHoy.length;
-  const verificadasHoy = guiasVerificadasHoy.length;
+  const totalGuias      = guias.length;
+  const emitidasHoy     = guiasEmitidasHoy.length;
+  const verificadasHoy  = guiasVerificadasHoy.length;
   const pendientesAhora = guiasPendientesAhora.length;
-  const denegadasHoy = guiasDenegadasHoy.length;
-  const vencidasHoy = guiasVencidas.length;
+  const denegadasHoy    = guiasDenegadasHoy.length;
+  const vencidasTotal   = guiasVencidas.length;
 
   // ── Mes ──────────────────────────────────────────────────────────────────
-  const mesActual = hoy.slice(0, 7);
-  const guiasMes = guias.filter(g => g.fechaEmision.slice(0, 7) === mesActual);
-  const emitidasMes = guiasMes.length;
+  const mesActual      = hoy.slice(0, 7);
+  const guiasMes       = guias.filter(g => g.fechaEmision.slice(0, 7) === mesActual);
+  const emitidasMes    = guiasMes.length;
   const verificadasMes = guiasMes.filter(g => g.estado === 'verificada').length;
-  const pendientesMes = guiasMes.filter(g => g.estado === 'pendiente').length;
-  const denegadasMes = guiasMes.filter(g => g.estado === 'denegada').length;
+  const pendientesMes  = guiasMes.filter(g => g.estado === 'pendiente').length;
+  const denegadasMes   = guiasMes.filter(g => g.estado === 'denegada').length;
 
-  // ── Barreristas con sesión hoy (inspectors who acted today) ──────────────
+  // ── Barreristas con sesión hoy ────────────────────────────────────────────
   const sesionesHoy = [...new Set(
     guias.filter(g => g.fechaVerificacion?.slice(0, 10) === hoy && g.inspectorUsuario).map(g => g.inspectorUsuario!)
   )].map(usr => {
@@ -181,13 +190,13 @@ export function SaveanAdmin() {
 
   // ── Inspectores por fecha ─────────────────────────────────────────────────
   const guiasFecha = guias.filter(g => g.fechaVerificacion?.slice(0, 10) === fechaFiltro);
-  const inspFecha = [...new Set(guiasFecha.filter(g => g.inspectorUsuario).map(g => g.inspectorUsuario!))].map(usr => {
+  const inspFecha  = [...new Set(guiasFecha.filter(g => g.inspectorUsuario).map(g => g.inspectorUsuario!))].map(usr => {
     const ug = guiasFecha.filter(g => g.inspectorUsuario === usr);
     return {
       usuario: usr,
       nombre: ug[0]?.inspectorNombre ?? usr,
       verificadas: ug.filter(g => g.estado === 'verificada').length,
-      denegadas: ug.filter(g => g.estado === 'denegada').length,
+      denegadas:   ug.filter(g => g.estado === 'denegada').length,
     };
   });
 
@@ -195,11 +204,11 @@ export function SaveanAdmin() {
   const barrerasStats = barreras.map(b => {
     const bg = guiasFecha.filter(g => g.barreraId === b.id);
     return {
-      nombre: b.nombre,
-      emitidas: guias.filter(g => g.barreraId === b.id && g.fechaEmision.slice(0, 10) === fechaFiltro).length,
+      nombre:      b.nombre,
+      emitidas:    guias.filter(g => g.barreraId === b.id && g.fechaEmision.slice(0, 10) === fechaFiltro).length,
       verificadas: bg.filter(g => g.estado === 'verificada').length,
-      denegadas: bg.filter(g => g.estado === 'denegada').length,
-      pendientes: guias.filter(g => g.barreraId === b.id && g.estado === 'pendiente').length,
+      denegadas:   bg.filter(g => g.estado === 'denegada').length,
+      pendientes:  guias.filter(g => g.barreraId === b.id && g.estado === 'pendiente').length,
     };
   });
 
@@ -209,8 +218,8 @@ export function SaveanAdmin() {
     .sort((a, b) => new Date(b.fechaVerificacion!).getTime() - new Date(a.fechaVerificacion!).getTime());
 
   // ── Últimas guías ─────────────────────────────────────────────────────────
-  const ultimasGuias = [...guias].sort((a, b) => new Date(b.fechaEmision).getTime() - new Date(a.fechaEmision).getTime());
-  const guiasMostradas = verTodasGuias ? ultimasGuias : ultimasGuias.slice(0, 7);
+  const ultimasGuias    = [...guias].sort((a, b) => new Date(b.fechaEmision).getTime() - new Date(a.fechaEmision).getTime());
+  const guiasMostradas  = verTodasGuias ? ultimasGuias : ultimasGuias.slice(0, 5);
 
   // ── Pendientes ────────────────────────────────────────────────────────────
   const pendientes = guias
@@ -221,11 +230,10 @@ export function SaveanAdmin() {
       return g.numero.toLowerCase().includes(q) || g.remitenteNombre.toLowerCase().includes(q);
     })
     .sort((a, b) => new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime());
-  const pendientesMostradas = verTodasPendientes ? pendientes : pendientes.slice(0, 7);
+  const pendientesMostradas = verTodasPendientes ? pendientes : pendientes.slice(0, 5);
 
   // ── Barreristas activos ───────────────────────────────────────────────────
   const barreristasActivos = barreristas.filter(b => b.activo);
-  const barreristaMostrados = verTodosBarreristas ? barreristasActivos : barreristasActivos.slice(0, 7);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleAddBarrerista = async () => {
@@ -241,19 +249,14 @@ export function SaveanAdmin() {
   };
 
   const handleMigrarInspectores = async () => {
-    setMigrando(true);
-    setMigResult(null);
-    setErrBr('');
+    setMigrando(true); setMigResult(null); setErrBr('');
     try {
       const res = await fetch(`${API_URL}/savean/barreristas/migrar-inspectores`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       const data = await res.json();
-      if (!res.ok) {
-        setErrBr(data?.error ?? `Error del servidor (${res.status}). Revisá los logs del backend.`);
-        return;
-      }
+      if (!res.ok) { setErrBr(data?.error ?? `Error del servidor (${res.status}).`); return; }
       setMigResult({ total: data.total ?? 0, creados: data.creados ?? [], saltados: data.saltados ?? [], errores: data.errores ?? [] });
     } catch {
       setErrBr('Error de conexión al migrar.');
@@ -264,8 +267,7 @@ export function SaveanAdmin() {
 
   const handleAddInspector = async () => {
     if (!formAdmin.nombre.trim() || !formAdmin.username.trim() || !formAdmin.password.trim()) {
-      setErrAdmin('Todos los campos son obligatorios.');
-      return;
+      setErrAdmin('Todos los campos son obligatorios.'); return;
     }
     try {
       const res = await fetch(`${API_URL}/savean/usuarios`, {
@@ -291,8 +293,7 @@ export function SaveanAdmin() {
       });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({})) as { error?: string };
-        setErrAdmin(errBody.error || 'No se pudo eliminar el usuario.');
-        return;
+        setErrAdmin(errBody.error || 'No se pudo eliminar el usuario.'); return;
       }
       setSaveanUsers(prev => prev.filter(u => u.usuarioId !== usuarioId));
     } catch {
@@ -300,466 +301,482 @@ export function SaveanAdmin() {
     }
   };
 
-  const openGuiaFromModal = (g: GuiaSavean) => {
-    setKpiModal(null);
-    setGuiaVista(g);
-  };
+  const openGuiaFromModal = (g: GuiaSavean) => { setKpiModal(null); setGuiaVista(g); };
 
-  if (guiaVista) {
-    return <GuiaDetalle guia={guiaVista} onVolver={() => setGuiaVista(null)} />;
-  }
+  if (guiaVista) return <GuiaDetalle guia={guiaVista} onVolver={() => setGuiaVista(null)} />;
 
   return (
-    <div className="space-y-6 text-sm max-w-5xl">
+    <div className="space-y-4 text-sm max-w-5xl">
 
-      {/* ── 1. BANNER ── */}
-      <div className="rounded-xl overflow-hidden shadow">
-        <div className="bg-gradient-to-r from-orange-900 via-orange-700 to-orange-500 px-6 py-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-orange-200 text-xs font-semibold mb-1">Director</p>
-              <h2 className="text-white text-xl font-extrabold tracking-wide">
-                {vistaInformes ? 'Informes y Estadísticas' : 'Panel de Administración — SAVEAN'}
-              </h2>
-              <p className="text-orange-200 text-xs mt-1">{usuario?.nombre}</p>
-            </div>
-            <button
-              onClick={() => setVistaInformes(v => !v)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap mt-1 ${
-                vistaInformes
-                  ? 'bg-white text-orange-700 hover:bg-orange-50'
-                  : 'bg-orange-800 hover:bg-orange-900 text-white border border-orange-600'
-              }`}
-            >
-              <BarChart2 size={14} />
-              {vistaInformes ? '← Panel' : 'Informes'}
-            </button>
-          </div>
+      {/* ── HEADER ── */}
+      <div className="bg-gray-900 px-6 py-4 flex items-center justify-between">
+        <div>
+          <p className="text-gray-400 text-xs uppercase tracking-widest font-medium">SAVEAN · Director</p>
+          <h2 className="text-white text-base font-bold mt-0.5">
+            {vistaInformes ? 'Informes y Estadísticas' : 'Panel de Administración'}
+          </h2>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-gray-400 text-xs hidden sm:block">{usuario?.nombre}</span>
+          <button
+            onClick={() => setVistaInformes(v => !v)}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold transition whitespace-nowrap rounded ${
+              vistaInformes
+                ? 'bg-white text-gray-900 hover:bg-gray-100'
+                : 'bg-gray-700 hover:bg-gray-600 text-white'
+            }`}
+          >
+            <BarChart2 size={13} />
+            {vistaInformes ? '← Panel' : 'Informes'}
+          </button>
         </div>
       </div>
 
       {vistaInformes && <SaveanInformes />}
-      {vistaInformes && null /* ocultar el resto */}
       {!vistaInformes && (<>
 
-      {/* ── 2. DATE BAR ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap items-center gap-3">
-        <span className="text-gray-600 font-medium text-xs">Fecha:</span>
+      {/* ── BARRA DE FECHA ── */}
+      <div className="bg-white border border-gray-200 px-4 py-3 flex flex-wrap items-center gap-3">
+        <span className="text-gray-500 font-medium text-xs uppercase tracking-wide">Fecha:</span>
         <input
           type="date"
           value={fechaFiltro}
           onChange={e => setFechaFiltro(e.target.value)}
-          className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+          className="border border-gray-300 rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gray-400"
         />
-        <button onClick={() => setFechaFiltro(hoyISO())} className={btnOrange}>
-          <RefreshCw size={12} /> Actualizar
+        <button onClick={() => setFechaFiltro(hoyISO())} className={btnPrimary}>
+          <RefreshCw size={12} /> Hoy
         </button>
-        <span className="text-xs text-gray-400 ml-1">Actualización automática cada 30s</span>
+        <span className="text-xs text-gray-400">Actualización automática cada 30s</span>
       </div>
 
-      {/* ── 3. KPI ROW 1 ── */}
-      <div className="grid grid-cols-3 gap-3">
-        <KPI label="Total guías" value={totalGuias} color="orange" onClick={() => setKpiModal({ title: 'Total de guías', guias })} />
-        <KPI label="Emitidas Hoy" value={emitidasHoy} color="blue" onClick={() => setKpiModal({ title: 'Emitidas hoy', guias: guiasEmitidasHoy })} />
-        <KPI label="Verificadas Hoy" value={verificadasHoy} color="green" onClick={() => setKpiModal({ title: 'Verificadas hoy', guias: guiasVerificadasHoy })} />
+      {/* ── KPIs — 6 cols ── */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-0 border border-gray-200 divide-x divide-gray-200">
+        <KPI label="Total guías"      value={totalGuias}      color="orange" onClick={() => setKpiModal({ title: 'Total de guías', guias })} />
+        <KPI label="Emitidas hoy"     value={emitidasHoy}     color="blue"   onClick={() => setKpiModal({ title: 'Emitidas hoy', guias: guiasEmitidasHoy })} />
+        <KPI label="Verificadas hoy"  value={verificadasHoy}  color="green"  onClick={() => setKpiModal({ title: 'Verificadas hoy', guias: guiasVerificadasHoy })} />
+        <KPI label="Pendientes"       value={pendientesAhora} color="yellow" onClick={() => setKpiModal({ title: 'Pendientes ahora', guias: guiasPendientesAhora })} />
+        <KPI label="Denegadas hoy"    value={denegadasHoy}    color="red"    onClick={() => setKpiModal({ title: 'Denegadas hoy', guias: guiasDenegadasHoy })} />
+        <KPI label="Vencidas"         value={vencidasTotal}   color="gray"   onClick={() => setKpiModal({ title: 'Vencidas', guias: guiasVencidas })} />
       </div>
 
-      {/* ── 4. KPI ROW 2 ── */}
-      <div className="grid grid-cols-3 gap-3">
-        <KPI label="Verificaciones Hechas" value={verificadasHoy} color="green" onClick={() => setKpiModal({ title: 'Verificaciones hechas hoy', guias: guiasVerificadasHoy })} />
-        <KPI label="Pendientes ahora" value={pendientesAhora} color="yellow" onClick={() => setKpiModal({ title: 'Pendientes ahora', guias: guiasPendientesAhora })} />
-        <div className="grid grid-cols-2 gap-3 col-span-1">
-          <KPI label="Denegadas Hoy" value={denegadasHoy} color="red" onClick={() => setKpiModal({ title: 'Denegadas hoy', guias: guiasDenegadasHoy })} />
-          <KPI label="Vencidas Hoy" value={vencidasHoy} color="gray" onClick={() => setKpiModal({ title: 'Vencidas', guias: guiasVencidas })} />
+      {/* ── STATS DEL MES ── */}
+      <div className="bg-white border border-gray-200 px-4 py-3">
+        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-2">{mesLabel()}</p>
+        <div className="grid grid-cols-4 gap-0 divide-x divide-gray-200 border border-gray-200">
+          <MiniStat label="Emitidas"   value={emitidasMes} />
+          <MiniStat label="Verificadas" value={verificadasMes} />
+          <MiniStat label="Pendientes" value={pendientesMes} />
+          <MiniStat label="Denegadas"  value={denegadasMes} />
         </div>
       </div>
 
-      {/* ── 5. GUÍAS DEL MES ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <SectionHeader title={`Guías del mes — ${mesLabel()}`} icon={<FileText size={15} />} />
-        <div className="grid grid-cols-4 gap-3">
-          <MiniKPI label="Emitidas este mes" value={emitidasMes} />
-          <MiniKPI label="Verificadas este mes" value={verificadasMes} />
-          <MiniKPI label="Pendientes para mes" value={pendientesMes} />
-          <MiniKPI label="Denegadas este mes" value={denegadasMes} />
-        </div>
-      </div>
-
-      {/* ── 6. BARRERISTAS CON SESIÓN HOY ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <SectionHeader
-          title="Barreristas con sesión hoy"
-          badge={sesionesHoy.length}
-          icon={<Shield size={15} />}
-        />
-        {sesionesHoy.length === 0 ? (
-          <p className="text-gray-400 text-xs py-3">Sin barreristas activos hoy.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {sesionesHoy.map(s => (
-              <div key={s.usuario} className="border border-orange-200 bg-orange-50 rounded-lg px-4 py-3">
-                <p className="font-bold text-gray-900 text-sm">{s.nombre}</p>
-                <div className="flex gap-4 mt-1 text-xs text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 bg-green-500 rounded-full inline-block" />
-                    Activo — {s.barrera}
-                  </span>
-                  <span>{s.guias} guía{s.guias !== 1 ? 's' : ''}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── 7. INSPECTORES / BARRERAS POR FECHA ── */}
+      {/* ── ACTIVIDAD — 2 cols ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Inspectores */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <SectionHeader title={`Inspectores — ${formatFecha(fechaFiltro)}`} icon={<Shield size={15} />} />
-          {inspFecha.length === 0 ? (
-            <p className="text-gray-400 text-xs py-3">Sin actividad en la fecha seleccionada.</p>
-          ) : (
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-gray-400 border-b">
-                  <th className="text-left pb-1 font-medium">Inspector</th>
-                  <th className="text-center pb-1 font-medium">V</th>
-                  <th className="text-center pb-1 font-medium">D</th>
-                </tr>
-              </thead>
-              <tbody>
-                {inspFecha.map(i => (
-                  <tr key={i.usuario} className="border-b border-gray-50">
-                    <td className="py-1.5">
-                      <p className="font-semibold text-gray-800">{i.nombre}</p>
-                      <p className="text-gray-400">{i.usuario}</p>
-                    </td>
-                    <td className="py-1.5 text-center font-bold text-green-600">{i.verificadas}</td>
-                    <td className="py-1.5 text-center font-bold text-red-500">{i.denegadas}</td>
+
+        {/* Izquierda: barreristas sesión hoy + inspectores por fecha */}
+        <div className="space-y-4">
+
+          <div className="bg-white border border-gray-200 p-4">
+            <SectionHeader title="Barreristas activos hoy" badge={sesionesHoy.length} icon={<Shield size={14} />} />
+            {sesionesHoy.length === 0 ? (
+              <p className="text-gray-400 text-xs py-2">Sin barreristas activos hoy.</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-gray-400 border-b">
+                    <th className="text-left pb-1 font-medium">Nombre</th>
+                    <th className="text-left pb-1 font-medium">Barrera</th>
+                    <th className="text-center pb-1 font-medium">Guías</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {sesionesHoy.map(s => (
+                    <tr key={s.usuario} className="border-b border-gray-50">
+                      <td className="py-1.5 font-semibold text-gray-800">{s.nombre}</td>
+                      <td className="py-1.5 text-gray-500">{s.barrera}</td>
+                      <td className="py-1.5 text-center font-bold text-gray-700">{s.guias}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div className="bg-white border border-gray-200 p-4">
+            <SectionHeader title={`Inspectores — ${formatFecha(fechaFiltro)}`} icon={<Shield size={14} />} />
+            {inspFecha.length === 0 ? (
+              <p className="text-gray-400 text-xs py-2">Sin actividad en la fecha seleccionada.</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-gray-400 border-b">
+                    <th className="text-left pb-1 font-medium">Inspector</th>
+                    <th className="text-center pb-1 font-medium">Verif.</th>
+                    <th className="text-center pb-1 font-medium">Deneg.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inspFecha.map(i => (
+                    <tr key={i.usuario} className="border-b border-gray-50">
+                      <td className="py-1.5">
+                        <p className="font-semibold text-gray-800">{i.nombre}</p>
+                        <p className="text-gray-400 text-xs">{i.usuario}</p>
+                      </td>
+                      <td className="py-1.5 text-center font-bold text-green-700">{i.verificadas}</td>
+                      <td className="py-1.5 text-center font-bold text-red-600">{i.denegadas}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
 
-        {/* Barreras */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <SectionHeader title={`Barreras — ${formatFecha(fechaFiltro)}`} icon={<MapPin size={15} />} />
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-gray-400 border-b">
-                <th className="text-left pb-1 font-medium">Barrera</th>
-                <th className="text-center pb-1 font-medium">E</th>
-                <th className="text-center pb-1 font-medium">V</th>
-                <th className="text-center pb-1 font-medium">D</th>
-                <th className="text-center pb-1 font-medium">Pen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {barrerasStats.map(b => (
-                <tr key={b.nombre} className="border-b border-gray-50">
-                  <td className="py-1.5 text-gray-700 font-medium">{b.nombre}</td>
-                  <td className="py-1.5 text-center text-gray-600">{b.emitidas || 0}</td>
-                  <td className="py-1.5 text-center text-green-600 font-semibold">{b.verificadas || 0}</td>
-                  <td className="py-1.5 text-center text-red-500 font-semibold">{b.denegadas || 0}</td>
-                  <td className="py-1.5 text-center text-gray-400">{b.pendientes || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        {/* Derecha: barreras por fecha + registro hoy */}
+        <div className="space-y-4">
 
-      {/* ── 8. REGISTRO DE BARRERAS HOY ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <SectionHeader title="Registro de barreras — hoy" badge={registroHoy.length} icon={<Clock size={15} />} />
-        {registroHoy.length === 0 ? (
-          <p className="text-gray-400 text-xs py-2">Sin verificaciones Hoy.</p>
-        ) : (
-          <div className="overflow-x-auto">
+          <div className="bg-white border border-gray-200 p-4">
+            <SectionHeader title={`Barreras — ${formatFecha(fechaFiltro)}`} icon={<MapPin size={14} />} />
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-gray-400 border-b">
-                  <th className="text-left pb-1 font-medium">N° Guía</th>
-                  <th className="text-left pb-1 font-medium">Estado</th>
                   <th className="text-left pb-1 font-medium">Barrera</th>
-                  <th className="text-left pb-1 font-medium">Inspector</th>
-                  <th className="pb-1" />
+                  <th className="text-center pb-1 font-medium">Emit.</th>
+                  <th className="text-center pb-1 font-medium">Verif.</th>
+                  <th className="text-center pb-1 font-medium">Deneg.</th>
+                  <th className="text-center pb-1 font-medium">Pend.</th>
                 </tr>
               </thead>
               <tbody>
-                {registroHoy.map(g => (
-                  <tr key={g.id} className="border-b border-gray-50 hover:bg-orange-50 transition cursor-pointer" onClick={() => setGuiaVista(g)}>
-                    <td className="py-1.5 font-mono font-semibold text-orange-700">{g.numero}</td>
-                    <td className="py-1.5"><EstadoBadge estado={g.estado} /></td>
-                    <td className="py-1.5 text-gray-600">{g.barrieraNombre ?? '—'}</td>
-                    <td className="py-1.5 text-gray-600">{g.inspectorNombre ?? '—'}</td>
-                    <td className="py-1.5 text-right pr-1"><Eye size={13} className="text-orange-400" /></td>
+                {barrerasStats.map(b => (
+                  <tr key={b.nombre} className="border-b border-gray-50">
+                    <td className="py-1.5 text-gray-700 font-medium">{b.nombre}</td>
+                    <td className="py-1.5 text-center text-gray-600">{b.emitidas || 0}</td>
+                    <td className="py-1.5 text-center text-green-700 font-semibold">{b.verificadas || 0}</td>
+                    <td className="py-1.5 text-center text-red-600 font-semibold">{b.denegadas || 0}</td>
+                    <td className="py-1.5 text-center text-gray-400">{b.pendientes || '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
+
+          <div className="bg-white border border-gray-200 p-4">
+            <SectionHeader title="Registro de barreras — hoy" badge={registroHoy.length} icon={<Clock size={14} />} />
+            {registroHoy.length === 0 ? (
+              <p className="text-gray-400 text-xs py-2">Sin verificaciones hoy.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-400 border-b">
+                      <th className="text-left pb-1 font-medium">N° Guía</th>
+                      <th className="text-left pb-1 font-medium">Estado</th>
+                      <th className="text-left pb-1 font-medium">Inspector</th>
+                      <th className="pb-1" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {registroHoy.map(g => (
+                      <tr key={g.id} className="border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer" onClick={() => setGuiaVista(g)}>
+                        <td className="py-1.5 font-mono font-semibold text-gray-800">{g.numero}</td>
+                        <td className="py-1.5"><EstadoBadge estado={g.estado} /></td>
+                        <td className="py-1.5 text-gray-500">{g.inspectorNombre ?? '—'}</td>
+                        <td className="py-1.5 text-right pr-1"><Eye size={12} className="text-gray-400" /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+        </div>
       </div>
 
-      {/* ── 9. ÚLTIMAS GUÍAS PROCESADAS ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <SectionHeader title="Últimas guías procesadas" icon={<FileText size={15} />} />
-        {ultimasGuias.length === 0 ? (
-          <p className="text-gray-400 text-xs py-2">Sin guías registradas.</p>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
+      {/* ── GUÍAS — 2 cols ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        {/* Últimas guías */}
+        <div className="bg-white border border-gray-200 p-4">
+          <SectionHeader title="Últimas guías procesadas" icon={<FileText size={14} />} />
+          {ultimasGuias.length === 0 ? (
+            <p className="text-gray-400 text-xs py-2">Sin guías registradas.</p>
+          ) : (
+            <>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-gray-400 border-b">
                     <th className="text-left pb-1 font-medium">N° Guía</th>
                     <th className="text-left pb-1 font-medium">Estado</th>
                     <th className="text-left pb-1 font-medium">Remitente</th>
-                    <th className="text-left pb-1 font-medium">Inspector</th>
                     <th className="pb-1" />
                   </tr>
                 </thead>
                 <tbody>
                   {guiasMostradas.map(g => (
-                    <tr key={g.id} className="border-b border-gray-50 hover:bg-orange-50 transition cursor-pointer" onClick={() => setGuiaVista(g)}>
-                      <td className="py-1.5 font-mono font-semibold text-orange-700">{g.numero}</td>
+                    <tr key={g.id} className="border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer" onClick={() => setGuiaVista(g)}>
+                      <td className="py-1.5 font-mono font-semibold text-gray-800">{g.numero}</td>
                       <td className="py-1.5"><EstadoBadge estado={g.estado} /></td>
-                      <td className="py-1.5 text-gray-700">{g.remitenteNombre}</td>
-                      <td className="py-1.5 text-gray-500">{g.inspectorUsuario ?? '—'}</td>
-                      <td className="py-1.5 text-right pr-1"><Eye size={13} className="text-orange-400" /></td>
+                      <td className="py-1.5 text-gray-600">{g.remitenteNombre}</td>
+                      <td className="py-1.5 text-right pr-1"><Eye size={12} className="text-gray-400" /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-            {!verTodasGuias && ultimasGuias.length > 7 && (
-              <button onClick={() => setVerTodasGuias(true)} className="mt-3 text-xs text-orange-600 hover:underline font-medium">
-                ▶ Ver todas ({ultimasGuias.length})
-              </button>
-            )}
-          </>
-        )}
-      </div>
+              {!verTodasGuias && ultimasGuias.length > 5 && (
+                <button onClick={() => setVerTodasGuias(true)} className="mt-3 text-xs text-gray-500 hover:text-gray-800 font-medium flex items-center gap-1">
+                  <ChevronDown size={12} /> Ver todas ({ultimasGuias.length})
+                </button>
+              )}
+            </>
+          )}
+        </div>
 
-      {/* ── 10. GUÍAS PENDIENTES ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <SectionHeader title="Guías pendientes" badge={pendientesAhora} icon={<Clock size={15} />} />
-        <input
-          type="text"
-          value={busquedaPendientes}
-          onChange={e => setBusquedaPendientes(e.target.value)}
-          placeholder="Buscar por guía o remitente..."
-          className="w-full mb-3 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400"
-        />
-        {pendientes.length === 0 ? (
-          <p className="text-gray-400 text-xs py-2">No hay guías pendientes.</p>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
+        {/* Guías pendientes */}
+        <div className="bg-white border border-gray-200 p-4">
+          <SectionHeader title="Guías pendientes" badge={pendientesAhora} icon={<Clock size={14} />} />
+          <input
+            type="text"
+            value={busquedaPendientes}
+            onChange={e => setBusquedaPendientes(e.target.value)}
+            placeholder="Buscar guía o remitente..."
+            className="w-full mb-3 border border-gray-300 rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gray-400"
+          />
+          {pendientes.length === 0 ? (
+            <p className="text-gray-400 text-xs py-2">No hay guías pendientes.</p>
+          ) : (
+            <>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-gray-400 border-b">
                     <th className="text-left pb-1 font-medium">N° Guía</th>
                     <th className="text-left pb-1 font-medium">Remitente</th>
-                    <th className="text-left pb-1 font-medium">Vencimiento</th>
+                    <th className="text-left pb-1 font-medium">Venc.</th>
                     <th className="pb-1" />
                   </tr>
                 </thead>
                 <tbody>
                   {pendientesMostradas.map(g => (
-                    <tr key={g.id} className="border-b border-gray-50 hover:bg-orange-50 transition cursor-pointer" onClick={() => setGuiaVista(g)}>
-                      <td className="py-1.5 font-mono font-semibold text-orange-700">{g.numero}</td>
-                      <td className="py-1.5 text-gray-700">{g.remitenteNombre}</td>
+                    <tr key={g.id} className="border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer" onClick={() => setGuiaVista(g)}>
+                      <td className="py-1.5 font-mono font-semibold text-gray-800">{g.numero}</td>
+                      <td className="py-1.5 text-gray-600">{g.remitenteNombre}</td>
                       <td className="py-1.5 text-gray-500">{formatFechaCorta(g.fechaVencimiento)}</td>
-                      <td className="py-1.5 text-right pr-1"><Eye size={13} className="text-orange-400" /></td>
+                      <td className="py-1.5 text-right pr-1"><Eye size={12} className="text-gray-400" /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-            {!verTodasPendientes && pendientes.length > 7 && (
-              <button onClick={() => setVerTodasPendientes(true)} className="mt-3 text-xs text-orange-600 hover:underline font-medium">
-                ▶ Ver todas ({pendientes.length})
-              </button>
-            )}
-          </>
-        )}
+              {!verTodasPendientes && pendientes.length > 5 && (
+                <button onClick={() => setVerTodasPendientes(true)} className="mt-3 text-xs text-gray-500 hover:text-gray-800 font-medium flex items-center gap-1">
+                  <ChevronDown size={12} /> Ver todas ({pendientes.length})
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
-      {/* ── 11. GESTIÓN DE BARRERISTAS ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <SectionHeader title="Gestión de Barreristas" icon={<Users size={15} />} />
+      {/* ── GESTIÓN — tabbed ── */}
+      <div className="bg-white border border-gray-200">
 
-        {/* Migración masiva */}
-        <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
-          <p className="text-xs text-orange-800 font-semibold mb-1">Crear cuentas de inspector para barreristas existentes</p>
-          <p className="text-xs text-orange-700 mb-2">
-            Asigna una cuenta de acceso al sistema a cada barrerista usando su usuario como contraseña inicial.
-          </p>
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200">
           <button
-            onClick={handleMigrarInspectores}
-            disabled={migrando}
-            className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 text-white text-xs font-semibold px-4 py-1.5 rounded-md transition"
+            onClick={() => setTabGestion('barreristas')}
+            className={`flex items-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-wide transition border-b-2 -mb-px ${
+              tabGestion === 'barreristas'
+                ? 'border-gray-800 text-gray-900'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
           >
-            {migrando ? 'Creando cuentas...' : '⚡ Crear cuentas para todos los barreristas'}
+            <Users size={13} /> Barreristas
+            <span className="ml-1 bg-gray-200 text-gray-600 text-xs px-1.5 py-0.5 rounded font-bold">{barreristasActivos.length}</span>
           </button>
-          {migResult && (
-            <div className="mt-3 space-y-2">
-              <p className="text-xs text-gray-600">
-                Total encontrados: <strong>{migResult.total}</strong> · Creados: <strong className="text-green-700">{migResult.creados.length}</strong> · Ya tenían cuenta: <strong>{migResult.saltados.length}</strong>{migResult.errores.length > 0 && <> · <strong className="text-red-600">{migResult.errores.length} con error</strong></>}
-              </p>
+          <button
+            onClick={() => setTabGestion('inspectores')}
+            className={`flex items-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-wide transition border-b-2 -mb-px ${
+              tabGestion === 'inspectores'
+                ? 'border-gray-800 text-gray-900'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <UserPlus size={13} /> Inspectores
+            <span className="ml-1 bg-gray-200 text-gray-600 text-xs px-1.5 py-0.5 rounded font-bold">{saveanUsers.length}</span>
+          </button>
+        </div>
 
-              {migResult.creados.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-green-700 mb-1">✓ Cuentas creadas / reparadas ({migResult.creados.length}):</p>
-                  <div className="bg-white border border-green-200 rounded p-2 max-h-40 overflow-y-auto">
-                    <table className="w-full text-xs">
-                      <thead><tr className="text-gray-400 border-b"><th className="text-left pb-1">Nombre</th><th className="text-left pb-1">Usuario</th><th className="text-left pb-1">Contraseña inicial</th></tr></thead>
+        <div className="p-4">
+
+          {/* ── Tab: Barreristas ── */}
+          {tabGestion === 'barreristas' && (
+            <div className="space-y-4">
+
+              {/* Migración masiva */}
+              <div className="border border-gray-200 p-3 bg-gray-50">
+                <p className="text-xs text-gray-700 font-semibold mb-1">Crear cuentas de inspector para barreristas existentes</p>
+                <p className="text-xs text-gray-500 mb-2">Asigna acceso al sistema a cada barrerista usando su usuario como contraseña inicial.</p>
+                <button
+                  onClick={handleMigrarInspectores}
+                  disabled={migrando}
+                  className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-300 text-white text-xs font-semibold px-4 py-1.5 rounded transition"
+                >
+                  {migrando ? 'Creando cuentas...' : '⚡ Crear cuentas para todos'}
+                </button>
+                {migResult && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs text-gray-600">
+                      Total: <strong>{migResult.total}</strong> · Creados: <strong className="text-green-700">{migResult.creados.length}</strong> · Ya tenían cuenta: <strong>{migResult.saltados.length}</strong>
+                      {migResult.errores.length > 0 && <> · <strong className="text-red-600">{migResult.errores.length} con error</strong></>}
+                    </p>
+                    {migResult.creados.length > 0 && (
+                      <div className="bg-white border border-green-200 rounded p-2 max-h-40 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead><tr className="text-gray-400 border-b"><th className="text-left pb-1">Nombre</th><th className="text-left pb-1">Usuario</th><th className="text-left pb-1">Contraseña inicial</th></tr></thead>
+                          <tbody>
+                            {migResult.creados.map(c => (
+                              <tr key={c.usuario} className="border-b border-gray-50">
+                                <td className="py-1 text-gray-800">{c.nombre}</td>
+                                <td className="py-1 font-mono text-gray-600">{c.usuario}</td>
+                                <td className="py-1 font-mono text-gray-800 font-semibold">{c.reparado ? '(sin cambio)' : c.contrasena}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {migResult.errores.length > 0 && (
+                      <div className="bg-red-50 border border-red-200 rounded p-2 max-h-32 overflow-y-auto space-y-1">
+                        {migResult.errores.map((e, i) => (
+                          <p key={i} className="text-xs text-red-700"><strong>{e.nombre}</strong>: {e.error}</p>
+                        ))}
+                      </div>
+                    )}
+                    {migResult.total === 0 && (
+                      <p className="text-xs text-amber-700 font-semibold">⚠ No se encontraron barreristas en la base de datos.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Formulario agregar */}
+              <div>
+                <p className="text-xs text-gray-500 mb-2 font-medium">Agregar nuevo barrerista</p>
+                <div className="flex flex-wrap gap-2">
+                  <input type="text" placeholder="Nombre completo" value={formBr.nombre} onChange={e => setFormBr({ ...formBr, nombre: e.target.value })} className={inputCls} />
+                  <input type="text" placeholder="Usuario" value={formBr.usuario} onChange={e => setFormBr({ ...formBr, usuario: e.target.value.toLowerCase().replace(/\s/g, '') })} className={inputCls} />
+                  <input type="password" placeholder="Contraseña" value={formBr.contrasena} onChange={e => setFormBr({ ...formBr, contrasena: e.target.value })} className={inputCls} />
+                  <button onClick={handleAddBarrerista} className={btnPrimary}><Plus size={12} /> Agregar</button>
+                </div>
+                {errBr && <p className="text-xs text-red-600 mt-1">{errBr}</p>}
+              </div>
+
+              {/* Lista — oculta por defecto */}
+              <div>
+                <button
+                  onClick={() => setVerListaBarreristas(v => !v)}
+                  className="flex items-center gap-2 text-xs font-semibold text-gray-600 hover:text-gray-900 transition"
+                >
+                  {verListaBarreristas ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  {verListaBarreristas ? 'Ocultar lista' : `Ver todos los barreristas (${barreristasActivos.length})`}
+                </button>
+
+                {verListaBarreristas && (
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-xs border border-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr className="text-gray-500 border-b border-gray-200">
+                          <th className="text-left px-3 py-2 font-semibold">Nombre</th>
+                          <th className="text-left px-3 py-2 font-semibold">Usuario</th>
+                          <th className="text-left px-3 py-2 font-semibold">Acción</th>
+                        </tr>
+                      </thead>
                       <tbody>
-                        {migResult.creados.map(c => (
-                          <tr key={c.usuario} className="border-b border-gray-50">
-                            <td className="py-1 text-gray-800">{c.nombre}</td>
-                            <td className="py-1 font-mono text-gray-600">{c.usuario}</td>
-                            <td className="py-1 font-mono text-orange-700 font-semibold">{c.reparado ? '(sin cambio)' : c.contrasena}</td>
+                        {barreristasActivos.map((b, i) => (
+                          <tr key={b.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-3 py-2 text-gray-800 font-medium">{b.nombre}</td>
+                            <td className="px-3 py-2 text-gray-500 font-mono">{b.usuario}</td>
+                            <td className="px-3 py-2">
+                              <button onClick={async () => { try { await eliminarBarrerista(b.id); } catch (err: unknown) { setErrBr(err instanceof Error ? err.message : 'No se pudo eliminar.'); }}} className={btnDanger}>
+                                <Trash2 size={11} /> Eliminar
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                </div>
-              )}
-
-              {migResult.errores.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-red-700 mb-1">✗ Errores ({migResult.errores.length}):</p>
-                  <div className="bg-red-50 border border-red-200 rounded p-2 max-h-32 overflow-y-auto space-y-1">
-                    {migResult.errores.map((e, i) => (
-                      <p key={i} className="text-xs text-red-700"><strong>{e.nombre}</strong>: {e.error}</p>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {migResult.creados.length === 0 && migResult.errores.length === 0 && migResult.saltados.length > 0 && (
-                <p className="text-xs text-green-700 font-semibold">✓ Todos los barreristas ya tienen cuenta de inspector activa.</p>
-              )}
-              {migResult.total === 0 && (
-                <p className="text-xs text-yellow-700 font-semibold">⚠ No se encontraron barreristas en la base de datos.</p>
-              )}
+                )}
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Add form */}
-        <p className="text-xs text-gray-500 mb-2 font-medium">Agregar nuevo barrerista (se crea con cuenta de inspector)</p>
-        <div className="flex flex-wrap gap-2 mb-1">
-          <input type="text" placeholder="Nombre completo" value={formBr.nombre} onChange={e => setFormBr({ ...formBr, nombre: e.target.value })}
-            className="flex-1 min-w-28 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <input type="text" placeholder="Usuario" value={formBr.usuario} onChange={e => setFormBr({ ...formBr, usuario: e.target.value.toLowerCase().replace(/\s/g, '') })}
-            className="flex-1 min-w-24 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <input type="password" placeholder="Contraseña" value={formBr.contrasena} onChange={e => setFormBr({ ...formBr, contrasena: e.target.value })}
-            className="flex-1 min-w-24 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <button onClick={handleAddBarrerista} className={btnOrange}>
-            <Plus size={12} /> Agregar
-          </button>
-        </div>
-        {errBr && <p className="text-xs text-red-500 mb-2">{errBr}</p>}
+          {/* ── Tab: Inspectores ── */}
+          {tabGestion === 'inspectores' && (
+            <div className="space-y-4">
 
-        {/* Table */}
-        <div className="mt-4">
-          <p className="text-xs font-semibold text-gray-600 mb-2">Barreristas activos</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
-              <thead className="bg-orange-50">
-                <tr className="text-gray-500">
-                  <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Nombre</th>
-                  <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Usuario</th>
-                  <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {barreristaMostrados.map((b, i) => (
-                  <tr key={b.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-3 py-2 text-gray-800 font-medium">{b.nombre}</td>
-                    <td className="px-3 py-2 text-gray-500 font-mono">{b.usuario}</td>
-                    <td className="px-3 py-2">
-                      <button onClick={async () => { try { await eliminarBarrerista(b.id); } catch (err: unknown) { setErrBr(err instanceof Error ? err.message : 'No se pudo eliminar el barrerista.'); } }} className={btnRed}>
-                        <Trash2 size={11} /> Eliminar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!verTodosBarreristas && barreristasActivos.length > 7 && (
-            <button onClick={() => setVerTodosBarreristas(true)} className="mt-3 text-xs text-orange-600 hover:underline font-medium">
-              ▶ Ver todos ({barreristasActivos.length})
-            </button>
-          )}
-        </div>
-      </div>
+              {/* Formulario agregar */}
+              <div>
+                <p className="text-xs text-gray-500 mb-2 font-medium">Agregar nuevo inspector (acceso con usuario y contraseña)</p>
+                <div className="flex flex-wrap gap-2">
+                  <input type="text" placeholder="Nombre completo" value={formAdmin.nombre} onChange={e => setFormAdmin({ ...formAdmin, nombre: e.target.value })} className={inputCls} />
+                  <input type="text" placeholder="Nombre de usuario" value={formAdmin.username} onChange={e => setFormAdmin({ ...formAdmin, username: e.target.value.toLowerCase().replace(/\s/g, '') })} className={inputCls} />
+                  <input type="password" placeholder="Contraseña" value={formAdmin.password} onChange={e => setFormAdmin({ ...formAdmin, password: e.target.value })} className={inputCls} />
+                  <button onClick={handleAddInspector} className={btnPrimary}><Plus size={12} /> Agregar</button>
+                </div>
+                {errAdmin && <p className="text-xs text-red-600 mt-1">{errAdmin}</p>}
+              </div>
 
-      {/* ── 12. GESTIÓN DE INSPECTORES ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <SectionHeader title="Gestión de Inspectores" icon={<UserPlus size={15} />} />
+              {/* Lista — oculta por defecto */}
+              <div>
+                <button
+                  onClick={() => setVerListaInspectores(v => !v)}
+                  className="flex items-center gap-2 text-xs font-semibold text-gray-600 hover:text-gray-900 transition"
+                >
+                  {verListaInspectores ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  {verListaInspectores ? 'Ocultar lista' : `Ver todos los inspectores (${saveanUsers.length})`}
+                </button>
 
-        {/* Add form */}
-        <p className="text-xs text-gray-500 mb-2 font-medium">Agregar nuevo inspector (acceso con usuario y contraseña)</p>
-        <div className="flex flex-wrap gap-2 mb-1">
-          <input type="text" placeholder="Nombre completo" value={formAdmin.nombre} onChange={e => setFormAdmin({ ...formAdmin, nombre: e.target.value })}
-            className="flex-1 min-w-28 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <input type="text" placeholder="Nombre de usuario" value={formAdmin.username} onChange={e => setFormAdmin({ ...formAdmin, username: e.target.value.toLowerCase().replace(/\s/g, '') })}
-            className="flex-1 min-w-28 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <input type="password" placeholder="Contraseña" value={formAdmin.password} onChange={e => setFormAdmin({ ...formAdmin, password: e.target.value })}
-            className="flex-1 min-w-24 border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <button onClick={handleAddInspector} className={btnOrange}>
-            <Plus size={12} /> Agregar
-          </button>
-        </div>
-        {errAdmin && <p className="text-xs text-red-500 mb-2">{errAdmin}</p>}
-
-        {/* Table */}
-        <div className="mt-4">
-          <p className="text-xs font-semibold text-gray-600 mb-2">Inspectores registrados</p>
-          {saveanUsers.length === 0 ? (
-            <p className="text-gray-400 text-xs py-2">Sin inspectores registrados.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
-                <thead className="bg-orange-50">
-                  <tr className="text-gray-500">
-                    <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Nombre</th>
-                    <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Usuario</th>
-                    <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Rol</th>
-                    <th className="text-left px-3 py-2 font-semibold border-b border-gray-200">Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {saveanUsers.map((u, i) => (
-                    <tr key={u.usuarioId} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-3 py-2 text-gray-800 font-medium">{u.nombre}</td>
-                      <td className="px-3 py-2 text-gray-500 font-mono">{u.username || u.email.replace('@savean.local', '')}</td>
-                      <td className="px-3 py-2">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${u.rol === 'admin' ? 'bg-orange-600 text-white' : 'bg-blue-100 text-blue-700'}`}>
-                          {u.rol === 'admin' ? 'Director' : 'Inspector'}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">
-                        {u.usuarioId !== usuario?.usuarioId && (
-                          <button onClick={() => handleDeleteUser(u.usuarioId)} className={btnRed}>
-                            <Trash2 size={11} /> Eliminar
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                {verListaInspectores && (
+                  <div className="mt-3 overflow-x-auto">
+                    {saveanUsers.length === 0 ? (
+                      <p className="text-gray-400 text-xs py-2">Sin inspectores registrados.</p>
+                    ) : (
+                      <table className="w-full text-xs border border-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr className="text-gray-500 border-b border-gray-200">
+                            <th className="text-left px-3 py-2 font-semibold">Nombre</th>
+                            <th className="text-left px-3 py-2 font-semibold">Usuario</th>
+                            <th className="text-left px-3 py-2 font-semibold">Rol</th>
+                            <th className="text-left px-3 py-2 font-semibold">Acción</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {saveanUsers.map((u, i) => (
+                            <tr key={u.usuarioId} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="px-3 py-2 text-gray-800 font-medium">{u.nombre}</td>
+                              <td className="px-3 py-2 text-gray-500 font-mono">{u.username || u.email.replace('@savean.local', '')}</td>
+                              <td className="px-3 py-2">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${u.rol === 'admin' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                                  {u.rol === 'admin' ? 'Director' : 'Inspector'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2">
+                                {u.usuarioId !== usuario?.usuarioId && (
+                                  <button onClick={() => handleDeleteUser(u.usuarioId)} className={btnDanger}>
+                                    <Trash2 size={11} /> Eliminar
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -768,10 +785,10 @@ export function SaveanAdmin() {
       {/* ── MODAL KPI ── */}
       {kpiModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-16 px-4" onClick={() => setKpiModal(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[75vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+          <div className="bg-white shadow-xl w-full max-w-2xl max-h-[75vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-gray-50">
               <div>
-                <h3 className="font-bold text-gray-900 text-base">{kpiModal.title}</h3>
+                <h3 className="font-bold text-gray-900 text-sm">{kpiModal.title}</h3>
                 <p className="text-xs text-gray-400 mt-0.5">{kpiModal.guias.length} guía{kpiModal.guias.length !== 1 ? 's' : ''}</p>
               </div>
               <button onClick={() => setKpiModal(null)} className="text-gray-400 hover:text-gray-700 text-xl font-bold leading-none">×</button>
@@ -781,8 +798,8 @@ export function SaveanAdmin() {
             ) : (
               <div className="overflow-y-auto">
                 <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-gray-50">
-                    <tr className="text-gray-400 border-b">
+                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                    <tr className="text-gray-400">
                       <th className="text-left px-5 py-2 font-medium">N° Guía</th>
                       <th className="text-left px-3 py-2 font-medium">Estado</th>
                       <th className="text-left px-3 py-2 font-medium">Remitente</th>
@@ -793,17 +810,13 @@ export function SaveanAdmin() {
                   </thead>
                   <tbody>
                     {kpiModal.guias.map(g => (
-                      <tr
-                        key={g.id}
-                        className="border-b border-gray-50 hover:bg-orange-50 transition cursor-pointer"
-                        onClick={() => openGuiaFromModal(g)}
-                      >
-                        <td className="px-5 py-2 font-mono font-semibold text-orange-700">{g.numero}</td>
+                      <tr key={g.id} className="border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer" onClick={() => openGuiaFromModal(g)}>
+                        <td className="px-5 py-2 font-mono font-semibold text-gray-800">{g.numero}</td>
                         <td className="px-3 py-2"><EstadoBadge estado={g.estado} /></td>
                         <td className="px-3 py-2 text-gray-700">{g.remitenteNombre}</td>
                         <td className="px-3 py-2 text-gray-500">{g.inspectorNombre ?? '—'}</td>
                         <td className="px-3 py-2 text-gray-400">{formatFecha(g.fechaEmision)}</td>
-                        <td className="px-3 py-2 text-right"><Eye size={13} className="text-orange-400" /></td>
+                        <td className="px-3 py-2 text-right"><Eye size={12} className="text-gray-400" /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -815,7 +828,6 @@ export function SaveanAdmin() {
       )}
 
     </>)}
-
     </div>
   );
 }
