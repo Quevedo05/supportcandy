@@ -7,6 +7,25 @@ function fmtFecha(iso: string) {
   return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+// Aliases: clave en MAYÚSCULAS → nombre canónico
+const DESTINO_ALIASES: Record<string, string> = {
+  'MZA': 'MENDOZA', 'MDZ': 'MENDOZA',
+  'BSAS': 'BUENOS AIRES', 'BS AS': 'BUENOS AIRES', 'BS.AS.': 'BUENOS AIRES',
+  'CABA': 'BUENOS AIRES', 'CAPITAL FEDERAL': 'BUENOS AIRES',
+  'EEUU': 'ESTADOS UNIDOS', 'EE UU': 'ESTADOS UNIDOS',
+  'EE.UU.': 'ESTADOS UNIDOS', 'USA': 'ESTADOS UNIDOS',
+  'UNITED STATES': 'ESTADOS UNIDOS', 'UNITED STATES OF AMERICA': 'ESTADOS UNIDOS',
+  'BRAZIL': 'BRASIL',
+  'SUDAFRICA': 'SUDÁFRICA', 'SOUTH AFRICA': 'SUDÁFRICA',
+  'RIO NEGRO': 'RÍO NEGRO', 'NEUQUEN': 'NEUQUÉN', 'CORDOBA': 'CÓRDOBA',
+  'TUCUMAN': 'TUCUMÁN', 'ENTRE RIOS': 'ENTRE RÍOS',
+};
+
+function normalizarDestino(raw: string): string {
+  const upper = raw.trim().toUpperCase();
+  return DESTINO_ALIASES[upper] ?? upper;
+}
+
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' M';
   if (n >= 1_000)     return (n / 1_000).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' K';
@@ -128,9 +147,10 @@ export function SaveanInformes() {
         byBarrera[g.barrieraNombre] = (byBarrera[g.barrieraNombre] ?? 0) + 1;
       }
 
-      const destKey = g.destinoTipo === 'externo'
+      const destRaw = g.destinoTipo === 'externo'
         ? (g.destinoPais ?? g.destinoPuntoSalida ?? 'Exterior')
         : (g.destinoProvincia ?? g.destinoMercadoInterno ?? 'Mercado Interno');
+      const destKey = normalizarDestino(destRaw);
       byDestino[destKey] = (byDestino[destKey] ?? 0) + 1;
 
       for (const item of g.items) {
@@ -370,9 +390,10 @@ export function SaveanInformes() {
               <tbody className="divide-y divide-gray-100">
                 {resultado.map(g => {
                   const especies = [...new Set(g.items.map(i => i.especie).filter(Boolean))].join(', ');
-                  const destino = g.destinoTipo === 'externo'
+                  const destinoRaw = g.destinoTipo === 'externo'
                     ? [g.destinoPais, g.destinoPuntoSalida].filter(Boolean).join(' / ') || 'Externo'
                     : [g.destinoProvincia, g.destinoMercadoInterno].filter(Boolean).join(' / ') || 'Interno';
+                  const destino = normalizarDestino(destinoRaw);
                   return (
                     <tr key={g.id} className="hover:bg-orange-50 transition-colors">
                       <td className="px-3 py-2 font-mono font-semibold text-orange-700 whitespace-nowrap">{g.numero}</td>
