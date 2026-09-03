@@ -14,6 +14,34 @@ const HEADERS = [
 
 const TOTAL_COLS = 1 + HEADERS.length; // 25: A (REP ETIDO) + 24 columnas de datos
 
+const COLUMN_WIDTHS = [
+   80,  // A  REP ETIDO = 2
+  100,  // B  Fecha Solicitud
+  110,  // C  Fecha doc. completa
+  100,  // D  Fecha Comité
+   80,  // E  Legajo
+  180,  // F  Beneficiario
+  120,  // G  CUIT/CUIL
+  100,  // H  Fecha de nacimiento
+  120,  // I  Teléfono
+  200,  // J  E-mail
+  180,  // K  Domicilio
+  110,  // L  Departamento
+   90,  // M  Inscripto ARCA
+  100,  // N  Rubro
+  260,  // O  Descripción Proyecto
+  220,  // P  Destino de los fondos
+  260,  // Q  Impacto del Proyecto
+   80,  // R  DNI/ESTATUTO
+   80,  // S  ARCA BENEFICIARIO
+   80,  // T  FOTOS EMPRENDIMIENTO
+   80,  // U  PRESUPUESTOS
+   80,  // V  ARCA PROVEEDORES
+   80,  // W  CBU BENEFICIARIO
+   80,  // X  CERTIFICADO MIPYME
+   80,  // Y  CHEQUE
+];
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function crearBackup(sheets, spreadsheetId, sheetTitle, allData) {
@@ -160,6 +188,14 @@ async function aplicarTemplate(sheets, spreadsheetId, sheetTitle, sheetId, dataR
             fields: 'gridProperties.frozenRowCount',
           },
         },
+        // Anchos de columna
+        ...COLUMN_WIDTHS.map((pixelSize, colIndex) => ({
+          updateDimensionProperties: {
+            range: { sheetId, dimension: 'COLUMNS', startIndex: colIndex, endIndex: colIndex + 1 },
+            properties: { pixelSize },
+            fields: 'pixelSize',
+          },
+        })),
       ],
     },
   });
