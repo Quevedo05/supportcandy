@@ -214,14 +214,15 @@ async function asegurarPestana(sheets, spreadsheetId, sheetName) {
               fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,wrapStrategy,textFormat,backgroundColor)',
             },
           },
-          // Área de datos (fila 4 en adelante): wrap + bordes
+          // Área de datos (fila 4 en adelante): wrap + centrado + bordes
           {
             repeatCell: {
               range: { sheetId, startRowIndex: 3, endRowIndex: 10000, startColumnIndex: 0, endColumnIndex: totalCols },
               cell: {
                 userEnteredFormat: {
-                  wrapStrategy: 'WRAP',
+                  horizontalAlignment: 'CENTER',
                   verticalAlignment: 'MIDDLE',
+                  wrapStrategy: 'WRAP',
                   borders: {
                     top:    { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
                     bottom: { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
@@ -230,7 +231,7 @@ async function asegurarPestana(sheets, spreadsheetId, sheetName) {
                   },
                 },
               },
-              fields: 'userEnteredFormat(wrapStrategy,verticalAlignment,borders)',
+              fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,wrapStrategy,borders)',
             },
           },
           // Filtros automáticos en fila 3
