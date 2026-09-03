@@ -98,7 +98,11 @@ const HEADERS = [
   'ARCA PROVEEDORES', 'CBU BENEFICIARIO', 'CERTIFICADO MIPYME', 'CHEQUE',
 ];
 
-// Crea la pestaña si no existe y asegura que la fila 1 tenga los encabezados.
+// Estructura de la pestaña:
+//   Fila 1 : Título (nombre del programa)
+//   Fila 2 : vacía
+//   Fila 3 : A3 = "REP ETIDO = 2"  |  B3:Y3 = encabezados de datos
+//   Fila 4+: datos — columna A queda libre para marcar repetidos a mano
 async function asegurarPestana(sheets, spreadsheetId, sheetName) {
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
   const existe = spreadsheet.data.sheets.some(
@@ -115,39 +119,32 @@ async function asegurarPestana(sheets, spreadsheetId, sheetName) {
     console.log(`[Sheets] Pestaña "${sheetName}" creada automáticamente.`);
   }
 
-  // Verificar si la fila 1 ya tiene los encabezados
-  const check = await sheets.spreadsheets.values.get({
+  // Verificar si B3 ya tiene el encabezado de datos
+  const checkResult = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `'${sheetName}'!A1`,
+    range: `'${sheetName}'!B3`,
   });
-  const celdaA1 = (check.data.values?.[0]?.[0] ?? '').toString().trim();
+  const celdaB3 = (checkResult.data.values?.[0]?.[0] ?? '').toString().trim();
 
-  if (celdaA1 !== 'Fecha Solicitud') {
-    if (celdaA1 !== '') {
-      // Hay datos en fila 1 sin encabezado — insertar fila vacía arriba primero
-      const sheetId = (await sheets.spreadsheets.get({ spreadsheetId }))
-        .data.sheets.find((s) => s.properties.title === sheetName)
-        .properties.sheetId;
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        resource: {
-          requests: [{
-            insertDimension: {
-              range: { sheetId, dimension: 'ROWS', startIndex: 0, endIndex: 1 },
-              inheritFromBefore: false,
-            },
-          }],
-        },
-      });
-    }
-    // Escribir encabezados en fila 1
-    await sheets.spreadsheets.values.update({
+  if (celdaB3 !== 'Fecha Solicitud') {
+    // Escribir título en A1 y encabezados en fila 3
+    await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
-      range: `'${sheetName}'!A1`,
-      valueInputOption: 'USER_ENTERED',
-      resource: { values: [HEADERS] },
+      resource: {
+        valueInputOption: 'USER_ENTERED',
+        data: [
+          {
+            range: `'${sheetName}'!A1`,
+            values: [[sheetName.toUpperCase()]],
+          },
+          {
+            range: `'${sheetName}'!A3`,
+            values: [['REP ETIDO = 2', ...HEADERS]],
+          },
+        ],
+      },
     });
-    console.log(`[Sheets] Encabezados escritos en "${sheetName}".`);
+    console.log(`[Sheets] Template inicializado en "${sheetName}".`);
   }
 }
 
@@ -183,9 +180,10 @@ async function appendTicketRow(ticket, formularioPrograma) {
   const parsed = parseDescripcion(ticket.descripcion || '');
   const row    = buildRow(ticket, parsed);
 
+  // Los datos empiezan en columna B; la columna A queda para "REP ETIDO" manual.
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: `'${sheetName}'!A:Z`,
+    range: `'${sheetName}'!B:Z`,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     resource: { values: [row] },
