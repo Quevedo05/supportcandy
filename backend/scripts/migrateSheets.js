@@ -14,29 +14,27 @@ const HEADERS = [
 
 const TOTAL_COLS = 1 + HEADERS.length; // 25: A (REP ETIDO) + 24 columnas de datos
 
-// Crea una pestaña de backup con todos los datos originales antes de tocar nada.
-async function crearBackup(sheets, spreadsheetId, sheetTitle, allData) {
-  const backupName = `BACKUP_${sheetTitle}`.slice(0, 100); // Sheets limita a 100 chars
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // Eliminar backup anterior si existe
+async function crearBackup(sheets, spreadsheetId, sheetTitle, allData) {
+  const backupName = `BACKUP_${sheetTitle}`.slice(0, 100);
+
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
   const existente = spreadsheet.data.sheets.find((s) => s.properties.title === backupName);
   if (existente) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
-      resource: {
-        requests: [{ deleteSheet: { sheetId: existente.properties.sheetId } }],
-      },
+      resource: { requests: [{ deleteSheet: { sheetId: existente.properties.sheetId } }] },
     });
+    await sleep(1500);
   }
 
-  // Crear la pestaña de backup
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
     resource: { requests: [{ addSheet: { properties: { title: backupName } } }] },
   });
+  await sleep(1500);
 
-  // Escribir todos los datos originales (incluida la fila de encabezados)
   if (allData.length > 0) {
     await sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -44,48 +42,22 @@ async function crearBackup(sheets, spreadsheetId, sheetTitle, allData) {
       valueInputOption: 'USER_ENTERED',
       resource: { values: allData },
     });
+    await sleep(1500);
   }
 
-  console.log(`  Backup creado en pestaña "${backupName}" (${allData.length} filas).`);
+  console.log(`  Backup creado en "${backupName}" (${allData.length} filas).`);
   return backupName;
 }
 
-async function migrateTab(sheets, spreadsheetId, sheetTitle, sheetId) {
-  console.log(`\n── [${sheetTitle}] ──────────────────────`);
-
-  // Detectar si está en formato viejo (A1 = "Fecha Solicitud")
-  const a1Result = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `'${sheetTitle}'!A1`,
-  });
-  const a1 = (a1Result.data.values?.[0]?.[0] ?? '').toString().trim();
-
-  if (a1 !== 'Fecha Solicitud') {
-    console.log(`  Sin formato antiguo (A1="${a1}") — omitiendo.`);
-    return;
-  }
-
-  // Leer TODOS los datos originales (fila 1 incluida = encabezados viejos + datos)
-  const allDataResult = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `'${sheetTitle}'!A1:Z`,
-  });
-  const allData = allDataResult.data.values || [];
-
-  // Los datos reales empiezan en fila 2 (fila 1 = encabezados viejos)
-  const dataRows = allData.slice(1);
-  console.log(`  ${dataRows.length} filas de datos leídas.`);
-
-  // ── BACKUP primero, antes de tocar nada ──────────────────────────────────
-  const backupName = await crearBackup(sheets, spreadsheetId, sheetTitle, allData);
-
-  // Limpiar contenido de la pestaña original
+async function aplicarTemplate(sheets, spreadsheetId, sheetTitle, sheetId, dataRows) {
+  // Limpiar contenido
   await sheets.spreadsheets.values.clear({
     spreadsheetId,
     range: `'${sheetTitle}'!A:Z`,
   });
+  await sleep(1500);
 
-  // Quitar filtros y filas congeladas si existían
+  // Quitar filtros y filas congeladas previas
   try {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
@@ -101,9 +73,10 @@ async function migrateTab(sheets, spreadsheetId, sheetTitle, sheetId) {
         ],
       },
     });
-  } catch (_) { /* sin filtro previo — continuar */ }
+    await sleep(1500);
+  } catch (_) { /* sin filtro previo */ }
 
-  // Escribir template: título en A1, encabezados en fila 3
+  // Escribir título y encabezados
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
     resource: {
@@ -114,20 +87,19 @@ async function migrateTab(sheets, spreadsheetId, sheetTitle, sheetId) {
       ],
     },
   });
+  await sleep(1500);
 
-  // Aplicar formato visual
+  // Formato visual
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
     resource: {
       requests: [
-        // Merge fila 1 (título)
         {
           mergeCells: {
             range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: TOTAL_COLS },
             mergeType: 'MERGE_ALL',
           },
         },
-        // Título: negrita, centrado, tamaño 13
         {
           repeatCell: {
             range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: TOTAL_COLS },
@@ -141,7 +113,6 @@ async function migrateTab(sheets, spreadsheetId, sheetTitle, sheetId) {
             fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,textFormat)',
           },
         },
-        // Encabezados fila 3: fondo amarillo #FFE599, negrita, centrado
         {
           repeatCell: {
             range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: TOTAL_COLS },
@@ -156,7 +127,6 @@ async function migrateTab(sheets, spreadsheetId, sheetTitle, sheetId) {
             fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,textFormat,backgroundColor)',
           },
         },
-        // Filtros automáticos desde fila 3
         {
           setBasicFilter: {
             filter: {
@@ -164,7 +134,6 @@ async function migrateTab(sheets, spreadsheetId, sheetTitle, sheetId) {
             },
           },
         },
-        // Congelar primeras 3 filas
         {
           updateSheetProperties: {
             properties: { sheetId, gridProperties: { frozenRowCount: 3 } },
@@ -174,8 +143,9 @@ async function migrateTab(sheets, spreadsheetId, sheetTitle, sheetId) {
       ],
     },
   });
+  await sleep(1500);
 
-  // Restaurar datos desde B4 (columna A vacía = REP ETIDO manual)
+  // Restaurar datos desde B4
   if (dataRows.length > 0) {
     const migratedRows = dataRows.map((row) => ['', ...row]);
     await sheets.spreadsheets.values.update({
@@ -184,10 +154,53 @@ async function migrateTab(sheets, spreadsheetId, sheetTitle, sheetId) {
       valueInputOption: 'USER_ENTERED',
       resource: { values: migratedRows },
     });
+    await sleep(1500);
     console.log(`  Datos restaurados en B4:Y${3 + dataRows.length}.`);
   }
+}
 
-  console.log(`  ✓ Migrado. Backup guardado en "${backupName}" — borrarlo cuando verifiques que todo está bien.`);
+async function migrateTab(sheets, spreadsheetId, sheetTitle, sheetId, allSheetTitles) {
+  console.log(`\n── [${sheetTitle}] ──────────────────────`);
+
+  const backupName = `BACKUP_${sheetTitle}`.slice(0, 100);
+
+  // Leer A1 para detectar el estado actual
+  const a1Result = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `'${sheetTitle}'!A1`,
+  });
+  const a1 = (a1Result.data.values?.[0]?.[0] ?? '').toString().trim();
+
+  let dataRows = [];
+
+  if (a1 === 'Fecha Solicitud') {
+    // Formato viejo normal: encabezados en A1, datos desde A2
+    const allDataResult = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${sheetTitle}'!A1:Z`,
+    });
+    const allData = allDataResult.data.values || [];
+    dataRows = allData.slice(1);
+    console.log(`  Formato viejo detectado. ${dataRows.length} filas de datos.`);
+    await crearBackup(sheets, spreadsheetId, sheetTitle, allData);
+
+  } else if (a1 === '' && allSheetTitles.includes(backupName)) {
+    // Migración parcial anterior: A1 vacío pero existe backup → retomar desde backup
+    console.log(`  Migración parcial detectada. Retomando desde "${backupName}"...`);
+    const backupResult = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${backupName}'!A2:Z`,
+    });
+    dataRows = backupResult.data.values || [];
+    console.log(`  ${dataRows.length} filas recuperadas del backup.`);
+
+  } else {
+    console.log(`  Sin formato antiguo (A1="${a1}") — omitiendo.`);
+    return;
+  }
+
+  await aplicarTemplate(sheets, spreadsheetId, sheetTitle, sheetId, dataRows);
+  console.log(`  ✓ Migrado. Verificá y borrá "${backupName}" cuando estés conforme.`);
 }
 
 async function main() {
@@ -208,15 +221,22 @@ async function main() {
   const sheets      = google.sheets({ version: 'v4', auth });
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
   const tabs        = spreadsheet.data.sheets;
+  const allTitles   = tabs.map((s) => s.properties.title);
 
-  // Ignorar pestañas de backup (las que empiezan con BACKUP_)
+  // Procesar solo pestañas que no son backups
   const tabsAMigrar = tabs.filter((s) => !s.properties.title.startsWith('BACKUP_'));
 
-  console.log(`Spreadsheet encontrado.`);
   console.log(`Pestañas a evaluar: ${tabsAMigrar.map((s) => s.properties.title).join(', ')}\n`);
 
-  for (const tab of tabsAMigrar) {
-    await migrateTab(sheets, spreadsheetId, tab.properties.title, tab.properties.sheetId);
+  for (let i = 0; i < tabsAMigrar.length; i++) {
+    const tab = tabsAMigrar[i];
+    await migrateTab(sheets, spreadsheetId, tab.properties.title, tab.properties.sheetId, allTitles);
+
+    // Pausa entre pestañas para no exceder la cuota de la API (60 escrituras/minuto)
+    if (i < tabsAMigrar.length - 1) {
+      console.log(`\n  Esperando 10 s antes de continuar...`);
+      await sleep(10000);
+    }
   }
 
   console.log('\n✓ Proceso completo.');
