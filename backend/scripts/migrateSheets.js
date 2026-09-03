@@ -120,11 +120,31 @@ async function aplicarTemplate(sheets, spreadsheetId, sheetTitle, sheetId, dataR
               userEnteredFormat: {
                 horizontalAlignment: 'CENTER',
                 verticalAlignment: 'MIDDLE',
+                wrapStrategy: 'WRAP',
                 textFormat: { bold: true },
                 backgroundColor: { red: 1.0, green: 0.898, blue: 0.6 },
               },
             },
-            fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,textFormat,backgroundColor)',
+            fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,wrapStrategy,textFormat,backgroundColor)',
+          },
+        },
+        // Área de datos (fila 4 en adelante): wrap + bordes
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 3, endRowIndex: 10000, startColumnIndex: 0, endColumnIndex: TOTAL_COLS },
+            cell: {
+              userEnteredFormat: {
+                wrapStrategy: 'WRAP',
+                verticalAlignment: 'MIDDLE',
+                borders: {
+                  top:    { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                  bottom: { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                  left:   { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                  right:  { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                },
+              },
+            },
+            fields: 'userEnteredFormat(wrapStrategy,verticalAlignment,borders)',
           },
         },
         {

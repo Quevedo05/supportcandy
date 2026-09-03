@@ -169,7 +169,7 @@ async function asegurarPestana(sheets, spreadsheetId, sheetName) {
               fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,textFormat)',
             },
           },
-          // Formato de encabezados fila 3: fondo amarillo (#FFE599), negrita, centrado
+          // Formato de encabezados fila 3: fondo amarillo, negrita, centrado, wrap
           {
             repeatCell: {
               range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: totalCols },
@@ -177,11 +177,31 @@ async function asegurarPestana(sheets, spreadsheetId, sheetName) {
                 userEnteredFormat: {
                   horizontalAlignment: 'CENTER',
                   verticalAlignment: 'MIDDLE',
+                  wrapStrategy: 'WRAP',
                   textFormat: { bold: true },
                   backgroundColor: { red: 1.0, green: 0.898, blue: 0.6 },
                 },
               },
-              fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,textFormat,backgroundColor)',
+              fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,wrapStrategy,textFormat,backgroundColor)',
+            },
+          },
+          // Área de datos (fila 4 en adelante): wrap + bordes
+          {
+            repeatCell: {
+              range: { sheetId, startRowIndex: 3, endRowIndex: 10000, startColumnIndex: 0, endColumnIndex: totalCols },
+              cell: {
+                userEnteredFormat: {
+                  wrapStrategy: 'WRAP',
+                  verticalAlignment: 'MIDDLE',
+                  borders: {
+                    top:    { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                    bottom: { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                    left:   { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                    right:  { style: 'SOLID', color: { red: 0.8, green: 0.8, blue: 0.8 } },
+                  },
+                },
+              },
+              fields: 'userEnteredFormat(wrapStrategy,verticalAlignment,borders)',
             },
           },
           // Filtros automáticos en fila 3
