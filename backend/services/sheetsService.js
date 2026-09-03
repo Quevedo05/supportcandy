@@ -99,25 +99,27 @@ const HEADERS = [
 ];
 
 // Estructura de la pestaña:
-//   Fila 1 : Título (nombre del programa)
+//   Fila 1 : Título (nombre del programa) — celdas mergeadas, negrita, centrado
 //   Fila 2 : vacía
-//   Fila 3 : A3 = "REP ETIDO = 2"  |  B3:Y3 = encabezados de datos
+//   Fila 3 : A3 = "REP ETIDO = 2"  |  B3:Y3 = encabezados con fondo amarillo y filtros
 //   Fila 4+: datos — columna A queda libre para marcar repetidos a mano
 async function asegurarPestana(sheets, spreadsheetId, sheetName) {
-  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
-  const existe = spreadsheet.data.sheets.some(
-    (s) => s.properties.title === sheetName
-  );
+  // Obtener el spreadsheet y buscar la pestaña
+  let spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+  let sheetMeta = spreadsheet.data.sheets.find((s) => s.properties.title === sheetName);
 
-  if (!existe) {
-    await sheets.spreadsheets.batchUpdate({
+  if (!sheetMeta) {
+    const addResult = await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       resource: {
         requests: [{ addSheet: { properties: { title: sheetName } } }],
       },
     });
+    sheetMeta = { properties: addResult.data.replies[0].addSheet.properties };
     console.log(`[Sheets] Pestaña "${sheetName}" creada automáticamente.`);
   }
+
+  const sheetId = sheetMeta.properties.sheetId;
 
   // Verificar si B3 ya tiene el encabezado de datos
   const checkResult = await sheets.spreadsheets.values.get({
@@ -127,23 +129,80 @@ async function asegurarPestana(sheets, spreadsheetId, sheetName) {
   const celdaB3 = (checkResult.data.values?.[0]?.[0] ?? '').toString().trim();
 
   if (celdaB3 !== 'Fecha Solicitud') {
-    // Escribir título en A1 y encabezados en fila 3
+    const totalCols = 1 + HEADERS.length; // 25: A (REP ETIDO) + 24 columnas de datos
+
+    // 1. Escribir contenido: título en A1, encabezados en fila 3
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
       resource: {
         valueInputOption: 'USER_ENTERED',
         data: [
+          { range: `'${sheetName}'!A1`, values: [[sheetName.toUpperCase()]] },
+          { range: `'${sheetName}'!A3`, values: [['REP ETIDO = 2', ...HEADERS]] },
+        ],
+      },
+    });
+
+    // 2. Aplicar formato visual
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          // Merge A1:Y1 para el título
           {
-            range: `'${sheetName}'!A1`,
-            values: [[sheetName.toUpperCase()]],
+            mergeCells: {
+              range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: totalCols },
+              mergeType: 'MERGE_ALL',
+            },
           },
+          // Formato del título: negrita, centrado, tamaño 13
           {
-            range: `'${sheetName}'!A3`,
-            values: [['REP ETIDO = 2', ...HEADERS]],
+            repeatCell: {
+              range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: totalCols },
+              cell: {
+                userEnteredFormat: {
+                  horizontalAlignment: 'CENTER',
+                  verticalAlignment: 'MIDDLE',
+                  textFormat: { bold: true, fontSize: 13 },
+                },
+              },
+              fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,textFormat)',
+            },
+          },
+          // Formato de encabezados fila 3: fondo amarillo (#FFE599), negrita, centrado
+          {
+            repeatCell: {
+              range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: totalCols },
+              cell: {
+                userEnteredFormat: {
+                  horizontalAlignment: 'CENTER',
+                  verticalAlignment: 'MIDDLE',
+                  textFormat: { bold: true },
+                  backgroundColor: { red: 1.0, green: 0.898, blue: 0.6 },
+                },
+              },
+              fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment,textFormat,backgroundColor)',
+            },
+          },
+          // Filtros automáticos en fila 3
+          {
+            setBasicFilter: {
+              filter: {
+                range: { sheetId, startRowIndex: 2, startColumnIndex: 0, endColumnIndex: totalCols },
+              },
+            },
+          },
+          // Congelar las primeras 3 filas
+          {
+            updateSheetProperties: {
+              properties: { sheetId, gridProperties: { frozenRowCount: 3 } },
+              fields: 'gridProperties.frozenRowCount',
+            },
           },
         ],
       },
     });
+
     console.log(`[Sheets] Template inicializado en "${sheetName}".`);
   }
 }
