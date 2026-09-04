@@ -49,13 +49,12 @@ async function seed() {
   // ── Barreras SAVEAN ─────────────────────────────────────────────────────────
   const barreras = [
     { nombre: 'San Carlos',  ruta: 'Ruta Nac. 40',   kilometro: 'km 3379', departamento: 'Sarmiento' },
-    { nombre: 'Valle Fértil', ruta: 'Ruta Prov. 510', kilometro: '',        departamento: 'Valle Fértil' },
-    { nombre: 'Talacasto',   ruta: 'Ruta Nac. 40',   kilometro: 'km 3550', departamento: 'Albardón' },
-    { nombre: 'Caucete',     ruta: 'Ruta Nac. 20',   kilometro: '',        departamento: 'Caucete' },
-    { nombre: 'Zonda',       ruta: 'Ruta Prov. 12',  kilometro: '',        departamento: 'Zonda' },
-    { nombre: 'Albardón',    ruta: 'Ruta Nac. 40',   kilometro: 'km 3580', departamento: 'Albardón' },
-    { nombre: 'Iglesia',     ruta: 'Ruta Nac. 150',  kilometro: '',        departamento: 'Iglesia' },
-    { nombre: '25 de Mayo',  ruta: 'Ruta Nac. 7',    kilometro: '',        departamento: '25 de Mayo' },
+    { nombre: 'Encon',       ruta: 'Ruta Nac. 7',    kilometro: '',        departamento: 'Encon'      },
+    { nombre: 'Encon Sur',   ruta: null,              kilometro: null,      departamento: null         },
+    { nombre: 'Vallecito',   ruta: 'Ruta Nac. 20',   kilometro: '',        departamento: 'Caucete'    },
+    { nombre: 'Valdecito',   ruta: 'Ruta Prov. 510', kilometro: '',        departamento: 'Valle Fértil' },
+    { nombre: 'Calingasta',  ruta: 'Ruta Nac. 150',  kilometro: '',        departamento: 'Iglesia'    },
+    { nombre: 'Barreal',     ruta: null,              kilometro: null,      departamento: null         },
   ];
 
   const [existingBarreras] = await pool.query('SELECT COUNT(*) AS total FROM barreras_savean');
