@@ -46,7 +46,7 @@ async function run() {
         [a, de]
       );
       const [guias] = await conn.query(
-        'UPDATE formularios_savean SET barrera_nombre = ? WHERE barrera_nombre = ?',
+        'UPDATE guias_savean SET barrera_nombre = ? WHERE barrera_nombre = ?',
         [a, de]
       );
       console.log(`Renombrar "${de}" → "${a}": ${res.affectedRows} barrera(s), ${guias.affectedRows} guía(s) actualizadas`);
