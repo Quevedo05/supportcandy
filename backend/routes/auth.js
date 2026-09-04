@@ -15,6 +15,14 @@ const loginLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
+const activarLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Demasiados intentos de activación. Por favor, espere 1 hora e intente nuevamente.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // POST /api/auth/login
 router.post('/login', loginLimiter, async (req, res) => {
   try {
@@ -123,7 +131,7 @@ router.get('/invitacion/:token', async (req, res) => {
 });
 
 // POST /api/auth/activar — PUBLIC (establecer contraseña y activar cuenta)
-router.post('/activar', async (req, res) => {
+router.post('/activar', activarLimiter, async (req, res) => {
   try {
     const { token, password } = req.body;
     if (!token || !password || password.length < 8) {

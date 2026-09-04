@@ -14,56 +14,6 @@ function generarToken(): string {
     .join('');
 }
 
-const SEED_DEV: Usuario = {
-  id: 'dev-001',
-  nombre: 'Desarrollador',
-  email: 'dev@sistema.com',
-  password: 'dev123',
-  rol: 'dev',
-  modulo: 'tickets',
-  activo: true,
-  activado: true,
-  creadoEn: new Date().toISOString(),
-};
-
-const SEED_ADMIN_TICKETS: Usuario = {
-  id: 'admin-001',
-  nombre: 'Administrador',
-  email: 'admin@agenciacalidad.gob.ar',
-  password: 'admin123',
-  rol: 'admin',
-  modulo: 'tickets',
-  activo: true,
-  activado: true,
-  creadoEn: new Date().toISOString(),
-};
-
-const SEED_INSPECTOR_SAVEAN: Usuario = {
-  id: 'inspector-savean-001',
-  nombre: 'Inspector Savean',
-  email: 'inspector@savean.gob.ar',
-  password: 'savean123',
-  rol: 'inspector',
-  modulo: 'savean',
-  activo: true,
-  activado: true,
-  creadoEn: new Date().toISOString(),
-};
-
-const SEED_DIRECTOR_SAVEAN: Usuario = {
-  id: 'director-savean-001',
-  nombre: 'Director Savean',
-  email: 'director@savean.gob.ar',
-  password: 'director123',
-  rol: 'admin',
-  modulo: 'savean',
-  activo: true,
-  activado: true,
-  creadoEn: new Date().toISOString(),
-};
-
-const SEEDS = [SEED_DEV, SEED_ADMIN_TICKETS, SEED_INSPECTOR_SAVEAN, SEED_DIRECTOR_SAVEAN];
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<SesionActiva | null>(null);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -81,10 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         lista = [];
       }
     }
-
-    SEEDS.forEach((seed) => {
-      if (!lista.some((u) => u.email === seed.email)) lista.push(seed);
-    });
 
     localStorage.setItem(STORAGE_KEY_USUARIOS, JSON.stringify(lista));
     setUsuarios(lista);
@@ -134,14 +80,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // 401 means either wrong password for a DB user OR user not in DB (savean/dev seeds)
-      // Fall through to local auth in both cases
+      // Backend respondió con error (401, 403, etc.) — no derivar al auth local
+      const body = await res.json().catch(() => ({}));
+      setError(body.error || 'Email o contraseña incorrectos');
+      throw new Error('invalid');
     } catch (err: any) {
       if (err.message === 'invalid') throw err;
-      // Backend unavailable — fall through to local auth
+      // Error de red — backend no disponible, intentar auth local como último recurso
     }
 
-    // Local auth fallback (dev / savean users not in DB)
+    // Auth local: solo cuando el backend está completamente inaccesible por red
     const found = usuarios.find((u) => u.email === email && u.activo);
 
     if (!found) {

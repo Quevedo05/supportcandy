@@ -3,6 +3,11 @@ const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const { pool } = require('./connection');
 
+if (process.env.NODE_ENV === 'production') {
+  console.error('ERROR: seed.js no puede ejecutarse en producción. Abortando.');
+  process.exit(1);
+}
+
 async function seedUsuario({ email, password, nombre, rol, modulo }) {
   const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [email]);
   if (existing.length > 0) {

@@ -1,5 +1,6 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
+const rateLimit = require('express-rate-limit');
 const { pool } = require('../db/connection');
 const { autenticar } = require('../middleware/auth');
 const { soloModulo } = require('../middleware/soloModulo');
@@ -7,6 +8,33 @@ const { enviarAsignacionTicket } = require('../services/mailer');
 const sheetsService = require('../services/sheetsService');
 
 const soloTickets = soloModulo('tickets');
+
+const MIME_PERMITIDOS = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf',
+]);
+
+function validarAdjuntos(adjuntos) {
+  if (!Array.isArray(adjuntos)) return null;
+  for (const adj of adjuntos) {
+    if (typeof adj !== 'string' || !adj.startsWith('data:')) {
+      return 'Formato de adjunto inválido.';
+    }
+    const mime = adj.split(';')[0].replace('data:', '');
+    if (!MIME_PERMITIDOS.has(mime)) {
+      return `Tipo de archivo no permitido: ${mime}. Solo se aceptan imágenes y PDF.`;
+    }
+  }
+  return null;
+}
+
+const crearTicketLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: { error: 'Demasiadas solicitudes. Por favor, espere 1 hora e intente nuevamente.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const router = express.Router();
 
@@ -51,7 +79,7 @@ function formatTicket(row) {
 // POST /api/tickets/crear-desde-formulario — PUBLIC (no JWT)
 // Must be registered before /:ticketId routes so Express doesn't match
 // the literal "crear-desde-formulario" as a ticketId param.
-router.post('/crear-desde-formulario', async (req, res) => {
+router.post('/crear-desde-formulario', crearTicketLimiter, async (req, res) => {
   try {
     const {
       formularioId,
@@ -729,6 +757,11 @@ router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) 
 
     const comentarioId = uuidv4();
     const now = new Date();
+
+    if (tieneAdjuntos) {
+      const errMime = validarAdjuntos(adjuntos);
+      if (errMime) return res.status(400).json({ error: errMime });
+    }
 
     const adjuntosJson = tieneAdjuntos ? JSON.stringify(adjuntos) : null;
 

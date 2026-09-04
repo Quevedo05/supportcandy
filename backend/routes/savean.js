@@ -2,11 +2,20 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
+const rateLimit = require('express-rate-limit');
 const { pool } = require('../db/connection');
 const { autenticar } = require('../middleware/auth');
 const { soloAdmin } = require('../middleware/adminOnly');
 const { soloModulo } = require('../middleware/soloModulo');
 const { enviarGuiaPorEmail } = require('../services/mailer');
+
+const crearGuiaLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiadas solicitudes. Por favor, espere 1 hora e intente nuevamente.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const soloSavean = soloModulo('savean');
 
@@ -83,7 +92,7 @@ function formatBarrerista(row) {
 // ─── guias ───────────────────────────────────────────────────────────────────
 
 // POST /api/savean/guias — PUBLIC (citizen submits from landing page)
-router.post('/guias', async (req, res) => {
+router.post('/guias', crearGuiaLimiter, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();

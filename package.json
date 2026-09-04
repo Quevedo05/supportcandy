@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "audit:check": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
