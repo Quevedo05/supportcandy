@@ -20,25 +20,9 @@ function validarAdjuntos(adjuntos) {
     if (typeof adj !== 'object' || adj === null) {
       return 'Formato de adjunto inválido.';
     }
-    const contenido = adj.contenido;
-    if (typeof contenido !== 'string') {
-      return 'Formato de adjunto inválido.';
-    }
-    // El frontend codifica el dataUrl como '2b64:' + btoa(dataUrl)
-    let dataUrl = contenido;
-    if (contenido.startsWith('2b64:')) {
-      try {
-        dataUrl = Buffer.from(contenido.slice(5), 'base64').toString('utf8');
-      } catch {
-        return 'Formato de adjunto inválido.';
-      }
-    }
-    if (!dataUrl.startsWith('data:')) {
-      return 'Formato de adjunto inválido.';
-    }
-    const mime = dataUrl.split(';')[0].replace('data:', '');
-    if (!MIME_PERMITIDOS.has(mime)) {
-      return `Tipo de archivo no permitido: ${mime}. Solo se aceptan imágenes y PDF.`;
+    const mime = adj.tipo;
+    if (typeof mime !== 'string' || !MIME_PERMITIDOS.has(mime)) {
+      return `Tipo de archivo no permitido. Solo se aceptan imágenes (JPEG, PNG, GIF, WebP) y PDF.`;
     }
   }
   return null;

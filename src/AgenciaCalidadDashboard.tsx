@@ -2720,6 +2720,7 @@ export default function AgenciaCalidadDashboard() {
                   contenido: state.comentarioNuevo,
                   adjuntos: tieneAdjuntos ? adjuntos.map(adj => ({
                     nombre: adj.contenido ? 'fn:' + btoa(adj.nombre) : adj.nombre,
+                    tipo: adj.tipo,
                     tamano: adj.tamano,
                     contenido: adj.contenido ? '2b64:' + btoa(adj.contenido) : adj.contenido,
                   })) : undefined,
