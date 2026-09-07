@@ -100,6 +100,9 @@ app.use((err, _req, res, _next) => {
   if (err.type === 'entity.too.large' || err.status === 413) {
     return res.status(413).json({ error: 'El archivo adjunto es demasiado grande. Máximo permitido: 50 MB por solicitud.' });
   }
+  if (err.message && err.message.startsWith('CORS:')) {
+    return res.status(403).json({ error: 'Origen no permitido.' });
+  }
   console.error('[UNHANDLED ERROR]', err.message);
   res.status(500).json({ error: 'Error interno del servidor' });
 });

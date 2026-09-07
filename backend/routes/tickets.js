@@ -17,10 +17,26 @@ const MIME_PERMITIDOS = new Set([
 function validarAdjuntos(adjuntos) {
   if (!Array.isArray(adjuntos)) return null;
   for (const adj of adjuntos) {
-    if (typeof adj !== 'string' || !adj.startsWith('data:')) {
+    if (typeof adj !== 'object' || adj === null) {
       return 'Formato de adjunto inválido.';
     }
-    const mime = adj.split(';')[0].replace('data:', '');
+    const contenido = adj.contenido;
+    if (typeof contenido !== 'string') {
+      return 'Formato de adjunto inválido.';
+    }
+    // El frontend codifica el dataUrl como '2b64:' + btoa(dataUrl)
+    let dataUrl = contenido;
+    if (contenido.startsWith('2b64:')) {
+      try {
+        dataUrl = Buffer.from(contenido.slice(5), 'base64').toString('utf8');
+      } catch {
+        return 'Formato de adjunto inválido.';
+      }
+    }
+    if (!dataUrl.startsWith('data:')) {
+      return 'Formato de adjunto inválido.';
+    }
+    const mime = dataUrl.split(';')[0].replace('data:', '');
     if (!MIME_PERMITIDOS.has(mime)) {
       return `Tipo de archivo no permitido: ${mime}. Solo se aceptan imágenes y PDF.`;
     }
