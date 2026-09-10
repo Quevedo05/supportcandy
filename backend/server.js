@@ -9,6 +9,7 @@ const usuariosRoutes = require('./routes/usuarios');
 const ticketsRoutes = require('./routes/tickets');
 const formulariosRoutes = require('./routes/formularios');
 const saveanRoutes = require('./routes/savean');
+const saveanEntradaRoutes = require('./routes/savean-entrada');
 const comiteRoutes = require('./routes/comite');
 const reportesRoutes = require('./routes/reportes');
 
@@ -85,6 +86,7 @@ app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/tickets', ticketsRoutes);
 app.use('/api/formularios', formulariosRoutes);
 app.use('/api/savean', saveanRoutes);
+app.use('/api/savean/entrada', saveanEntradaRoutes);
 app.use('/api/comite', comiteRoutes);
 app.use('/api/reportes', reportesRoutes);
 

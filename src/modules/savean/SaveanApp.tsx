@@ -5,18 +5,110 @@ import { SaveanInspector } from './components/SaveanInspector';
 import { SaveanFormulario } from './components/SaveanFormulario';
 import { SaveanAdmin } from './components/SaveanAdmin';
 import { SaveanInformes } from './components/SaveanInformes';
-import { LogOut, Shield, BarChart2, Plus, User, FileBarChart } from 'lucide-react';
+import { SaveanEntrada } from './components/SaveanEntrada';
+import { SaveanSanidad } from './components/SaveanSanidad';
+import { AdminEntradas } from './components/AdminEntradas';
+import { AdminPlanillas } from './components/AdminPlanillas';
+import { LogOut, Shield, BarChart2, Plus, User, FileBarChart, ArrowUpCircle, ArrowDownCircle, ArrowDownToLine, ClipboardList } from 'lucide-react';
 
 // ─── Inspector app (barreristas) ────────────────────────────────────────────
 type SeccionInspector = 'guias' | 'nueva' | 'perfil';
+type ModoInspector = 'seleccion' | 'salida' | 'entrada';
 
 function InspectorApp() {
   const { usuario, logout } = useAuth();
   const [seccion, setSeccion] = useState<SeccionInspector>('guias');
+  const [modo, setModo] = useState<ModoInspector>('seleccion');
 
+  // Pantalla de selección Entrada / Salida
+  if (modo === 'seleccion') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <header className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-5xl mx-auto px-4 py-3 sm:px-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Shield size={18} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-gray-900 leading-tight">SAVEAN · Inspector</h1>
+                <p className="text-xs text-gray-400">Control fitosanitario en barreras</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700 hidden sm:block">{usuario?.nombre}</span>
+              <button onClick={logout} className="flex items-center gap-1.5 px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition text-sm">
+                <LogOut size={15} /><span className="hidden sm:inline">Salir</span>
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+          <p className="text-sm text-gray-500 mb-8 font-medium">¿Qué vas a registrar?</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-xl">
+            <button
+              onClick={() => setModo('salida')}
+              className="flex flex-col items-center gap-4 p-8 bg-white border-2 border-orange-200 hover:border-orange-500 rounded-2xl shadow-sm hover:shadow-md transition group"
+            >
+              <div className="w-16 h-16 bg-orange-100 group-hover:bg-orange-500 rounded-2xl flex items-center justify-center transition">
+                <ArrowUpCircle size={32} className="text-orange-500 group-hover:text-white transition" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-gray-900">Salida</p>
+                <p className="text-xs text-gray-500 mt-0.5">de la provincia</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setModo('entrada')}
+              className="flex flex-col items-center gap-4 p-8 bg-white border-2 border-green-200 hover:border-green-500 rounded-2xl shadow-sm hover:shadow-md transition group"
+            >
+              <div className="w-16 h-16 bg-green-100 group-hover:bg-green-500 rounded-2xl flex items-center justify-center transition">
+                <ArrowDownCircle size={32} className="text-green-500 group-hover:text-white transition" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-gray-900">Entrada</p>
+                <p className="text-xs text-gray-500 mt-0.5">a la provincia</p>
+              </div>
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Modo entrada
+  if (modo === 'entrada') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-5xl mx-auto px-4 py-3 sm:px-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-green-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <ArrowDownCircle size={18} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-gray-900 leading-tight">SAVEAN · Entrada a la Provincia</h1>
+                <p className="text-xs text-gray-400">Control fitosanitario de ingreso</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700 hidden sm:block">{usuario?.nombre}</span>
+              <button onClick={logout} className="flex items-center gap-1.5 px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition text-sm">
+                <LogOut size={15} /><span className="hidden sm:inline">Salir</span>
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-3xl mx-auto px-4 py-7 sm:px-6">
+          <SaveanEntrada onVolver={() => setModo('seleccion')} />
+        </main>
+      </div>
+    );
+  }
+
+  // Modo salida (todo igual al original)
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between">
@@ -25,7 +117,7 @@ function InspectorApp() {
                 <Shield size={18} className="text-white" />
               </div>
               <div>
-                <h1 className="text-base font-bold text-gray-900 leading-tight">SAVEAN · Inspector</h1>
+                <h1 className="text-base font-bold text-gray-900 leading-tight">SAVEAN · Salida de la Provincia</h1>
                 <p className="text-xs text-gray-400">Control fitosanitario en barreras</p>
               </div>
             </div>
@@ -43,10 +135,13 @@ function InspectorApp() {
         </div>
       </header>
 
-      {/* Nav */}
       <nav className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="flex gap-6">
+            <button onClick={() => setModo('seleccion')}
+              className="flex items-center gap-1.5 px-1 py-3.5 border-b-2 border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300 font-medium text-sm transition">
+              <ArrowUpCircle size={15} />Cambiar flujo
+            </button>
             {(
               [
                 { key: 'guias', label: 'Panel de Guías', icon: <Shield size={15} /> },
@@ -71,7 +166,6 @@ function InspectorApp() {
         </div>
       </nav>
 
-      {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-7 sm:px-6">
         {seccion === 'guias' && <SaveanInspector />}
         {seccion === 'nueva' && (
@@ -84,13 +178,15 @@ function InspectorApp() {
 }
 
 // ─── Admin app (empleados de la agencia) ────────────────────────────────────
-type SeccionAdmin = 'panel' | 'nueva' | 'informes' | 'perfil';
+type SeccionAdmin = 'panel' | 'nueva' | 'informes' | 'entradas' | 'planillas' | 'perfil';
 
 const TABS_ADMIN: { key: SeccionAdmin; label: string; icon: JSX.Element }[] = [
-  { key: 'panel',    label: 'Panel',       icon: <BarChart2 size={14} /> },
-  { key: 'nueva',    label: 'Nueva Guía',  icon: <Plus size={14} /> },
-  { key: 'informes', label: 'Informes',    icon: <FileBarChart size={14} /> },
-  { key: 'perfil',   label: 'Mi Perfil',   icon: <User size={14} /> },
+  { key: 'panel',     label: 'Panel Salida',    icon: <BarChart2 size={14} /> },
+  { key: 'nueva',     label: 'Nueva Guía',      icon: <Plus size={14} /> },
+  { key: 'informes',  label: 'Informes',        icon: <FileBarChart size={14} /> },
+  { key: 'entradas',  label: 'Actas Entrada',   icon: <ArrowDownToLine size={14} /> },
+  { key: 'planillas', label: 'Planilla Control', icon: <ClipboardList size={14} /> },
+  { key: 'perfil',    label: 'Mi Perfil',       icon: <User size={14} /> },
 ];
 
 function AdminApp() {
@@ -148,10 +244,12 @@ function AdminApp() {
 
       {/* ── Contenido ── */}
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-10">
-        {seccion === 'panel'    && <SaveanAdmin />}
-        {seccion === 'nueva'    && <SaveanFormulario onVolver={() => setSeccion('panel')} />}
-        {seccion === 'informes' && <SaveanInformes />}
-        {seccion === 'perfil'   && <PerfilView rolLabel="Director · Agencia de Calidad San Juan" />}
+        {seccion === 'panel'     && <SaveanAdmin />}
+        {seccion === 'nueva'     && <SaveanFormulario onVolver={() => setSeccion('panel')} />}
+        {seccion === 'informes'  && <SaveanInformes />}
+        {seccion === 'entradas'  && <AdminEntradas />}
+        {seccion === 'planillas' && <AdminPlanillas />}
+        {seccion === 'perfil'    && <PerfilView rolLabel="Director · Agencia de Calidad San Juan" />}
       </main>
     </div>
   );
@@ -191,8 +289,9 @@ function PerfilView({ rolLabel }: { rolLabel: string }) {
 // ─── Entry point ─────────────────────────────────────────────────────────────
 function SaveanAppContent() {
   const { usuario } = useAuth();
-  const esAdmin = usuario?.rol === 'admin';
-  return esAdmin ? <AdminApp /> : <InspectorApp />;
+  if (usuario?.rol === 'admin') return <AdminApp />;
+  if (usuario?.rol === 'sanidad') return <SaveanSanidad />;
+  return <InspectorApp />;
 }
 
 export function SaveanApp() {
