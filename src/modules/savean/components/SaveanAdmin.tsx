@@ -157,7 +157,6 @@ export function SaveanAdmin() {
   const guiasDenegadasHoy   = guias.filter(g => g.estado === 'denegada' && g.fechaVerificacion?.slice(0, 10) === hoy);
   const guiasVencidas       = guias.filter(g => g.estado === 'vencida');
 
-  const totalGuias      = guias.length;
   const emitidasHoy     = guiasEmitidasHoy.length;
   const verificadasHoy  = guiasVerificadasHoy.length;
   const pendientesAhora = guiasPendientesAhora.length;
@@ -322,9 +321,8 @@ export function SaveanAdmin() {
         <span className="text-xs text-gray-400">Actualización automática cada 30s</span>
       </div>
 
-      {/* ── KPIs — 6 cols ── */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-0 border border-gray-200 divide-x divide-gray-200">
-        <KPI label="Total guías"      value={totalGuias}      color="orange" onClick={() => setKpiModal({ title: 'Total de guías', guias })} />
+      {/* ── KPIs — 5 cols ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-0 border border-gray-200 divide-x divide-gray-200">
         <KPI label="Emitidas hoy"     value={emitidasHoy}     color="blue"   onClick={() => setKpiModal({ title: 'Emitidas hoy', guias: guiasEmitidasHoy })} />
         <KPI label="Verificadas hoy"  value={verificadasHoy}  color="green"  onClick={() => setKpiModal({ title: 'Verificadas hoy', guias: guiasVerificadasHoy })} />
         <KPI label="Pendientes"       value={pendientesAhora} color="yellow" onClick={() => setKpiModal({ title: 'Pendientes ahora', guias: guiasPendientesAhora })} />
