@@ -5,12 +5,13 @@ import { SaveanInspector } from './components/SaveanInspector';
 import { SaveanFormulario } from './components/SaveanFormulario';
 import { SaveanAdmin } from './components/SaveanAdmin';
 import { SaveanInformes } from './components/SaveanInformes';
+import { SaveanUsuarios } from './components/SaveanUsuarios';
 // ENTRADA MÓDULO — oculto, pendiente de habilitación
 // import { SaveanEntrada } from './components/SaveanEntrada';
 // import { SaveanSanidad } from './components/SaveanSanidad';
 // import { AdminEntradas } from './components/AdminEntradas';
 // import { AdminPlanillas } from './components/AdminPlanillas';
-import { LogOut, Shield, BarChart2, Plus, User, FileBarChart } from 'lucide-react';
+import { LogOut, Shield, BarChart2, Plus, User, FileBarChart, Users } from 'lucide-react';
 
 // ─── Inspector app (barreristas) ────────────────────────────────────────────
 type SeccionInspector = 'guias' | 'nueva' | 'perfil';
@@ -86,12 +87,13 @@ function InspectorApp() {
 }
 
 // ─── Admin app (empleados de la agencia) ────────────────────────────────────
-type SeccionAdmin = 'panel' | 'nueva' | 'informes' | 'perfil';
+type SeccionAdmin = 'panel' | 'nueva' | 'informes' | 'usuarios' | 'perfil';
 
 const TABS_ADMIN: { key: SeccionAdmin; label: string; icon: JSX.Element }[] = [
   { key: 'panel',    label: 'Panel',    icon: <BarChart2 size={14} /> },
   { key: 'nueva',    label: 'Nueva Guía', icon: <Plus size={14} /> },
   { key: 'informes', label: 'Informes', icon: <FileBarChart size={14} /> },
+  { key: 'usuarios', label: 'Usuarios', icon: <Users size={14} /> },
   { key: 'perfil',   label: 'Mi Perfil', icon: <User size={14} /> },
 ];
 
@@ -115,7 +117,6 @@ function AdminApp() {
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="text-white text-xs font-semibold leading-none">{usuario?.nombre}</p>
-              <p className="text-gray-500 text-xs mt-0.5">Director</p>
             </div>
             <div className="w-px h-6 bg-gray-700 hidden sm:block" />
             <button
@@ -153,6 +154,7 @@ function AdminApp() {
         {seccion === 'panel'    && <SaveanAdmin />}
         {seccion === 'nueva'    && <SaveanFormulario onVolver={() => setSeccion('panel')} />}
         {seccion === 'informes' && <SaveanInformes />}
+        {seccion === 'usuarios' && <SaveanUsuarios />}
         {seccion === 'perfil'   && <PerfilView rolLabel="Director · Agencia de Calidad San Juan" />}
       </main>
     </div>
