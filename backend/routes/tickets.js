@@ -601,17 +601,27 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
 
       if (agregados.length > 0) {
         const [ticketInfoRows] = await pool.query(
-          'SELECT numero, titulo, ciudadano_nombre FROM tickets WHERE ticketId = ?',
+          'SELECT numero, titulo, ciudadano_nombre AS ciudadanoNombre FROM tickets WHERE ticketId = ?',
           [ticketId]
         );
         const ticketInfo = ticketInfoRows[0];
         const [usuariosRows] = await pool.query(
-          'SELECT nombre, email FROM usuarios WHERE nombre IN (?) AND activo = 1',
-          [agregados]
+          'SELECT nombre, email FROM usuarios WHERE nombre IN (?) AND activo = 1 AND modulo = ?',
+          [agregados, 'tickets']
         );
+        const encontrados = new Set(usuariosRows.map((u) => u.nombre));
+        for (const nombre of agregados) {
+          if (!encontrados.has(nombre)) {
+            console.warn(`[Mailer] No se encontró usuario activo con nombre "${nombre}" para notificar asignación en ticket ${ticketId}`);
+          }
+        }
         for (const u of usuariosRows) {
+          if (!u.email) {
+            console.warn(`[Mailer] Usuario "${u.nombre}" no tiene email, no se puede notificar asignación`);
+            continue;
+          }
           enviarAsignacionTicket({ nombre: u.nombre, email: u.email, ticket: ticketInfo })
-            .catch((err) => console.error('[Mailer] Error notificando asignación:', err.message));
+            .catch((err) => console.error(`[Mailer] Error notificando asignación a "${u.nombre}" <${u.email}>:`, err.message));
         }
       }
     }
