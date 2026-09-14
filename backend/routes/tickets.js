@@ -12,6 +12,11 @@ const soloTickets = soloModulo('tickets');
 const MIME_PERMITIDOS = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp',
   'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
 ]);
 
 function validarAdjuntos(adjuntos) {
@@ -22,7 +27,7 @@ function validarAdjuntos(adjuntos) {
     }
     const mime = adj.tipo;
     if (typeof mime !== 'string' || !MIME_PERMITIDOS.has(mime)) {
-      return `Tipo de archivo no permitido. Solo se aceptan imágenes (JPEG, PNG, GIF, WebP) y PDF.`;
+      return `Tipo de archivo no permitido. Se aceptan imágenes (JPEG, PNG, GIF, WebP), PDF, Word (DOC, DOCX), Excel (XLS, XLSX) y TXT.`;
     }
   }
   return null;
