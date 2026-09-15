@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Check, Plus, Trash2, Search } from 'lucide-r
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 
 function getToken() {
-  return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+  return localStorage.getItem('sc_token') || '';
 }
 
 // ─── Catálogo de productos SAG ────────────────────────────────────────────────
