@@ -9,14 +9,52 @@ import { SaveanUsuarios } from './components/SaveanUsuarios';
 import { SaveanEntrada } from './components/SaveanEntrada';
 import { AdminEntradas } from './components/AdminEntradas';
 import { AdminPlanillas } from './components/AdminPlanillas';
-import { LogOut, Shield, BarChart2, Plus, User, FileBarChart, Users, ArrowDownToLine, ClipboardList } from 'lucide-react';
+import { LogOut, Shield, BarChart2, Plus, User, FileBarChart, Users, ArrowDownToLine, ArrowUpFromLine, ClipboardList } from 'lucide-react';
 
 // ─── Inspector app (barreristas) ────────────────────────────────────────────
-type SeccionInspector = 'guias' | 'nueva' | 'entrada' | 'perfil';
+type SeccionInspector = 'inicio' | 'guias' | 'nueva' | 'entrada' | 'perfil';
+
+function InicioInspector({ onEntrada, onSalida }: { onEntrada: () => void; onSalida: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+      <div className="text-center mb-2">
+        <h2 className="text-xl font-bold text-gray-900">¿Qué vas a registrar?</h2>
+        <p className="text-sm text-gray-400 mt-1">Seleccioná el tipo de operación</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-xl">
+        <button
+          onClick={onEntrada}
+          className="flex flex-col items-center gap-4 bg-white border-2 border-green-200 hover:border-green-500 hover:shadow-md rounded-2xl p-8 transition group"
+        >
+          <div className="w-16 h-16 bg-green-100 group-hover:bg-green-200 rounded-2xl flex items-center justify-center transition">
+            <ArrowDownToLine size={32} className="text-green-600" />
+          </div>
+          <div className="text-center">
+            <p className="text-base font-bold text-gray-900">Entrada</p>
+            <p className="text-xs text-gray-400 mt-0.5">Vehículo que ingresa a la provincia</p>
+          </div>
+        </button>
+
+        <button
+          onClick={onSalida}
+          className="flex flex-col items-center gap-4 bg-white border-2 border-orange-200 hover:border-orange-500 hover:shadow-md rounded-2xl p-8 transition group"
+        >
+          <div className="w-16 h-16 bg-orange-100 group-hover:bg-orange-200 rounded-2xl flex items-center justify-center transition">
+            <ArrowUpFromLine size={32} className="text-orange-600" />
+          </div>
+          <div className="text-center">
+            <p className="text-base font-bold text-gray-900">Salida</p>
+            <p className="text-xs text-gray-400 mt-0.5">Guía de origen para vehículo que sale</p>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function InspectorApp() {
   const { usuario, logout } = useAuth();
-  const [seccion, setSeccion] = useState<SeccionInspector>('guias');
+  const [seccion, setSeccion] = useState<SeccionInspector>('inicio');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -46,41 +84,50 @@ function InspectorApp() {
         </div>
       </header>
 
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="flex gap-6">
-            {(
-              [
-                { key: 'guias',   label: 'Panel de Guías',    icon: <Shield size={15} /> },
-                { key: 'nueva',   label: 'Nueva Guía',        icon: <Plus size={15} /> },
-                { key: 'entrada', label: 'Entrada Provincia', icon: <ArrowDownToLine size={15} /> },
-                { key: 'perfil',  label: 'Mi Perfil',         icon: <User size={15} /> },
-              ] as { key: SeccionInspector; label: string; icon: JSX.Element }[]
-            ).map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setSeccion(t.key)}
-                className={`flex items-center gap-1.5 px-1 py-3.5 border-b-2 font-medium text-sm transition ${
-                  seccion === t.key
-                    ? 'border-orange-500 text-orange-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-                }`}
-              >
-                {t.icon}
-                {t.label}
-              </button>
-            ))}
+      {seccion !== 'inicio' && (
+        <nav className="bg-white border-b border-gray-200">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6">
+            <div className="flex gap-6">
+              {(
+                [
+                  { key: 'inicio',  label: 'Inicio',           icon: <Shield size={15} /> },
+                  { key: 'guias',   label: 'Panel de Guías',   icon: <Shield size={15} /> },
+                  { key: 'nueva',   label: 'Nueva Guía',       icon: <Plus size={15} /> },
+                  { key: 'entrada', label: 'Entrada Provincia', icon: <ArrowDownToLine size={15} /> },
+                  { key: 'perfil',  label: 'Mi Perfil',        icon: <User size={15} /> },
+                ] as { key: SeccionInspector; label: string; icon: JSX.Element }[]
+              ).map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setSeccion(t.key)}
+                  className={`flex items-center gap-1.5 px-1 py-3.5 border-b-2 font-medium text-sm transition ${
+                    seccion === t.key
+                      ? 'border-orange-500 text-orange-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+                  }`}
+                >
+                  {t.icon}
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      )}
 
       <main className="max-w-5xl mx-auto px-4 py-7 sm:px-6">
+        {seccion === 'inicio' && (
+          <InicioInspector
+            onEntrada={() => setSeccion('entrada')}
+            onSalida={() => setSeccion('guias')}
+          />
+        )}
         {seccion === 'guias' && <SaveanInspector />}
         {seccion === 'nueva' && (
           <SaveanFormulario onVolver={() => setSeccion('guias')} />
         )}
         {seccion === 'entrada' && (
-          <SaveanEntrada onVolver={() => setSeccion('guias')} />
+          <SaveanEntrada onVolver={() => setSeccion('inicio')} />
         )}
         {seccion === 'perfil' && <PerfilView rolLabel="Inspector Fitosanitario (Barrerista)" />}
       </main>
