@@ -121,7 +121,8 @@ function fmtDia(dt)  { return parseFecha(dt).getDate(); }
 function fmtMes(dt)  { return parseFecha(dt).toLocaleDateString('es-AR', { month: 'long' }); }
 function fmtAnio(dt) { return parseFecha(dt).getFullYear(); }
 function fmtHora(dt) {
-  return parseFecha(dt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  const d = parseFecha(dt);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 function fmtFecha(dt) {
   const d = parseFecha(dt);
@@ -294,13 +295,13 @@ function dibujarActa(doc, ing) {
   });
 }
 
-// ─── Página 2: Declaración Jurada de Productos Vegetales (Serie 23) ──────────
+// ─── Página 2: Declaración Jurada de Productos Vegetales (Serie 23) LANDSCAPE ─
 function dibujarDeclaracion(doc, ing) {
-  const PAGE_W = 595;
-  const ML = 8;           // margen izquierdo muy ajustado (como el papel)
-  const REF_W = 82;       // columna de referencia (provincias + localidades) en el lado derecho
-  const GRID_RIGHT = PAGE_W - REF_W - 4; // límite derecho de la grilla de productos
-  const GRID_W = GRID_RIGHT - ML;        // ancho total de la grilla
+  const PAGE_W = 842;     // A4 landscape
+  const ML = 8;
+  const REF_W = 90;       // columna de referencia derecha (provincias + localidades)
+  const GRID_RIGHT = PAGE_W - REF_W - 4;
+  const GRID_W = GRID_RIGHT - ML;
 
   let y = 8;
 
@@ -637,8 +638,8 @@ async function generarPdfIngreso(ingreso) {
     // Página 1 — Acta Fitozoosanitaria (Serie 20)
     dibujarActa(doc, ingreso);
 
-    // Página 2 — Declaración Jurada (Serie 23)
-    doc.addPage({ size: 'A4', margin: 0 });
+    // Página 2 — Declaración Jurada (Serie 23) en landscape
+    doc.addPage({ size: 'A4', layout: 'landscape', margin: 0 });
     dibujarDeclaracion(doc, ingreso);
 
     doc.end();
