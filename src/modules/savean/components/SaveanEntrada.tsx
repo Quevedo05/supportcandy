@@ -8,6 +8,34 @@ function getToken() {
   return localStorage.getItem('sc_token') || '';
 }
 
+// ─── Catálogo de provincias SAG ───────────────────────────────────────────────
+const PROVINCIAS_SAG = [
+  { cod: '02', nombre: 'Capital Federal / CABA' },
+  { cod: '06', nombre: 'Buenos Aires' },
+  { cod: '10', nombre: 'Catamarca' },
+  { cod: '22', nombre: 'Chaco' },
+  { cod: '26', nombre: 'Chubut' },
+  { cod: '14', nombre: 'Córdoba' },
+  { cod: '18', nombre: 'Corrientes' },
+  { cod: '30', nombre: 'Entre Ríos' },
+  { cod: '34', nombre: 'Formosa' },
+  { cod: '38', nombre: 'Jujuy' },
+  { cod: '42', nombre: 'La Pampa' },
+  { cod: '46', nombre: 'La Rioja' },
+  { cod: '50', nombre: 'Mendoza' },
+  { cod: '54', nombre: 'Misiones' },
+  { cod: '58', nombre: 'Neuquén' },
+  { cod: '62', nombre: 'Río Negro' },
+  { cod: '66', nombre: 'Salta' },
+  { cod: '70', nombre: 'San Juan' },
+  { cod: '74', nombre: 'San Luis' },
+  { cod: '78', nombre: 'Santa Cruz' },
+  { cod: '82', nombre: 'Santa Fe' },
+  { cod: '86', nombre: 'Santiago del Estero' },
+  { cod: '94', nombre: 'Tierra del Fuego' },
+  { cod: '90', nombre: 'Tucumán' },
+];
+
 // ─── Catálogo de productos SAG ────────────────────────────────────────────────
 const PRODUCTOS_SAG = [
   { codigo: 1, nombre: 'Aceituna' }, { codigo: 2, nombre: 'Acelga' },
@@ -460,8 +488,14 @@ function Step3({ data, onChange, onBack, onSubmit, cargando }: {
         <div className="grid grid-cols-2 gap-3">
           <div><label className={labelCls}>Localidad (código)</label>
             <input className={inputCls} placeholder="ej: 01" value={data.remitenteLocalidadCod} onChange={e => onChange({ remitenteLocalidadCod: e.target.value })} /></div>
-          <div><label className={labelCls}>Provincia (código)</label>
-            <input className={inputCls} placeholder="ej: 70" value={data.remitenteProvinciaCod} onChange={e => onChange({ remitenteProvinciaCod: e.target.value })} /></div>
+          <div><label className={labelCls}>Provincia</label>
+            <select className={inputCls} value={data.remitenteProvinciaCod} onChange={e => onChange({ remitenteProvinciaCod: e.target.value })}>
+              <option value="">Seleccioná provincia</option>
+              {PROVINCIAS_SAG.map(p => (
+                <option key={p.cod} value={p.cod}>{p.cod} — {p.nombre}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -477,8 +511,14 @@ function Step3({ data, onChange, onBack, onSubmit, cargando }: {
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div><label className={labelCls}>Localidad (código)</label>
             <input className={inputCls} placeholder="ej: 01" value={data.destinatarioLocalidadCod} onChange={e => onChange({ destinatarioLocalidadCod: e.target.value })} /></div>
-          <div><label className={labelCls}>Provincia (código)</label>
-            <input className={inputCls} placeholder="ej: 70" value={data.destinatarioProvinciaCod} onChange={e => onChange({ destinatarioProvinciaCod: e.target.value })} /></div>
+          <div><label className={labelCls}>Provincia</label>
+            <select className={inputCls} value={data.destinatarioProvinciaCod} onChange={e => onChange({ destinatarioProvinciaCod: e.target.value })}>
+              <option value="">Seleccioná provincia</option>
+              {PROVINCIAS_SAG.map(p => (
+                <option key={p.cod} value={p.cod}>{p.cod} — {p.nombre}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div>
           <label className={labelCls}>Tipo de destino</label>

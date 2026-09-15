@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSavean } from '../context/SaveanContext';
-import { ArrowDownToLine, Search, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowDownToLine, Search, Filter, X, ChevronDown, ChevronUp, FileDown } from 'lucide-react';
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 function getToken() { return localStorage.getItem('sc_token') || ''; }
@@ -83,6 +83,28 @@ function IngresoFila({ ingreso }: { ingreso: Ingreso }) {
               <div><span className="text-gray-400">Inspector:</span> <span className="font-medium">{ingreso.inspectorNombre}</span></div>
               <div><span className="text-gray-400">Email conductor:</span> <span className="font-medium">{ingreso.emailConductor || '—'}</span></div>
               {ingreso.pdfEnviado && <div className="text-green-600 font-semibold">PDF enviado</div>}
+            </div>
+            <div className="mt-2">
+              <a
+                href={`${API_URL}/savean/entrada/ingresos/${ingreso.id}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition"
+                onClick={e => {
+                  e.stopPropagation();
+                  const token = getToken();
+                  if (!token) return;
+                  e.preventDefault();
+                  fetch(`${API_URL}/savean/entrada/ingresos/${ingreso.id}/pdf`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  }).then(r => r.blob()).then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                  });
+                }}
+              >
+                <FileDown size={12} />Ver / Descargar PDF
+              </a>
             </div>
             {ingreso.declaracion && (
               <div className="mb-3">

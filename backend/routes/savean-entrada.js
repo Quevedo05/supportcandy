@@ -437,4 +437,27 @@ router.get('/ingresos/:id', autenticar, soloSavean, soloAdminOSanidad, async (re
   }
 });
 
+// GET /api/savean/entrada/ingresos/:id/pdf
+router.get('/ingresos/:id/pdf', autenticar, soloSavean, async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      'SELECT * FROM ingresos_savean WHERE ingresoId = ?',
+      [req.params.id]
+    );
+    if (!row) return res.status(404).json({ error: 'Ingreso no encontrado' });
+
+    const { generarPdfIngreso } = require('../services/pdfIngreso');
+    const pdfBuffer = await generarPdfIngreso(formatIngreso(row));
+    const filename = `${row.numero || row.ingresoId}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.send(pdfBuffer);
+  } catch (err) {
+    console.error('[GET /savean/entrada/ingresos/:id/pdf]', err);
+    return res.status(500).json({ error: 'Error al generar PDF' });
+  }
+});
+
 module.exports = router;
