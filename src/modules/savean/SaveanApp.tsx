@@ -16,35 +16,34 @@ type SeccionInspector = 'inicio' | 'guias' | 'nueva' | 'entrada' | 'perfil';
 
 function InicioInspector({ onEntrada, onSalida }: { onEntrada: () => void; onSalida: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-      <div className="text-center mb-2">
-        <h2 className="text-xl font-bold text-gray-900">¿Qué vas a registrar?</h2>
-        <p className="text-sm text-gray-400 mt-1">Seleccioná el tipo de operación</p>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8">
+      <div className="text-center">
+        <h2 className="text-lg font-semibold text-gray-700 uppercase tracking-widest">Seleccioná el tipo de operación</h2>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl">
         <button
           onClick={onEntrada}
-          className="flex flex-col items-center gap-4 bg-white border-2 border-green-200 hover:border-green-500 hover:shadow-md rounded-2xl p-8 transition group"
+          className="flex flex-col items-center gap-5 bg-white border border-gray-300 hover:border-gray-500 hover:shadow-sm rounded-lg p-10 transition group"
         >
-          <div className="w-16 h-16 bg-green-100 group-hover:bg-green-200 rounded-2xl flex items-center justify-center transition">
-            <ArrowDownToLine size={32} className="text-green-600" />
+          <div className="w-14 h-14 bg-gray-100 group-hover:bg-gray-200 rounded flex items-center justify-center transition">
+            <ArrowDownToLine size={28} className="text-gray-600" />
           </div>
           <div className="text-center">
-            <p className="text-base font-bold text-gray-900">Entrada</p>
-            <p className="text-xs text-gray-400 mt-0.5">Vehículo que ingresa a la provincia</p>
+            <p className="text-sm font-bold text-gray-800 uppercase tracking-wide">Entrada</p>
+            <p className="text-xs text-gray-400 mt-1">Vehículo que ingresa a la provincia</p>
           </div>
         </button>
 
         <button
           onClick={onSalida}
-          className="flex flex-col items-center gap-4 bg-white border-2 border-orange-200 hover:border-orange-500 hover:shadow-md rounded-2xl p-8 transition group"
+          className="flex flex-col items-center gap-5 bg-white border border-gray-300 hover:border-gray-500 hover:shadow-sm rounded-lg p-10 transition group"
         >
-          <div className="w-16 h-16 bg-orange-100 group-hover:bg-orange-200 rounded-2xl flex items-center justify-center transition">
-            <ArrowUpFromLine size={32} className="text-orange-600" />
+          <div className="w-14 h-14 bg-gray-100 group-hover:bg-gray-200 rounded flex items-center justify-center transition">
+            <ArrowUpFromLine size={28} className="text-gray-600" />
           </div>
           <div className="text-center">
-            <p className="text-base font-bold text-gray-900">Salida</p>
-            <p className="text-xs text-gray-400 mt-0.5">Guía de origen para vehículo que sale</p>
+            <p className="text-sm font-bold text-gray-800 uppercase tracking-wide">Salida</p>
+            <p className="text-xs text-gray-400 mt-1">Guía de origen para vehículo que sale</p>
           </div>
         </button>
       </div>
