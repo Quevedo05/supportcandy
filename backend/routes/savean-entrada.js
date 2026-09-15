@@ -11,9 +11,9 @@ const soloSavean = soloModulo('savean');
 // ─── middleware de rol ────────────────────────────────────────────────────────
 
 function soloInspector(req, res, next) {
-  const rolesPermitidos = ['admin', 'inspector', 'operativo'];
-  if (!rolesPermitidos.includes(req.usuario?.rol)) {
-    return res.status(403).json({ error: 'Solo inspectores pueden cargar datos de entrada.' });
+  // soloSavean ya garantiza modulo='savean'; solo bloqueamos el rol de sanidad
+  if (req.usuario?.rol === 'sanidad') {
+    return res.status(403).json({ error: 'Acceso denegado.' });
   }
   next();
 }
