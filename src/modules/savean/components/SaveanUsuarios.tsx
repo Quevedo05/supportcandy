@@ -242,7 +242,7 @@ export function SaveanUsuarios() {
                 <p className="text-xs text-gray-500 mb-2 font-medium">Agregar nuevo inspector (acceso con usuario y contraseña)</p>
                 <div className="flex flex-wrap gap-2">
                   <input type="text" placeholder="Nombre completo" value={formAdmin.nombre} onChange={e => setFormAdmin({ ...formAdmin, nombre: e.target.value })} className={inputCls} />
-                  <input type="text" placeholder="Nombre de usuario" value={formAdmin.username} onChange={e => setFormAdmin({ ...formAdmin, username: e.target.value.toLowerCase().replace(/\s/g, '') })} className={inputCls} />
+                  <input type="text" placeholder="Nombre de usuario" value={formAdmin.username} onChange={e => { let val = e.target.value.toLowerCase().replace(/\s/g, ''); if (val.includes('@')) val = val.split('@')[0]; setFormAdmin({ ...formAdmin, username: val }); }} className={inputCls} />
                   <input type="password" placeholder="Contraseña" value={formAdmin.password} onChange={e => setFormAdmin({ ...formAdmin, password: e.target.value })} className={inputCls} />
                   <button onClick={handleAddInspector} className={btnPrimary}><Plus size={12} /> Agregar</button>
                 </div>

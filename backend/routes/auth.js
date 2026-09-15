@@ -36,8 +36,16 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     // Support username-only login for savean users (no @)
+    // Also normalize @savean.* variants (e.g. @savean.gob.ar) to @savean.local
     const raw = email.trim().toLowerCase();
-    const emailNorm = raw.includes('@') ? raw : `${raw}@savean.local`;
+    let emailNorm;
+    if (!raw.includes('@')) {
+      emailNorm = `${raw}@savean.local`;
+    } else {
+      const atIdx = raw.indexOf('@');
+      const domain = raw.slice(atIdx + 1);
+      emailNorm = domain.startsWith('savean.') ? `${raw.slice(0, atIdx)}@savean.local` : raw;
+    }
 
     const [rows] = await pool.query(
       'SELECT usuarioId, nombre, email, password_hash, rol, modulo, activo, puede_editar_datos, formularioId FROM usuarios WHERE email = ?',
