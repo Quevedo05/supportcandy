@@ -114,8 +114,14 @@ function Step1({
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       const data = await res.json();
-      if (res.ok) onPlanillaCreada(data.id);
-    } catch { /* silencioso */ }
+      if (res.ok) {
+        onPlanillaCreada(data.id);
+      } else {
+        setErr(`Error al obtener planilla (${res.status}): ${data.error || JSON.stringify(data)}`);
+      }
+    } catch (e: any) {
+      setErr(`Error de conexión al obtener planilla: ${e?.message || e}`);
+    }
   };
 
   const handleGuardar = async () => {
