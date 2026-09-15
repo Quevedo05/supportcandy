@@ -47,9 +47,13 @@ router.post('/login', loginLimiter, async (req, res) => {
       emailNorm = domain.startsWith('savean.') ? `${raw.slice(0, atIdx)}@savean.local` : raw;
     }
 
+    // Also check @savean.gob.ar variant in case DB hasn't been migrated yet
+    const emailAlt = emailNorm.endsWith('@savean.local')
+      ? emailNorm.replace('@savean.local', '@savean.gob.ar')
+      : null;
     const [rows] = await pool.query(
-      'SELECT usuarioId, nombre, email, password_hash, rol, modulo, activo, puede_editar_datos, formularioId FROM usuarios WHERE email = ?',
-      [emailNorm]
+      `SELECT usuarioId, nombre, email, password_hash, rol, modulo, activo, puede_editar_datos, formularioId FROM usuarios WHERE email = ?${emailAlt ? ' OR email = ?' : ''}`,
+      emailAlt ? [emailNorm, emailAlt] : [emailNorm]
     );
 
     // Same message for not-found and wrong-password to prevent user enumeration
