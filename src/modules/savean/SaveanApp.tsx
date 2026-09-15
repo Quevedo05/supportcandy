@@ -6,15 +6,13 @@ import { SaveanFormulario } from './components/SaveanFormulario';
 import { SaveanAdmin } from './components/SaveanAdmin';
 import { SaveanInformes } from './components/SaveanInformes';
 import { SaveanUsuarios } from './components/SaveanUsuarios';
-// ENTRADA MÓDULO — oculto, pendiente de habilitación
-// import { SaveanEntrada } from './components/SaveanEntrada';
-// import { SaveanSanidad } from './components/SaveanSanidad';
-// import { AdminEntradas } from './components/AdminEntradas';
-// import { AdminPlanillas } from './components/AdminPlanillas';
-import { LogOut, Shield, BarChart2, Plus, User, FileBarChart, Users } from 'lucide-react';
+import { SaveanEntrada } from './components/SaveanEntrada';
+import { AdminEntradas } from './components/AdminEntradas';
+import { AdminPlanillas } from './components/AdminPlanillas';
+import { LogOut, Shield, BarChart2, Plus, User, FileBarChart, Users, ArrowDownToLine, ClipboardList } from 'lucide-react';
 
 // ─── Inspector app (barreristas) ────────────────────────────────────────────
-type SeccionInspector = 'guias' | 'nueva' | 'perfil';
+type SeccionInspector = 'guias' | 'nueva' | 'entrada' | 'perfil';
 
 function InspectorApp() {
   const { usuario, logout } = useAuth();
@@ -53,9 +51,10 @@ function InspectorApp() {
           <div className="flex gap-6">
             {(
               [
-                { key: 'guias', label: 'Panel de Guías', icon: <Shield size={15} /> },
-                { key: 'nueva', label: 'Nueva Guía', icon: <Plus size={15} /> },
-                { key: 'perfil', label: 'Mi Perfil', icon: <User size={15} /> },
+                { key: 'guias',   label: 'Panel de Guías',    icon: <Shield size={15} /> },
+                { key: 'nueva',   label: 'Nueva Guía',        icon: <Plus size={15} /> },
+                { key: 'entrada', label: 'Entrada Provincia', icon: <ArrowDownToLine size={15} /> },
+                { key: 'perfil',  label: 'Mi Perfil',         icon: <User size={15} /> },
               ] as { key: SeccionInspector; label: string; icon: JSX.Element }[]
             ).map((t) => (
               <button
@@ -80,6 +79,9 @@ function InspectorApp() {
         {seccion === 'nueva' && (
           <SaveanFormulario onVolver={() => setSeccion('guias')} />
         )}
+        {seccion === 'entrada' && (
+          <SaveanEntrada onVolver={() => setSeccion('guias')} />
+        )}
         {seccion === 'perfil' && <PerfilView rolLabel="Inspector Fitosanitario (Barrerista)" />}
       </main>
     </div>
@@ -87,14 +89,16 @@ function InspectorApp() {
 }
 
 // ─── Admin app (empleados de la agencia) ────────────────────────────────────
-type SeccionAdmin = 'panel' | 'nueva' | 'informes' | 'usuarios' | 'perfil';
+type SeccionAdmin = 'panel' | 'nueva' | 'informes' | 'entradas' | 'planillas' | 'usuarios' | 'perfil';
 
 const TABS_ADMIN: { key: SeccionAdmin; label: string; icon: JSX.Element }[] = [
-  { key: 'panel',    label: 'Panel',    icon: <BarChart2 size={14} /> },
-  { key: 'nueva',    label: 'Nueva Guía', icon: <Plus size={14} /> },
-  { key: 'informes', label: 'Informes', icon: <FileBarChart size={14} /> },
-  { key: 'usuarios', label: 'Usuarios', icon: <Users size={14} /> },
-  { key: 'perfil',   label: 'Mi Perfil', icon: <User size={14} /> },
+  { key: 'panel',     label: 'Panel',       icon: <BarChart2 size={14} /> },
+  { key: 'nueva',     label: 'Nueva Guía',  icon: <Plus size={14} /> },
+  { key: 'informes',  label: 'Informes',    icon: <FileBarChart size={14} /> },
+  { key: 'entradas',  label: 'Entradas',    icon: <ArrowDownToLine size={14} /> },
+  { key: 'planillas', label: 'Planillas',   icon: <ClipboardList size={14} /> },
+  { key: 'usuarios',  label: 'Usuarios',    icon: <Users size={14} /> },
+  { key: 'perfil',    label: 'Mi Perfil',   icon: <User size={14} /> },
 ];
 
 function AdminApp() {
@@ -151,11 +155,13 @@ function AdminApp() {
 
       {/* ── Contenido ── */}
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-10">
-        {seccion === 'panel'    && <SaveanAdmin />}
-        {seccion === 'nueva'    && <SaveanFormulario onVolver={() => setSeccion('panel')} />}
-        {seccion === 'informes' && <SaveanInformes />}
-        {seccion === 'usuarios' && <SaveanUsuarios />}
-        {seccion === 'perfil'   && <PerfilView rolLabel="Director · Agencia de Calidad San Juan" />}
+        {seccion === 'panel'     && <SaveanAdmin />}
+        {seccion === 'nueva'     && <SaveanFormulario onVolver={() => setSeccion('panel')} />}
+        {seccion === 'informes'  && <SaveanInformes />}
+        {seccion === 'entradas'  && <AdminEntradas />}
+        {seccion === 'planillas' && <AdminPlanillas />}
+        {seccion === 'usuarios'  && <SaveanUsuarios />}
+        {seccion === 'perfil'    && <PerfilView rolLabel="Director · Agencia de Calidad San Juan" />}
       </main>
     </div>
   );
