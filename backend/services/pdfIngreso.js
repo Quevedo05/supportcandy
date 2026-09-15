@@ -117,16 +117,22 @@ function parseFecha(dt) {
   return dt ? new Date(dt) : new Date();
 }
 
-function fmtDia(dt)  { return parseFecha(dt).getDate(); }
-function fmtMes(dt)  { return parseFecha(dt).toLocaleDateString('es-AR', { month: 'long' }); }
-function fmtAnio(dt) { return parseFecha(dt).getFullYear(); }
+const TZ = 'America/Argentina/San_Juan';
+
+function fmtDia(dt)  {
+  return Number(parseFecha(dt).toLocaleDateString('es-AR', { day: 'numeric', timeZone: TZ }));
+}
+function fmtMes(dt)  {
+  return parseFecha(dt).toLocaleDateString('es-AR', { month: 'long', timeZone: TZ });
+}
+function fmtAnio(dt) {
+  return Number(parseFecha(dt).toLocaleDateString('es-AR', { year: 'numeric', timeZone: TZ }));
+}
 function fmtHora(dt) {
-  const d = parseFecha(dt);
-  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  return parseFecha(dt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ });
 }
 function fmtFecha(dt) {
-  const d = parseFecha(dt);
-  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  return parseFecha(dt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: TZ });
 }
 
 function provinciaLabel(cod) {
