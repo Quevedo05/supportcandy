@@ -228,11 +228,13 @@ router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
     }
 
     if (!esCosechaAcarreo) {
+      // Normalizar: solo dígitos, para comparar independientemente del formato (con/sin guiones)
+      const dniNorm = dni.trim().replace(/[^0-9]/g, '');
       const [dupRows] = await pool.query(
         `SELECT COUNT(*) AS cnt
          FROM tickets t
          LEFT JOIN formularios f ON f.formularioId = t.formularioId
-         WHERE t.ciudadano_dni = ?
+         WHERE REPLACE(REPLACE(REPLACE(t.ciudadano_dni, '-', ''), ' ', ''), '.', '') = ?
            AND t.eliminado = 0
            AND t.estado != 'cerrado'
            AND (
@@ -240,7 +242,7 @@ router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
              OR f.programa IS NULL
              OR LOWER(f.programa) NOT LIKE '%cosecha%acarreo%'
            )`,
-        [dni.trim()]
+        [dniNorm]
       );
       if (dupRows[0].cnt > 0) {
         // Si el agente ya confirmó, omitir el bloqueo
