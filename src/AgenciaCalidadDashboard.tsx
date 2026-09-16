@@ -2627,7 +2627,7 @@ export default function AgenciaCalidadDashboard() {
 
   const [guardandoTicket, setGuardandoTicket] = useState(false);
 
-  const handleSubmitTicket = async () => {
+  const handleSubmitTicket = async (confirmarDuplicado = false) => {
     const errores = validarModal(state.modal);
     if (Object.keys(errores).length > 0) {
       dispatch({ type: 'SET_MODAL_ERRORES', payload: errores });
@@ -2662,11 +2662,22 @@ export default function AgenciaCalidadDashboard() {
           numeroActa: state.modal.numeroActa || null,
           asunto: state.modal.asunto,
           descripcion: descripcionFinal,
+          ...(confirmarDuplicado && { confirmarDuplicado: true }),
         }),
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
+        const err = await res.json().catch(() => ({})) as Record<string, unknown>;
+        if (res.status === 409 && err.puedeConfirmar) {
+          setGuardandoTicket(false);
+          const ok = window.confirm(
+            `⚠️ ${err.error}\n\n¿Desea crear un ticket adicional para este mismo ente de todas formas?`
+          );
+          if (ok) {
+            handleSubmitTicket(true);
+          }
+          return;
+        }
         alert((err as Record<string, string>).error || 'Error al crear el ticket');
         return;
       }

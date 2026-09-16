@@ -243,9 +243,13 @@ router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
         [dni.trim()]
       );
       if (dupRows[0].cnt > 0) {
-        return res.status(409).json({
-          error: 'El DNI ingresado ya tiene un ticket registrado en el sistema. Una persona solo puede registrar un ticket por vez (excepto Cosecha y Acarreo).',
-        });
+        // Si el agente ya confirmó, omitir el bloqueo
+        if (!req.body.confirmarDuplicado) {
+          return res.status(409).json({
+            error: 'El documento ingresado ya tiene un ticket registrado en el sistema.',
+            puedeConfirmar: true,
+          });
+        }
       }
     }
 
