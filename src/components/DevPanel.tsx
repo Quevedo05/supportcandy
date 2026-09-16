@@ -35,6 +35,7 @@ const ROLES_POR_MODULO: Record<ModuloForm, { value: string; label: string }[]> =
   savean: [
     { value: 'admin',     label: 'Director / Agencia' },
     { value: 'inspector', label: 'Inspector Barrerista' },
+    { value: 'sanidad',   label: 'Sanidad (panel de ingresos)' },
   ],
 };
 

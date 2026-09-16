@@ -9,6 +9,7 @@ import { SaveanUsuarios } from './components/SaveanUsuarios';
 import { SaveanEntrada } from './components/SaveanEntrada';
 import { AdminEntradas } from './components/AdminEntradas';
 import { AdminPlanillas } from './components/AdminPlanillas';
+import { SaveanSanidad } from './components/SaveanSanidad';
 import { LogOut, Shield, BarChart2, Plus, User, FileBarChart, Users, ArrowDownToLine, ArrowUpFromLine, ClipboardList } from 'lucide-react';
 
 // ─── Inspector app (barreristas) ────────────────────────────────────────────
@@ -248,6 +249,7 @@ function PerfilView({ rolLabel }: { rolLabel: string }) {
 function SaveanAppContent() {
   const { usuario } = useAuth();
   if (usuario?.rol === 'admin' || usuario?.rol === 'dev') return <AdminApp />;
+  if (usuario?.rol === 'sanidad') return <SaveanSanidad />;
   return <InspectorApp />;
 }
 

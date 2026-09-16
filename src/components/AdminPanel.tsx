@@ -525,6 +525,7 @@ export function AdminPanel() {
                         <>
                           <option value="inspector">Inspector Fitosanitario</option>
                           <option value="admin">Director / Agencia</option>
+                          <option value="sanidad">Sanidad (panel de ingresos)</option>
                         </>
                       )}
                     </select>
