@@ -19,7 +19,7 @@ function TicketsAppContent() {
       case 'formularios':
         return <FormulariosPanel />;
       case 'admin':
-        return usuario?.rol === 'admin' ? <AdminPanel /> : <AgenciaCalidadDashboard />;
+        return (usuario?.rol === 'admin' || usuario?.rol === 'dev') ? <AdminPanel /> : <AgenciaCalidadDashboard />;
       case 'dashboard':
       default:
         return <AgenciaCalidadDashboard />;

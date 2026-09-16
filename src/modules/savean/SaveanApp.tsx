@@ -247,7 +247,7 @@ function PerfilView({ rolLabel }: { rolLabel: string }) {
 // ─── Entry point ─────────────────────────────────────────────────────────────
 function SaveanAppContent() {
   const { usuario } = useAuth();
-  if (usuario?.rol === 'admin') return <AdminApp />;
+  if (usuario?.rol === 'admin' || usuario?.rol === 'dev') return <AdminApp />;
   return <InspectorApp />;
 }
 

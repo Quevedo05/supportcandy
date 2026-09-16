@@ -6,7 +6,7 @@ function soloAdmin(req, res, next) {
     });
   }
 
-  if (req.usuario.rol !== 'admin') {
+  if (req.usuario.rol !== 'admin' && req.usuario.rol !== 'dev') {
     return res.status(403).json({
       error: 'Acceso denegado. Se requieren permisos de administrador.',
       codigo: 'PERMISO_INSUFICIENTE',

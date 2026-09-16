@@ -21,6 +21,7 @@ function formatUsuario(row) {
     rol: row.rol,
     modulo: row.modulo || 'tickets',
     activo: Boolean(row.activo),
+    pendiente: row.password_hash === '' || row.password_hash == null,
     estadosAsignados: row.estados_asignados ? JSON.parse(row.estados_asignados) : [],
     puedeEditarDatos: Boolean(row.puede_editar_datos),
     creadoEn: row.creado_en instanceof Date ? row.creado_en.toISOString() : row.creado_en,
@@ -32,7 +33,7 @@ function formatUsuario(row) {
 router.get('/', async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT usuarioId, nombre, email, rol, modulo, activo, estados_asignados, puede_editar_datos, creado_en, actualizado_en FROM usuarios ORDER BY creado_en ASC'
+      'SELECT usuarioId, nombre, email, rol, modulo, activo, password_hash, estados_asignados, puede_editar_datos, creado_en, actualizado_en FROM usuarios ORDER BY creado_en ASC'
     );
     return res.status(200).json({
       usuarios: rows.map(formatUsuario),
