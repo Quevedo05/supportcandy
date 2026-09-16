@@ -252,7 +252,7 @@ function Step1({
       </div>
 
       {/* ¿Generar acta? */}
-      {data.tipoVehiculo === 'camion' && (
+      {data.tipoVehiculo !== '' && (
         <label className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg cursor-pointer">
           <input type="checkbox" checked={data.generarActa}
             onChange={e => onChange({ generarActa: e.target.checked })}
