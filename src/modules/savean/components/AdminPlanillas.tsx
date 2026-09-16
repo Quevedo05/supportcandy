@@ -28,6 +28,12 @@ interface Planilla {
   serie: string;
   numeroSerie: number;
   entradas: EntradaPlanilla[];
+  // Conteos precalculados (presentes en el listado, ausentes en el detalle)
+  autosCount?: number;
+  colectivosCount?: number;
+  camionesCount?: number;
+  totalCount?: number;
+  conActaCount?: number;
 }
 
 function fmtFecha(s: string) {
@@ -44,10 +50,10 @@ function fmtHora(s: string) {
 const TIPO_ICON: Record<string, string> = { auto: '🚗', colectivo: '🚌', camion: '🚛' };
 
 function FilaPlanilla({ planilla, onAbrir }: { planilla: Planilla; onAbrir: (id: string) => void }) {
-  const autos = planilla.entradas.filter(e => e.tipoVehiculo === 'auto').length;
-  const colectivos = planilla.entradas.filter(e => e.tipoVehiculo === 'colectivo').length;
-  const camiones = planilla.entradas.filter(e => e.tipoVehiculo === 'camion').length;
-  const conActa = planilla.entradas.filter(e => e.ingresoId).length;
+  const autos     = planilla.autosCount      ?? planilla.entradas.filter(e => e.tipoVehiculo === 'auto').length;
+  const colectivos = planilla.colectivosCount ?? planilla.entradas.filter(e => e.tipoVehiculo === 'colectivo').length;
+  const camiones  = planilla.camionesCount   ?? planilla.entradas.filter(e => e.tipoVehiculo === 'camion').length;
+  const conActa   = planilla.conActaCount    ?? planilla.entradas.filter(e => e.ingresoId).length;
 
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => onAbrir(planilla.id)}>
@@ -57,7 +63,7 @@ function FilaPlanilla({ planilla, onAbrir }: { planilla: Planilla; onAbrir: (id:
       <td className="px-3 py-2.5 text-xs text-center">{autos}</td>
       <td className="px-3 py-2.5 text-xs text-center">{colectivos}</td>
       <td className="px-3 py-2.5 text-xs text-center">{camiones}</td>
-      <td className="px-3 py-2.5 text-xs text-center font-semibold text-gray-700">{planilla.entradas.length}</td>
+      <td className="px-3 py-2.5 text-xs text-center font-semibold text-gray-700">{planilla.totalCount ?? planilla.entradas.length}</td>
       <td className="px-3 py-2.5 text-xs text-center text-green-700">{conActa}</td>
       <td className="px-3 py-2.5">
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${planilla.estado === 'abierta' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>

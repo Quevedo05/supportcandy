@@ -200,14 +200,30 @@ router.get('/planilla-actual', autenticar, soloSavean, soloInspector, async (req
 router.get('/planillas', autenticar, soloSavean, soloAdminOSanidad, async (req, res) => {
   const { fecha, barreraId } = req.query;
   try {
-    let sql = `SELECT p.* FROM planillas_control_savean p WHERE 1=1`;
+    let sql = `
+      SELECT p.*,
+        COUNT(CASE WHEN e.tipo_vehiculo = 'auto'      THEN 1 END) AS autos_count,
+        COUNT(CASE WHEN e.tipo_vehiculo = 'colectivo' THEN 1 END) AS colectivos_count,
+        COUNT(CASE WHEN e.tipo_vehiculo = 'camion'    THEN 1 END) AS camiones_count,
+        COUNT(e.entradaId)   AS total_count,
+        COUNT(e.ingreso_id)  AS con_acta_count
+      FROM planillas_control_savean p
+      LEFT JOIN entradas_planilla_savean e ON e.planilla_id = p.planillaId
+      WHERE 1=1`;
     const params = [];
     if (fecha) { sql += ' AND p.fecha = ?'; params.push(fecha); }
     if (barreraId) { sql += ' AND p.barrera_id = ?'; params.push(barreraId); }
-    sql += ' ORDER BY p.fecha DESC, p.creado_en DESC';
+    sql += ' GROUP BY p.planillaId ORDER BY p.fecha DESC, p.creado_en DESC';
 
     const [rows] = await pool.query(sql, params);
-    return res.json(rows.map(r => formatPlanilla(r)));
+    return res.json(rows.map(r => ({
+      ...formatPlanilla(r),
+      autosCount:      Number(r.autos_count),
+      colectivosCount: Number(r.colectivos_count),
+      camionesCount:   Number(r.camiones_count),
+      totalCount:      Number(r.total_count),
+      conActaCount:    Number(r.con_acta_count),
+    })));
   } catch (err) {
     console.error('[GET /savean/entrada/planillas]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
