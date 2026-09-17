@@ -117,6 +117,7 @@ interface Step1Data {
   decomisoCg: string;
   decomisoCFruta: string;
   generarActa: boolean;
+  esCargaCarnica: boolean;
 }
 
 function Step1({
@@ -253,14 +254,28 @@ function Step1({
 
       {/* ¿Generar acta? */}
       {data.tipoVehiculo !== '' && (
-        <label className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg cursor-pointer">
-          <input type="checkbox" checked={data.generarActa}
-            onChange={e => onChange({ generarActa: e.target.checked })}
-            className="w-4 h-4 accent-green-600" />
-          <span className="text-sm font-medium text-green-800">
-            Continuar con Acta + Declaración Jurada de Productos
-          </span>
-        </label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg cursor-pointer">
+            <input type="checkbox" checked={data.generarActa}
+              onChange={e => onChange({ generarActa: e.target.checked, esCargaCarnica: e.target.checked ? data.esCargaCarnica : false })}
+              className="w-4 h-4 accent-green-600" />
+            <span className="text-sm font-medium text-green-800">
+              Continuar con Acta + Declaración Jurada de Productos
+            </span>
+          </label>
+
+          {data.generarActa && (
+            <label className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg cursor-pointer ml-4">
+              <input type="checkbox" checked={data.esCargaCarnica}
+                onChange={e => onChange({ esCargaCarnica: e.target.checked })}
+                className="w-4 h-4 accent-red-600" />
+              <div>
+                <span className="text-sm font-semibold text-red-800">Lleva carga cárnica (SENASA)</span>
+                <p className="text-xs text-red-500 mt-0.5">Activa el seguimiento para el Punto de Control</p>
+              </div>
+            </label>
+          )}
+        </div>
       )}
 
       {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{err}</p>}
@@ -425,8 +440,7 @@ interface Step3Data {
   transporteAcoplado: string;
   transporteLicencia: string;
   emailConductor: string;
-  // Carga cárnica
-  esCargaCarnica: boolean;
+  // Detalle carga cárnica (activado desde Step 1)
   senasaNumero: string;
   telefonoChofer: string;
   destinoComercial: string;
@@ -434,12 +448,13 @@ interface Step3Data {
   destinoTipoCarnico: string;
 }
 
-function Step3({ data, onChange, onBack, onSubmit, cargando }: {
+function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica }: {
   data: Step3Data;
   onChange: (d: Partial<Step3Data>) => void;
   onBack: () => void;
   onSubmit: () => void;
   cargando: boolean;
+  esCargaCarnica: boolean;
 }) {
   const [busqueda, setBusqueda] = useState('');
   const [mostrarBuscador, setMostrarBuscador] = useState(false);
@@ -636,20 +651,15 @@ function Step3({ data, onChange, onBack, onSubmit, cargando }: {
         )}
       </div>
 
-      {/* Carga cárnica */}
+      {/* Carga cárnica — sólo si fue activada en Step 1 */}
+      {esCargaCarnica && (
       <div className="border-t pt-4">
-        <label className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg cursor-pointer">
-          <input type="checkbox" checked={data.esCargaCarnica}
-            onChange={e => onChange({ esCargaCarnica: e.target.checked })}
-            className="w-4 h-4 accent-red-600" />
-          <div>
-            <span className="text-sm font-bold text-red-800">Lleva carga cárnica (SENASA)</span>
-            <p className="text-xs text-red-500 mt-0.5">Activa el seguimiento para el Punto de Control</p>
-          </div>
-        </label>
-
-        {data.esCargaCarnica && (
-          <div className="mt-3 space-y-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <p className="text-xs font-bold text-red-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+          Carga cárnica (SENASA)
+        </p>
+        <div>
+          <div className="space-y-3 p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelCls}>N° SENASA / DTE</label>
@@ -686,8 +696,9 @@ function Step3({ data, onChange, onBack, onSubmit, cargando }: {
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
+      )}
 
       <div className="flex gap-3 pt-2">
         <button onClick={onBack} className={btnSecondary} disabled={cargando}><ChevronLeft size={15} />Atrás</button>
@@ -736,7 +747,7 @@ export function SaveanEntrada({ onVolver }: { onVolver: () => void }) {
 
   const [step1, setStep1] = useState<Step1Data>({
     barreraId: '', tipoVehiculo: '', patente: '', procedencia: '',
-    decomisoCg: '', decomisoCFruta: '', generarActa: false,
+    decomisoCg: '', decomisoCFruta: '', generarActa: false, esCargaCarnica: false,
   });
   const [step2, setStep2] = useState<Step2Data>({
     actaTipo: '', actaControl: '', localidad: '', departamento: '', provincia: '',
@@ -750,7 +761,7 @@ export function SaveanEntrada({ onVolver }: { onVolver: () => void }) {
     destinoTipo: '', productos: [],
     transporteEmpresa: '', transporteCuit: '', transportePatente: '', transporteAcoplado: '', transporteLicencia: '',
     emailConductor: '',
-    esCargaCarnica: false, senasaNumero: '', telefonoChofer: '', destinoComercial: '', tipoCargaDetalle: '', destinoTipoCarnico: '',
+    senasaNumero: '', telefonoChofer: '', destinoComercial: '', tipoCargaDetalle: '', destinoTipoCarnico: '',
   });
 
   const handleSubmit = async () => {
@@ -762,6 +773,7 @@ export function SaveanEntrada({ onVolver }: { onVolver: () => void }) {
         entradaId: entradaId || null,
         barreraId: step1.barreraId,
         barreraNombre: barrera?.nombre || '',
+        esCargaCarnica: step1.esCargaCarnica,
         ...step2,
         ...step3,
       };
@@ -785,9 +797,9 @@ export function SaveanEntrada({ onVolver }: { onVolver: () => void }) {
     setEntradaId('');
     setIngresoNumero('');
     setEmailEnviado(false);
-    setStep1({ barreraId: step1.barreraId, tipoVehiculo: '', patente: '', procedencia: '', decomisoCg: '', decomisoCFruta: '', generarActa: false });
+    setStep1({ barreraId: step1.barreraId, tipoVehiculo: '', patente: '', procedencia: '', decomisoCg: '', decomisoCFruta: '', generarActa: false, esCargaCarnica: false });
     setStep2({ actaTipo: '', actaControl: '', localidad: '', departamento: '', provincia: '', interesadoNombre: '', interesadoDni: '', interesadoDomicilio: '', interesadoLocalidad: '', interesadoProvincia: '', vehiculo: '', chasis: '', acoplado: '', procedenteDe: '', destino: '', declaracion: '' });
-    setStep3({ remitenteNombre: '', remitenteCuit: '', remitenteLocalidadCod: '', remitenteProvinciaCod: '', destinatarioNombre: '', destinatarioCuit: '', destinatarioLocalidadCod: '', destinatarioProvinciaCod: '', destinoTipo: '', productos: [], transporteEmpresa: '', transporteCuit: '', transportePatente: '', transporteAcoplado: '', transporteLicencia: '', emailConductor: '', esCargaCarnica: false, senasaNumero: '', telefonoChofer: '', destinoComercial: '', tipoCargaDetalle: '', destinoTipoCarnico: '' });
+    setStep3({ remitenteNombre: '', remitenteCuit: '', remitenteLocalidadCod: '', remitenteProvinciaCod: '', destinatarioNombre: '', destinatarioCuit: '', destinatarioLocalidadCod: '', destinatarioProvinciaCod: '', destinoTipo: '', productos: [], transporteEmpresa: '', transporteCuit: '', transportePatente: '', transporteAcoplado: '', transporteLicencia: '', emailConductor: '', senasaNumero: '', telefonoChofer: '', destinoComercial: '', tipoCargaDetalle: '', destinoTipoCarnico: '' });
   };
 
   // Barra de progreso
@@ -828,6 +840,7 @@ export function SaveanEntrada({ onVolver }: { onVolver: () => void }) {
           <Step3
             data={step3} onChange={d => setStep3(p => ({ ...p, ...d }))}
             onBack={() => setPaso(2)} onSubmit={handleSubmit} cargando={cargando}
+            esCargaCarnica={step1.esCargaCarnica}
           />
         )}
         {paso === 'ok' && (
