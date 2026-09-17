@@ -6,6 +6,7 @@ import {
   LogOut, Plus, Trash2, CheckCircle2, Clock,
   Users, Shield, Code2, ToggleLeft, ToggleRight, X,
   AlertCircle, RefreshCw, ArrowLeft, Ticket, Leaf,
+  KeyRound, FileText, TreePine, Stethoscope,
 } from 'lucide-react';
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
@@ -26,10 +27,85 @@ interface UsuarioAPI {
 
 type Vista = 'panel' | 'tickets' | 'savean';
 type ModuloForm = 'tickets' | 'savean';
+type ModuloTab = 'tickets' | 'savean' | 'comite';
 
-const ROLES_POR_MODULO: Record<ModuloForm, { value: string; label: string }[]> = {
+// ─── Definición de módulos y roles ────────────────────────────────────────────
+
+interface RolDef {
+  value: string;
+  label: string;
+  descripcion: string;
+  // Clases Tailwind estáticas por rol (necesario para que el compilador las incluya)
+  clases: { bg: string; text: string; border: string; dot: string };
+  icono: JSX.Element;
+}
+
+const ROLES_DEF: Record<ModuloTab, RolDef[]> = {
   tickets: [
-    { value: 'admin',       label: 'Administrador (ve todo)' },
+    {
+      value: 'admin',
+      label: 'Administrador',
+      descripcion:
+        'Ve todos los tickets sin importar la etapa. Puede crear, editar y cerrar tickets, gestionar usuarios y configurar el flujo completo de trabajo.',
+      clases: { bg: 'bg-violet-500/15', text: 'text-violet-300', border: 'border-violet-500/30', dot: 'bg-violet-400' },
+      icono: <Shield size={14} />,
+    },
+    {
+      value: 'contribuidor',
+      label: 'Contribuidor',
+      descripcion:
+        'Solo accede a los tickets en las etapas que le fueron asignadas. Diseñado para especialistas de cada área del proceso (Veraz, Contrato, Simulador, etc.).',
+      clases: { bg: 'bg-blue-500/15', text: 'text-blue-300', border: 'border-blue-500/30', dot: 'bg-blue-400' },
+      icono: <FileText size={14} />,
+    },
+  ],
+  savean: [
+    {
+      value: 'admin',
+      label: 'Director / Agencia',
+      descripcion:
+        'Control total de SAVEAN. Crea y aprueba guías, accede a informes y planillas de barreras, y gestiona a los inspectores.',
+      clases: { bg: 'bg-orange-500/15', text: 'text-orange-300', border: 'border-orange-500/30', dot: 'bg-orange-400' },
+      icono: <Shield size={14} />,
+    },
+    {
+      value: 'inspector',
+      label: 'Inspector Barrerista',
+      descripcion:
+        'Opera en campo desde las barreras. Registra entradas de vehículos y crea guías de origen para la mercadería que sale de la provincia.',
+      clases: { bg: 'bg-amber-500/15', text: 'text-amber-300', border: 'border-amber-500/30', dot: 'bg-amber-400' },
+      icono: <TreePine size={14} />,
+    },
+    {
+      value: 'sanidad',
+      label: 'Sanidad',
+      descripcion:
+        'Accede únicamente al panel de ingresos del área de sanidad. Vista restringida para el control fitosanitario de entradas a la provincia.',
+      clases: { bg: 'bg-emerald-500/15', text: 'text-emerald-300', border: 'border-emerald-500/30', dot: 'bg-emerald-400' },
+      icono: <Stethoscope size={14} />,
+    },
+  ],
+  comite: [
+    {
+      value: 'contribuidor',
+      label: 'Miembro del Comité',
+      descripcion:
+        'Accede al formulario de análisis de su programa específico (CASEMI, etc.). Cada miembro está vinculado a un solo programa y solo ve ese formulario.',
+      clases: { bg: 'bg-purple-500/15', text: 'text-purple-300', border: 'border-purple-500/30', dot: 'bg-purple-400' },
+      icono: <FileText size={14} />,
+    },
+  ],
+};
+
+const MODULO_TABS: { key: ModuloTab; label: string; desc: string }[] = [
+  { key: 'tickets', label: 'Tickets',  desc: 'Gestión de trámites y solicitudes' },
+  { key: 'savean',  label: 'SAVEAN',   desc: 'Guías de Origen · Control fitosanitario' },
+  { key: 'comite',  label: 'Comité',   desc: 'Análisis de programas (CASEMI, etc.)' },
+];
+
+const ROLES_FORM: Record<ModuloForm, { value: string; label: string }[]> = {
+  tickets: [
+    { value: 'admin',        label: 'Administrador (ve todo)' },
     { value: 'contribuidor', label: 'Contribuidor (por etapas)' },
   ],
   savean: [
@@ -66,7 +142,7 @@ async function apiCall<T>(method: string, path: string, body?: unknown): Promise
   return res.json();
 }
 
-// ─── Wrappers de vista con barra de retorno ────────────────────────────────
+// ─── Wrapper de vista con barra de retorno ────────────────────────────────────
 
 function VistaWrapper({ titulo, color, onVolver, children }: {
   titulo: string; color: string; onVolver: () => void; children: React.ReactNode;
@@ -82,38 +158,281 @@ function VistaWrapper({ titulo, color, onVolver, children }: {
         </button>
         <span className="text-xs opacity-70 border-l border-white/30 pl-4">Viendo: {titulo}</span>
       </div>
-      <div className="pt-10">
-        {children}
+      <div className="pt-10">{children}</div>
+    </div>
+  );
+}
+
+// ─── Tarjeta de usuario ───────────────────────────────────────────────────────
+
+function UsuarioCard({
+  usuario, rolDef,
+  onToggle, toggling,
+  onEliminar, eliminando, confirmDelete, onConfirmDelete, onCancelDelete,
+  onResetPassword, reseteando,
+}: {
+  usuario: UsuarioAPI;
+  rolDef: RolDef;
+  onToggle: (id: string) => void;
+  toggling: string | null;
+  onEliminar: (id: string) => void;
+  eliminando: string | null;
+  confirmDelete: string | null;
+  onConfirmDelete: (id: string) => void;
+  onCancelDelete: () => void;
+  onResetPassword: (id: string) => void;
+  reseteando: string | null;
+}) {
+  const { clases } = rolDef;
+  const id = usuario.usuarioId;
+
+  return (
+    <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${clases.border} bg-slate-900/60 hover:bg-slate-800/60 transition`}>
+      {/* Dot de estado */}
+      <div className="flex-shrink-0">
+        {usuario.pendiente ? (
+          <div className="w-2 h-2 rounded-full bg-amber-400" title="Pendiente de activación" />
+        ) : usuario.activo ? (
+          <div className="w-2 h-2 rounded-full bg-emerald-400" title="Activo" />
+        ) : (
+          <div className="w-2 h-2 rounded-full bg-slate-600" title="Inactivo" />
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-white text-sm truncate">{usuario.nombre}</p>
+        <p className="text-xs text-slate-400 font-mono truncate">{usuario.email}</p>
+        {usuario.pendiente && (
+          <p className="text-xs text-amber-400 mt-0.5 flex items-center gap-1">
+            <Clock size={10} /> Pendiente de activación
+          </p>
+        )}
+        {usuario.modulo === 'tickets' && usuario.rol === 'contribuidor' && usuario.estadosAsignados.length > 0 && (
+          <p className="text-xs text-slate-500 mt-0.5">
+            Etapas: {usuario.estadosAsignados.join(' · ')}
+          </p>
+        )}
+      </div>
+
+      {/* Fecha */}
+      <p className="text-xs text-slate-600 hidden lg:block flex-shrink-0">
+        {new Date(usuario.creadoEn).toLocaleDateString('es-AR')}
+      </p>
+
+      {/* Acciones */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {/* Reset password */}
+        {!usuario.pendiente && (
+          <button
+            onClick={() => onResetPassword(id)}
+            disabled={reseteando === id}
+            title="Resetear contraseña (envía email)"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-300 hover:bg-slate-700 transition disabled:opacity-50"
+          >
+            <KeyRound size={13} />
+          </button>
+        )}
+
+        {/* Toggle activo */}
+        {!usuario.pendiente && (
+          <button
+            onClick={() => onToggle(id)}
+            disabled={toggling === id}
+            title={usuario.activo ? 'Desactivar acceso' : 'Activar acceso'}
+            className="flex items-center gap-1 text-xs px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition font-medium disabled:opacity-50"
+          >
+            {toggling === id
+              ? <RefreshCw size={11} className="animate-spin" />
+              : usuario.activo
+                ? <ToggleRight size={13} className="text-emerald-400" />
+                : <ToggleLeft size={13} className="text-slate-500" />
+            }
+          </button>
+        )}
+
+        {/* Eliminar */}
+        {confirmDelete === id ? (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onEliminar(id)}
+              disabled={eliminando === id}
+              className="text-xs px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-semibold disabled:opacity-50"
+            >
+              {eliminando === id ? '...' : 'Confirmar'}
+            </button>
+            <button
+              onClick={onCancelDelete}
+              className="text-xs px-2 py-1 bg-slate-700 text-slate-300 rounded-lg transition"
+            >
+              No
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => onConfirmDelete(id)}
+            title="Eliminar usuario"
+            className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-slate-700 transition"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Badges ──────────────────────────────────────────────────────────────────
+// ─── Sección de rol ───────────────────────────────────────────────────────────
 
-function ModuloBadge({ modulo }: { modulo: string }) {
-  const cfg: Record<string, string> = {
-    savean:  'bg-orange-500/20 text-orange-300 border-orange-500/30',
-    tickets: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    comite:  'bg-purple-500/20 text-purple-300 border-purple-500/30',
-  };
-  const labels: Record<string, string> = { savean: 'SAVEAN', tickets: 'Tickets', comite: 'Comité' };
+function RolSection({
+  rolDef, usuarios,
+  onToggle, toggling,
+  onEliminar, eliminando, confirmDelete, onConfirmDelete, onCancelDelete,
+  onResetPassword, reseteando,
+}: {
+  rolDef: RolDef;
+  usuarios: UsuarioAPI[];
+  onToggle: (id: string) => void;
+  toggling: string | null;
+  onEliminar: (id: string) => void;
+  eliminando: string | null;
+  confirmDelete: string | null;
+  onConfirmDelete: (id: string) => void;
+  onCancelDelete: () => void;
+  onResetPassword: (id: string) => void;
+  reseteando: string | null;
+}) {
+  const { clases } = rolDef;
+
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${cfg[modulo] ?? 'bg-slate-700 text-slate-300 border-slate-600'}`}>
-      {labels[modulo] ?? modulo}
-    </span>
+    <div className="mb-6">
+      {/* Header del rol */}
+      <div className={`flex items-start gap-3 p-4 rounded-xl border ${clases.border} ${clases.bg} mb-3`}>
+        <div className={`mt-0.5 flex-shrink-0 ${clases.text}`}>
+          {rolDef.icono}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className={`font-bold text-sm ${clases.text}`}>{rolDef.label}</h3>
+            <span className="text-xs text-slate-500 font-mono">
+              {usuarios.length} usuario{usuarios.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 mt-1 leading-relaxed">{rolDef.descripcion}</p>
+        </div>
+      </div>
+
+      {/* Lista de usuarios */}
+      {usuarios.length === 0 ? (
+        <p className="text-xs text-slate-600 italic pl-4 pb-2">Sin usuarios con este rol todavía.</p>
+      ) : (
+        <div className="space-y-2 pl-2">
+          {usuarios.map(u => (
+            <UsuarioCard
+              key={u.usuarioId}
+              usuario={u}
+              rolDef={rolDef}
+              onToggle={onToggle}
+              toggling={toggling}
+              onEliminar={onEliminar}
+              eliminando={eliminando}
+              confirmDelete={confirmDelete}
+              onConfirmDelete={onConfirmDelete}
+              onCancelDelete={onCancelDelete}
+              onResetPassword={onResetPassword}
+              reseteando={reseteando}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
-function RolBadge({ rol }: { rol: string }) {
-  const labels: Record<string, string> = {
-    admin: 'Admin', contribuidor: 'Contribuidor', inspector: 'Inspector',
-    supervisor: 'Supervisor', dev: 'Dev', operativo: 'Operativo',
-  };
-  return <span className="text-xs text-slate-400">{labels[rol] ?? rol}</span>;
+// ─── Vista de usuarios por módulo ─────────────────────────────────────────────
+
+function UsuariosPorModulo({
+  usuarios,
+  onToggle, toggling,
+  onEliminar, eliminando, confirmDelete, onConfirmDelete, onCancelDelete,
+  onResetPassword, reseteando,
+}: {
+  usuarios: UsuarioAPI[];
+  onToggle: (id: string) => void;
+  toggling: string | null;
+  onEliminar: (id: string) => void;
+  eliminando: string | null;
+  confirmDelete: string | null;
+  onConfirmDelete: (id: string) => void;
+  onCancelDelete: () => void;
+  onResetPassword: (id: string) => void;
+  reseteando: string | null;
+}) {
+  const [tabActivo, setTabActivo] = useState<ModuloTab>('tickets');
+
+  const conteo = (m: ModuloTab) => usuarios.filter(u => u.modulo === m).length;
+  const usuariosTab = usuarios.filter(u => u.modulo === tabActivo);
+
+  return (
+    <div>
+      {/* Tabs de módulo */}
+      <div className="flex gap-1 p-1 bg-slate-800/80 rounded-xl mb-6 flex-wrap">
+        {MODULO_TABS.map(t => {
+          const activo = tabActivo === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTabActivo(t.key)}
+              className={`flex-1 min-w-[100px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition ${
+                activo
+                  ? 'bg-slate-950 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+              }`}
+            >
+              <span>{t.label}</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                activo ? 'bg-violet-600 text-white' : 'bg-slate-700 text-slate-400'
+              }`}>
+                {conteo(t.key)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Descripción del módulo activo */}
+      <p className="text-xs text-slate-500 mb-5 px-1">
+        {MODULO_TABS.find(t => t.key === tabActivo)?.desc}
+      </p>
+
+      {/* Grupos por rol */}
+      {usuariosTab.length === 0 && ROLES_DEF[tabActivo].every(r => usuarios.filter(u => u.modulo === tabActivo && u.rol === r.value).length === 0) ? (
+        <div className="text-center py-10 text-slate-600 text-sm">
+          No hay usuarios en este módulo todavía.
+        </div>
+      ) : (
+        ROLES_DEF[tabActivo].map(rolDef => (
+          <RolSection
+            key={rolDef.value}
+            rolDef={rolDef}
+            usuarios={usuariosTab.filter(u => u.rol === rolDef.value)}
+            onToggle={onToggle}
+            toggling={toggling}
+            onEliminar={onEliminar}
+            eliminando={eliminando}
+            confirmDelete={confirmDelete}
+            onConfirmDelete={onConfirmDelete}
+            onCancelDelete={onCancelDelete}
+            onResetPassword={onResetPassword}
+            reseteando={reseteando}
+          />
+        ))
+      )}
+    </div>
+  );
 }
 
-// ─── Main DevPanel ────────────────────────────────────────────────────────────
+// ─── DevPanel principal ───────────────────────────────────────────────────────
 
 export function DevPanel() {
   const { usuario, logout } = useAuth();
@@ -124,9 +443,6 @@ export function DevPanel() {
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState('');
 
-  // Filtro
-  const [filtroModulo, setFiltroModulo] = useState<string>('todos');
-
   // Formulario crear usuario
   const [form, setForm] = useState<{
     nombre: string; email: string;
@@ -136,10 +452,12 @@ export function DevPanel() {
   const [errForm, setErrForm] = useState('');
   const [exitoMsg, setExitoMsg] = useState('');
 
-  // Confirmar eliminación
+  // Acciones de usuario
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [reseteando, setReseteando] = useState<string | null>(null);
+  const [resetMsg, setResetMsg] = useState('');
 
   const cargarUsuarios = useCallback(async () => {
     setCargando(true);
@@ -157,23 +475,21 @@ export function DevPanel() {
   useEffect(() => { cargarUsuarios(); }, [cargarUsuarios]);
 
   const handleModuloChange = (m: ModuloForm) => {
-    setForm({ ...form, modulo: m, rol: ROLES_POR_MODULO[m][0].value, etapas: [] });
+    setForm({ ...form, modulo: m, rol: ROLES_FORM[m][0].value, etapas: [] });
   };
 
   const toggleEtapa = (e: string) => {
     setForm(prev => ({
       ...prev,
-      etapas: prev.etapas.includes(e)
-        ? prev.etapas.filter(x => x !== e)
-        : [...prev.etapas, e],
+      etapas: prev.etapas.includes(e) ? prev.etapas.filter(x => x !== e) : [...prev.etapas, e],
     }));
   };
 
   const handleCrear = async () => {
     setErrForm('');
     setExitoMsg('');
-    if (!form.nombre.trim())          { setErrForm('El nombre es obligatorio.');      return; }
-    if (!form.email.includes('@'))    { setErrForm('Email inválido.');                return; }
+    if (!form.nombre.trim()) { setErrForm('El nombre es obligatorio.'); return; }
+    if (!form.email.includes('@')) { setErrForm('Email inválido.'); return; }
     if (form.modulo === 'tickets' && form.rol === 'contribuidor' && form.etapas.length === 0) {
       setErrForm('Seleccioná al menos una etapa para el contribuidor.'); return;
     }
@@ -225,7 +541,21 @@ export function DevPanel() {
     }
   };
 
-  // ── Vistas de módulos ────────────────────────────────────────────────────
+  const handleResetPassword = async (usuarioId: string) => {
+    setReseteando(usuarioId);
+    setResetMsg('');
+    try {
+      await apiCall('PATCH', `/usuarios/${usuarioId}/resetear-password`, {});
+      setResetMsg('Se envió el email de reseteo de contraseña.');
+      setTimeout(() => setResetMsg(''), 4000);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setReseteando(null);
+    }
+  };
+
+  // ── Vistas de módulos ────────────────────────────────────────────────────────
   if (vista === 'tickets') {
     return (
       <VistaWrapper titulo="Sistema de Tickets" color="bg-blue-700" onVolver={() => setVista('panel')}>
@@ -241,24 +571,19 @@ export function DevPanel() {
     );
   }
 
-  // ── Filtro de tabla ──────────────────────────────────────────────────────
-  const listaFiltrada = filtroModulo === 'todos'
-    ? usuarios
-    : usuarios.filter(u => u.modulo === filtroModulo);
-
   const stats = {
-    total:    usuarios.length,
-    activos:  usuarios.filter(u => u.activo && !u.pendiente).length,
-    pendiente: usuarios.filter(u => u.pendiente).length,
+    total:     usuarios.length,
+    activos:   usuarios.filter(u => u.activo && !u.pendiente).length,
+    pendientes: usuarios.filter(u => u.pendiente).length,
   };
 
-  // ── Panel principal ──────────────────────────────────────────────────────
+  // ── Panel principal ──────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
 
       {/* ── Header ── */}
       <header className="border-b border-slate-800 bg-slate-900">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="bg-violet-600 p-2 rounded-lg">
               <Code2 size={20} className="text-white" />
@@ -269,8 +594,8 @@ export function DevPanel() {
             </div>
           </div>
 
-          {/* ── Accesos rápidos a módulos ── */}
-          <div className="flex items-center gap-2">
+          {/* Accesos rápidos a módulos */}
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setVista('tickets')}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition"
@@ -283,7 +608,7 @@ export function DevPanel() {
             >
               <Leaf size={15} /> SAVEAN
             </button>
-            <div className="w-px h-6 bg-slate-700 mx-1" />
+            <div className="w-px h-6 bg-slate-700 hidden sm:block" />
             <span className="text-xs text-slate-500 hidden sm:block">{usuario?.email}</span>
             <button
               onClick={logout}
@@ -300,9 +625,9 @@ export function DevPanel() {
         {/* ── Stats ── */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Usuarios totales', value: stats.total,    color: 'bg-violet-600' },
-            { label: 'Con acceso activo', value: stats.activos,  color: 'bg-emerald-600' },
-            { label: 'Pendientes de activar', value: stats.pendiente, color: 'bg-amber-500' },
+            { label: 'Usuarios totales',       value: stats.total,     color: 'bg-violet-600' },
+            { label: 'Con acceso activo',       value: stats.activos,   color: 'bg-emerald-600' },
+            { label: 'Pendientes de activar',   value: stats.pendientes, color: 'bg-amber-500' },
           ].map(k => (
             <div key={k.label} className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center gap-4">
               <div className={`${k.color} p-2.5 rounded-lg flex-shrink-0`}>
@@ -360,12 +685,23 @@ export function DevPanel() {
                 onChange={e => setForm({ ...form, rol: e.target.value, etapas: [] })}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
               >
-                {ROLES_POR_MODULO[form.modulo].map(r => (
+                {ROLES_FORM[form.modulo].map(r => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </select>
             </div>
           </div>
+
+          {/* Descripción del rol seleccionado */}
+          {(() => {
+            const rolDef = ROLES_DEF[form.modulo]?.find(r => r.value === form.rol);
+            return rolDef ? (
+              <div className={`flex items-start gap-2 p-3 rounded-lg border ${rolDef.clases.border} ${rolDef.clases.bg} mb-4`}>
+                <span className={`mt-0.5 flex-shrink-0 ${rolDef.clases.text}`}>{rolDef.icono}</span>
+                <p className="text-xs text-slate-300 leading-relaxed">{rolDef.descripcion}</p>
+              </div>
+            ) : null;
+          })()}
 
           {/* Etapas (solo tickets contribuidor) */}
           {form.modulo === 'tickets' && form.rol === 'contribuidor' && (
@@ -413,25 +749,24 @@ export function DevPanel() {
           </button>
         </div>
 
-        {/* ── Tabla de usuarios ── */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-4 flex-wrap">
+        {/* ── Usuarios por módulo ── */}
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+          <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
             <div className="flex items-center gap-2">
               <Shield size={16} className="text-violet-400" />
               <h2 className="font-bold text-white text-sm uppercase tracking-wide">Usuarios del sistema</h2>
             </div>
             <div className="flex items-center gap-3">
-              {/* Filtro por módulo */}
-              <select
-                value={filtroModulo}
-                onChange={e => setFiltroModulo(e.target.value)}
-                className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500"
-              >
-                <option value="todos">Todos los módulos</option>
-                <option value="tickets">Tickets</option>
-                <option value="savean">SAVEAN</option>
-                <option value="comite">Comité</option>
-              </select>
+              {resetMsg && (
+                <p className="text-xs text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 size={11} /> {resetMsg}
+                </p>
+              )}
+              {errorCarga && (
+                <p className="text-xs text-red-400 flex items-center gap-1.5">
+                  <AlertCircle size={11} /> {errorCarga}
+                </p>
+              )}
               <button
                 onClick={cargarUsuarios}
                 className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition"
@@ -442,113 +777,24 @@ export function DevPanel() {
             </div>
           </div>
 
-          {errorCarga && (
-            <div className="mx-6 my-4 flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-              <AlertCircle size={15} /> {errorCarga}
-            </div>
-          )}
-
           {cargando ? (
             <div className="flex items-center justify-center py-12">
               <RefreshCw size={20} className="animate-spin text-slate-500" />
               <span className="ml-2 text-sm text-slate-500">Cargando usuarios...</span>
             </div>
-          ) : listaFiltrada.length === 0 ? (
-            <p className="text-center text-slate-500 text-sm py-10">
-              {filtroModulo === 'todos' ? 'No hay usuarios creados aún.' : `No hay usuarios en ${filtroModulo}.`}
-            </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-slate-500 border-b border-slate-800 uppercase tracking-wide">
-                    <th className="text-left px-5 py-3 font-medium">Usuario</th>
-                    <th className="text-left px-5 py-3 font-medium">Sistema / Rol</th>
-                    <th className="text-left px-5 py-3 font-medium">Estado</th>
-                    <th className="text-left px-5 py-3 font-medium">Alta</th>
-                    <th className="text-left px-5 py-3 font-medium">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {listaFiltrada.map(u => (
-                    <tr key={u.usuarioId} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition">
-                      <td className="px-5 py-3">
-                        <p className="font-medium text-white">{u.nombre}</p>
-                        <p className="text-xs text-slate-400 font-mono">{u.email}</p>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <ModuloBadge modulo={u.modulo} />
-                          <RolBadge rol={u.rol} />
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        {u.pendiente ? (
-                          <span className="flex items-center gap-1.5 text-xs text-amber-400 font-medium">
-                            <Clock size={11} /> Pendiente activación
-                          </span>
-                        ) : u.activo ? (
-                          <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-                            <CheckCircle2 size={11} /> Activo
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-                            <X size={11} /> Inactivo
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-xs text-slate-500">
-                        {new Date(u.creadoEn).toLocaleDateString('es-AR')}
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          {/* Toggle activo (solo usuarios activados) */}
-                          {!u.pendiente && (
-                            <button
-                              onClick={() => handleToggle(u.usuarioId)}
-                              disabled={toggling === u.usuarioId}
-                              title={u.activo ? 'Desactivar' : 'Activar'}
-                              className="flex items-center gap-1 text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-md transition font-medium disabled:opacity-50"
-                            >
-                              {u.activo
-                                ? <ToggleRight size={13} className="text-emerald-400" />
-                                : <ToggleLeft size={13} />}
-                              {toggling === u.usuarioId ? '...' : u.activo ? 'Activo' : 'Inactivo'}
-                            </button>
-                          )}
-
-                          {/* Eliminar */}
-                          {confirmDelete === u.usuarioId ? (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => handleEliminar(u.usuarioId)}
-                                disabled={eliminando === u.usuarioId}
-                                className="text-xs px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md transition font-semibold disabled:opacity-50"
-                              >
-                                {eliminando === u.usuarioId ? '...' : 'Confirmar'}
-                              </button>
-                              <button
-                                onClick={() => setConfirmDelete(null)}
-                                className="text-xs px-2 py-1 bg-slate-700 text-slate-300 rounded-md transition"
-                              >
-                                No
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setConfirmDelete(u.usuarioId)}
-                              className="flex items-center gap-1 text-xs px-2 py-1 bg-slate-700 hover:bg-red-800 text-slate-400 hover:text-red-300 rounded-md transition"
-                            >
-                              <Trash2 size={11} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <UsuariosPorModulo
+              usuarios={usuarios}
+              onToggle={handleToggle}
+              toggling={toggling}
+              onEliminar={handleEliminar}
+              eliminando={eliminando}
+              confirmDelete={confirmDelete}
+              onConfirmDelete={setConfirmDelete}
+              onCancelDelete={() => setConfirmDelete(null)}
+              onResetPassword={handleResetPassword}
+              reseteando={reseteando}
+            />
           )}
         </div>
 
