@@ -36,6 +36,64 @@ const PROVINCIAS_SAG = [
   { cod: '90', nombre: 'Tucumán' },
 ];
 
+// ─── Localidades argentinas ───────────────────────────────────────────────────
+const LOCALIDADES_ARG = [
+  // Buenos Aires
+  '9 de Julio', 'Azul', 'Bahía Blanca', 'Campana', 'Chascomús', 'Chivilcoy', 'Junín',
+  'La Plata', 'Lanús', 'Lomas de Zamora', 'Luján', 'Mar del Plata', 'Mercedes', 'Morón',
+  'Olavarría', 'Pergamino', 'Pilar', 'Quilmes', 'San Isidro', 'San Nicolás de los Arroyos',
+  'Tandil', 'Tigre', 'Zárate',
+  // CABA
+  'Ciudad Autónoma de Buenos Aires',
+  // Catamarca
+  'Andalgalá', 'Belén', 'San Fernando del Valle de Catamarca', 'Santa María',
+  // Chaco
+  'Presidencia Roque Sáenz Peña', 'Resistencia',
+  // Chubut
+  'Comodoro Rivadavia', 'Esquel', 'Puerto Madryn', 'Rawson (Chubut)', 'Trelew',
+  // Córdoba
+  'Bell Ville', 'Córdoba', 'Río Cuarto', 'Río Tercero', 'San Francisco', 'Villa María',
+  // Corrientes
+  'Corrientes', 'Goya', 'Mercedes (Corrientes)',
+  // Entre Ríos
+  'Concordia', 'Gualeguaychú', 'Paraná',
+  // Formosa
+  'Clorinda', 'Formosa',
+  // Jujuy
+  'Palpalá', 'San Pedro de Jujuy', 'San Salvador de Jujuy',
+  // La Pampa
+  'General Pico', 'Santa Rosa',
+  // La Rioja
+  'Chilecito', 'La Rioja',
+  // Mendoza
+  'General Alvear', 'Godoy Cruz', 'Guaymallén', 'Las Heras', 'Luján de Cuyo',
+  'Maipú', 'Mendoza', 'San Martín (Mendoza)', 'San Rafael', 'Tunuyán',
+  // Misiones
+  'Posadas',
+  // Neuquén
+  'Cutral Có', 'Neuquén', 'San Martín de los Andes', 'Zapala',
+  // Río Negro
+  'Allen', 'Cipolletti', 'General Roca', 'San Carlos de Bariloche', 'Viedma',
+  // Salta
+  'Cafayate', 'Orán', 'Salta', 'Tartagal',
+  // San Juan
+  'Albardón', 'Angaco', 'Calingasta', 'Caucete', 'Chimbas', 'Iglesia',
+  'Jáchal', 'Rawson (San Juan)', 'Rivadavia', 'San Juan', 'Santa Lucía',
+  'Sarmiento (San Juan)', 'Valle Fértil', 'Zonda',
+  // San Luis
+  'Merlo', 'San Luis', 'Villa Mercedes',
+  // Santa Cruz
+  'Caleta Olivia', 'Río Gallegos',
+  // Santa Fe
+  'Rafaela', 'Rosario', 'Santa Fe', 'Santo Tomé', 'Venado Tuerto', 'Villa Constitución',
+  // Santiago del Estero
+  'La Banda', 'Santiago del Estero',
+  // Tierra del Fuego
+  'Río Grande', 'Ushuaia',
+  // Tucumán
+  'Concepción (Tucumán)', 'San Miguel de Tucumán', 'Tafí Viejo', 'Yerba Buena',
+].sort((a, b) => a.localeCompare(b, 'es'));
+
 // ─── Catálogo de productos SAG ────────────────────────────────────────────────
 const PRODUCTOS_SAG = [
   { codigo: 1, nombre: 'Aceituna' }, { codigo: 2, nombre: 'Acelga' },
@@ -508,13 +566,17 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica }: {
             <input className={inputCls} value={data.remitenteCuit} onChange={e => onChange({ remitenteCuit: e.target.value })} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={labelCls}>Localidad (código)</label>
-            <input className={inputCls} placeholder="ej: 01" value={data.remitenteLocalidadCod} onChange={e => onChange({ remitenteLocalidadCod: e.target.value })} /></div>
+          <div><label className={labelCls}>Localidad</label>
+            <select className={inputCls} value={data.remitenteLocalidadCod} onChange={e => onChange({ remitenteLocalidadCod: e.target.value })}>
+              <option value="">Seleccioná localidad</option>
+              {LOCALIDADES_ARG.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
           <div><label className={labelCls}>Provincia</label>
             <select className={inputCls} value={data.remitenteProvinciaCod} onChange={e => onChange({ remitenteProvinciaCod: e.target.value })}>
               <option value="">Seleccioná provincia</option>
               {PROVINCIAS_SAG.map(p => (
-                <option key={p.cod} value={p.cod}>{p.cod} — {p.nombre}</option>
+                <option key={p.cod} value={p.cod}>{p.nombre}</option>
               ))}
             </select>
           </div>
@@ -531,13 +593,17 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica }: {
             <input className={inputCls} value={data.destinatarioCuit} onChange={e => onChange({ destinatarioCuit: e.target.value })} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className={labelCls}>Localidad (código)</label>
-            <input className={inputCls} placeholder="ej: 01" value={data.destinatarioLocalidadCod} onChange={e => onChange({ destinatarioLocalidadCod: e.target.value })} /></div>
+          <div><label className={labelCls}>Localidad</label>
+            <select className={inputCls} value={data.destinatarioLocalidadCod} onChange={e => onChange({ destinatarioLocalidadCod: e.target.value })}>
+              <option value="">Seleccioná localidad</option>
+              {LOCALIDADES_ARG.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
           <div><label className={labelCls}>Provincia</label>
             <select className={inputCls} value={data.destinatarioProvinciaCod} onChange={e => onChange({ destinatarioProvinciaCod: e.target.value })}>
               <option value="">Seleccioná provincia</option>
               {PROVINCIAS_SAG.map(p => (
-                <option key={p.cod} value={p.cod}>{p.cod} — {p.nombre}</option>
+                <option key={p.cod} value={p.cod}>{p.nombre}</option>
               ))}
             </select>
           </div>
