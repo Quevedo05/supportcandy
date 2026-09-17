@@ -6,7 +6,7 @@ import {
   LogOut, Plus, Trash2, CheckCircle2, Clock,
   Users, Shield, Code2, ToggleLeft, ToggleRight, X,
   AlertCircle, RefreshCw, ArrowLeft, Ticket, Leaf,
-  KeyRound, FileText, TreePine, Stethoscope,
+  KeyRound, FileText, TreePine, Stethoscope, MapPin,
 } from 'lucide-react';
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
@@ -84,6 +84,14 @@ const ROLES_DEF: Record<ModuloTab, RolDef[]> = {
       clases: { bg: 'bg-emerald-500/15', text: 'text-emerald-300', border: 'border-emerald-500/30', dot: 'bg-emerald-400' },
       icono: <Stethoscope size={14} />,
     },
+    {
+      value: 'punto_control',
+      label: 'Punto de Control',
+      descripcion:
+        'Opera en el punto de control interno (Ruta 215). Recibe los transportes cárnicos que registraron los inspectores de barrera y marca su estado: recibido, no recibido o alerta.',
+      clases: { bg: 'bg-red-500/15', text: 'text-red-300', border: 'border-red-500/30', dot: 'bg-red-400' },
+      icono: <MapPin size={14} />,
+    },
   ],
   comite: [
     {
@@ -109,9 +117,10 @@ const ROLES_FORM: Record<ModuloForm, { value: string; label: string }[]> = {
     { value: 'contribuidor', label: 'Contribuidor (por etapas)' },
   ],
   savean: [
-    { value: 'admin',     label: 'Director / Agencia' },
-    { value: 'inspector', label: 'Inspector Barrerista' },
-    { value: 'sanidad',   label: 'Sanidad (panel de ingresos)' },
+    { value: 'admin',         label: 'Director / Agencia' },
+    { value: 'inspector',     label: 'Inspector Barrerista' },
+    { value: 'sanidad',       label: 'Sanidad (panel de ingresos)' },
+    { value: 'punto_control', label: 'Punto de Control (Ruta 215)' },
   ],
 };
 

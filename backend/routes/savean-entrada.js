@@ -11,15 +11,16 @@ const soloSavean = soloModulo('savean');
 // ─── middleware de rol ────────────────────────────────────────────────────────
 
 function soloInspector(req, res, next) {
-  // soloSavean ya garantiza modulo='savean'; solo bloqueamos el rol de sanidad
-  if (req.usuario?.rol === 'sanidad') {
+  // Bloqueamos roles que no operan en barreras
+  const rolesExcluidos = ['sanidad', 'punto_control'];
+  if (rolesExcluidos.includes(req.usuario?.rol)) {
     return res.status(403).json({ error: 'Acceso denegado.' });
   }
   next();
 }
 
 function soloAdminOSanidad(req, res, next) {
-  const rolesPermitidos = ['admin', 'sanidad'];
+  const rolesPermitidos = ['admin', 'sanidad', 'dev'];
   if (!rolesPermitidos.includes(req.usuario?.rol)) {
     return res.status(403).json({ error: 'Acceso denegado.' });
   }
@@ -318,6 +319,9 @@ router.post('/ingresos', autenticar, soloSavean, soloInspector, async (req, res)
     transporteEmpresa, transporteCuit, transportePatente, transporteAcoplado, transporteLicencia,
     // Email
     emailConductor,
+    // Carga cárnica
+    esCargaCarnica,
+    senasaNumero, telefonoChofer, destinoComercial, tipoCargaDetalle, destinoTipoCarnico,
   } = req.body;
 
   if (!barreraId || !actaTipo) {
@@ -386,6 +390,37 @@ router.post('/ingresos', autenticar, soloSavean, soloInspector, async (req, res)
         emailConductor || null,
       ]
     );
+
+    // Crear registro de transporte cárnico si corresponde
+    if (esCargaCarnica) {
+      const transporteId = uuidv4();
+      const [[{ tcTotal }]] = await conn.query(
+        'SELECT COUNT(*) AS tcTotal FROM transportes_carnicos WHERE YEAR(creado_en) = ?',
+        [anio]
+      );
+      const tcNumero = `TC-${anio}-${String(Number(tcTotal) + 1).padStart(5, '0')}`;
+      await conn.query(
+        `INSERT INTO transportes_carnicos
+           (id, numero, barrera_id, barrera_nombre, inspector_id, inspector_nombre,
+            fecha_cruce, patente, empresa_origen, senasa_numero, telefono_chofer,
+            tipo_carga_detalle, destino_comercial, destino_tipo, estado, ingreso_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'en_transito', ?)`,
+        [
+          transporteId, tcNumero,
+          barreraId, barreraNombre || '',
+          req.usuario.usuarioId, inspectorNombre,
+          ahora,
+          transportePatente || null,
+          transporteEmpresa || null,
+          senasaNumero || null,
+          telefonoChofer || null,
+          tipoCargaDetalle || null,
+          destinoComercial || null,
+          destinoTipoCarnico || null,
+          ingresoId,
+        ]
+      );
+    }
 
     // Vincular con la fila de planilla si corresponde
     if (entradaId) {

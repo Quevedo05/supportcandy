@@ -425,6 +425,13 @@ interface Step3Data {
   transporteAcoplado: string;
   transporteLicencia: string;
   emailConductor: string;
+  // Carga cárnica
+  esCargaCarnica: boolean;
+  senasaNumero: string;
+  telefonoChofer: string;
+  destinoComercial: string;
+  tipoCargaDetalle: string;
+  destinoTipoCarnico: string;
 }
 
 function Step3({ data, onChange, onBack, onSubmit, cargando }: {
@@ -629,6 +636,59 @@ function Step3({ data, onChange, onBack, onSubmit, cargando }: {
         )}
       </div>
 
+      {/* Carga cárnica */}
+      <div className="border-t pt-4">
+        <label className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg cursor-pointer">
+          <input type="checkbox" checked={data.esCargaCarnica}
+            onChange={e => onChange({ esCargaCarnica: e.target.checked })}
+            className="w-4 h-4 accent-red-600" />
+          <div>
+            <span className="text-sm font-bold text-red-800">Lleva carga cárnica (SENASA)</span>
+            <p className="text-xs text-red-500 mt-0.5">Activa el seguimiento para el Punto de Control</p>
+          </div>
+        </label>
+
+        {data.esCargaCarnica && (
+          <div className="mt-3 space-y-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>N° SENASA / DTE</label>
+                <input className={inputCls} placeholder="DT-E-0XXX-YYYYYYY"
+                  value={data.senasaNumero} onChange={e => onChange({ senasaNumero: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>Teléfono del chofer</label>
+                <input className={inputCls} type="tel" placeholder="264 XXX XXXX"
+                  value={data.telefonoChofer} onChange={e => onChange({ telefonoChofer: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>Detalle de la carga</label>
+              <input className={inputCls} placeholder="Media res, cuartos, menudencias..."
+                value={data.tipoCargaDetalle} onChange={e => onChange({ tipoCargaDetalle: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>Destino comercial</label>
+              <input className={inputCls} placeholder="Nombre del frigorífico o carnicería"
+                value={data.destinoComercial} onChange={e => onChange({ destinoComercial: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>Tipo de destino</label>
+              <div className="flex gap-2">
+                {[{ v: 'interno', l: 'Interno (SJ)' }, { v: 'externo', l: 'Fuera de SJ' }].map(t => (
+                  <button key={t.v} type="button" onClick={() => onChange({ destinoTipoCarnico: t.v })}
+                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition ${
+                      data.destinoTipoCarnico === t.v
+                        ? 'bg-red-600 border-red-600 text-white'
+                        : 'border-gray-300 text-gray-600 hover:border-red-400'
+                    }`}>{t.l}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="flex gap-3 pt-2">
         <button onClick={onBack} className={btnSecondary} disabled={cargando}><ChevronLeft size={15} />Atrás</button>
         <button onClick={onSubmit} disabled={cargando} className={btnPrimary}>
@@ -690,6 +750,7 @@ export function SaveanEntrada({ onVolver }: { onVolver: () => void }) {
     destinoTipo: '', productos: [],
     transporteEmpresa: '', transporteCuit: '', transportePatente: '', transporteAcoplado: '', transporteLicencia: '',
     emailConductor: '',
+    esCargaCarnica: false, senasaNumero: '', telefonoChofer: '', destinoComercial: '', tipoCargaDetalle: '', destinoTipoCarnico: '',
   });
 
   const handleSubmit = async () => {
@@ -726,7 +787,7 @@ export function SaveanEntrada({ onVolver }: { onVolver: () => void }) {
     setEmailEnviado(false);
     setStep1({ barreraId: step1.barreraId, tipoVehiculo: '', patente: '', procedencia: '', decomisoCg: '', decomisoCFruta: '', generarActa: false });
     setStep2({ actaTipo: '', actaControl: '', localidad: '', departamento: '', provincia: '', interesadoNombre: '', interesadoDni: '', interesadoDomicilio: '', interesadoLocalidad: '', interesadoProvincia: '', vehiculo: '', chasis: '', acoplado: '', procedenteDe: '', destino: '', declaracion: '' });
-    setStep3({ remitenteNombre: '', remitenteCuit: '', remitenteLocalidadCod: '', remitenteProvinciaCod: '', destinatarioNombre: '', destinatarioCuit: '', destinatarioLocalidadCod: '', destinatarioProvinciaCod: '', destinoTipo: '', productos: [], transporteEmpresa: '', transporteCuit: '', transportePatente: '', transporteAcoplado: '', transporteLicencia: '', emailConductor: '' });
+    setStep3({ remitenteNombre: '', remitenteCuit: '', remitenteLocalidadCod: '', remitenteProvinciaCod: '', destinatarioNombre: '', destinatarioCuit: '', destinatarioLocalidadCod: '', destinatarioProvinciaCod: '', destinoTipo: '', productos: [], transporteEmpresa: '', transporteCuit: '', transportePatente: '', transporteAcoplado: '', transporteLicencia: '', emailConductor: '', esCargaCarnica: false, senasaNumero: '', telefonoChofer: '', destinoComercial: '', tipoCargaDetalle: '', destinoTipoCarnico: '' });
   };
 
   // Barra de progreso

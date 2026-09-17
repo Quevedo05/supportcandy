@@ -10,6 +10,7 @@ import { SaveanEntrada } from './components/SaveanEntrada';
 import { AdminEntradas } from './components/AdminEntradas';
 import { AdminPlanillas } from './components/AdminPlanillas';
 import { SaveanSanidad } from './components/SaveanSanidad';
+import { SaveanPuntoControl } from './components/SaveanPuntoControl';
 import {
   LogOut, Shield, BarChart2, Plus, User, FileBarChart, Users,
   ArrowDownToLine, ArrowUpFromLine, ClipboardList, Truck,
@@ -348,6 +349,9 @@ function SaveanAppContent() {
 }
 
 export function SaveanApp() {
+  const { usuario } = useAuth();
+  // punto_control no usa SaveanProvider (no necesita guías ni barreristas)
+  if (usuario?.rol === 'punto_control') return <SaveanPuntoControl />;
   return (
     <SaveanProvider>
       <SaveanAppContent />
