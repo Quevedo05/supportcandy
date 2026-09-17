@@ -418,6 +418,42 @@ router.post('/ingresos', autenticar, soloSavean, soloInspector, async (req, res)
   }
 });
 
+// GET /api/savean/entrada/planillas/:id/pdf — admin + sanidad
+router.get('/planillas/:id/pdf', autenticar, soloSavean, soloAdminOSanidad, async (req, res) => {
+  try {
+    const [[planilla]] = await pool.query(
+      'SELECT * FROM planillas_control_savean WHERE planillaId = ?',
+      [req.params.id]
+    );
+    if (!planilla) return res.status(404).json({ error: 'Planilla no encontrada' });
+
+    const [entradasRows] = await pool.query(
+      'SELECT * FROM entradas_planilla_savean WHERE planilla_id = ? ORDER BY fecha_hora ASC',
+      [req.params.id]
+    );
+
+    const { generarPdfPlanilla } = require('../services/pdfPlanilla');
+    const pdfBuffer = await generarPdfPlanilla(
+      formatPlanilla(planilla),
+      entradasRows.map(formatEntrada)
+    );
+
+    const fecha = planilla.fecha instanceof Date
+      ? planilla.fecha.toISOString().slice(0, 10)
+      : String(planilla.fecha).slice(0, 10);
+    const nombre = planilla.barrera_nombre || 'barrera';
+    const filename = `Planilla-${nombre}-${fecha}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.send(pdfBuffer);
+  } catch (err) {
+    console.error('[GET /savean/entrada/planillas/:id/pdf]', err);
+    return res.status(500).json({ error: 'Error al generar PDF' });
+  }
+});
+
 // GET /api/savean/entrada/ingresos — admin + sanidad
 router.get('/ingresos', autenticar, soloSavean, soloAdminOSanidad, async (req, res) => {
   const { fecha, barreraId, actaTipo } = req.query;
