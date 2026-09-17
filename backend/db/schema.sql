@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   nombre          VARCHAR(100)  NOT NULL,
   email           VARCHAR(255)  NOT NULL,
   password_hash   VARCHAR(255)  NOT NULL,
-  rol                    ENUM('admin', 'contribuidor', 'inspector') NOT NULL DEFAULT 'contribuidor',
+  rol                    ENUM('admin', 'contribuidor', 'inspector', 'supervisor', 'operativo', 'sanidad', 'punto_control', 'dev') NOT NULL DEFAULT 'contribuidor',
   modulo                 VARCHAR(50)   NOT NULL DEFAULT 'tickets',
   activo                 TINYINT(1)    NOT NULL DEFAULT 1,
   puede_editar_datos     TINYINT(1)    NOT NULL DEFAULT 0,
