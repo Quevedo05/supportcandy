@@ -1,4 +1,4 @@
-export type RolSistema = 'admin' | 'contribuidor' | 'inspector' | 'supervisor' | 'operativo' | 'sanidad' | 'dev';
+export type RolSistema = 'admin' | 'contribuidor' | 'inspector' | 'supervisor' | 'operativo' | 'sanidad' | 'punto_control' | 'dev';
 export type Modulo = 'tickets' | 'savean' | 'comite';
 
 export interface Usuario {
