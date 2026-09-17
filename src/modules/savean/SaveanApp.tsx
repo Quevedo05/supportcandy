@@ -10,7 +10,10 @@ import { SaveanEntrada } from './components/SaveanEntrada';
 import { AdminEntradas } from './components/AdminEntradas';
 import { AdminPlanillas } from './components/AdminPlanillas';
 import { SaveanSanidad } from './components/SaveanSanidad';
-import { LogOut, Shield, BarChart2, Plus, User, FileBarChart, Users, ArrowDownToLine, ArrowUpFromLine, ClipboardList } from 'lucide-react';
+import {
+  LogOut, Shield, BarChart2, Plus, User, FileBarChart, Users,
+  ArrowDownToLine, ArrowUpFromLine, ClipboardList, Truck,
+} from 'lucide-react';
 
 // ─── Inspector app (barreristas) ────────────────────────────────────────────
 type SeccionInspector = 'inicio' | 'guias' | 'nueva' | 'entrada' | 'perfil';
@@ -136,80 +139,171 @@ function InspectorApp() {
 }
 
 // ─── Admin app (empleados de la agencia) ────────────────────────────────────
-type SeccionAdmin = 'panel' | 'nueva' | 'informes' | 'entradas' | 'planillas' | 'usuarios' | 'perfil';
+type SeccionAdmin = 'guias' | 'nueva' | 'informes' | 'entradas' | 'planillas' | 'usuarios' | 'perfil';
 
-const TABS_ADMIN: { key: SeccionAdmin; label: string; icon: JSX.Element }[] = [
-  { key: 'panel',     label: 'Panel',       icon: <BarChart2 size={14} /> },
-  { key: 'nueva',     label: 'Nueva Guía',  icon: <Plus size={14} /> },
-  { key: 'informes',  label: 'Informes',    icon: <FileBarChart size={14} /> },
-  { key: 'entradas',  label: 'Entradas',    icon: <ArrowDownToLine size={14} /> },
-  { key: 'planillas', label: 'Planillas',   icon: <ClipboardList size={14} /> },
-  { key: 'usuarios',  label: 'Usuarios',    icon: <Users size={14} /> },
-  { key: 'perfil',    label: 'Mi Perfil',   icon: <User size={14} /> },
-];
+function SidebarItem({
+  icon, label, active, onClick, accent,
+}: {
+  icon: JSX.Element;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  accent?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition mb-0.5 text-left ${
+        active
+          ? `${accent ?? 'bg-white/15 text-white'}`
+          : 'text-gray-400 hover:text-gray-100 hover:bg-white/5'
+      }`}
+    >
+      <span className="flex-shrink-0">{icon}</span>
+      {label}
+    </button>
+  );
+}
 
 function AdminApp() {
   const { usuario, logout } = useAuth();
-  const [seccion, setSeccion] = useState<SeccionAdmin>('panel');
+  const [seccion, setSeccion] = useState<SeccionAdmin>('guias');
+
+  const labelSeccion: Record<SeccionAdmin, string> = {
+    guias:     'Panel Salida · Guías de Origen',
+    nueva:     'Panel Salida · Nueva Guía',
+    informes:  'Panel Salida · Informes',
+    entradas:  'Panel Entrada · Entradas a la Provincia',
+    planillas: 'Panel Entrada · Planillas de Control',
+    usuarios:  'Usuarios',
+    perfil:    'Mi Perfil',
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
 
-      {/* ── Header full-width ── */}
-      <header className="bg-gray-900 w-full">
-        <div className="w-full px-6 lg:px-10 flex items-center justify-between h-14">
-          <div className="flex items-center gap-5">
-            <div className="border-r border-gray-700 pr-5">
-              <p className="text-gray-400 text-xs uppercase tracking-widest font-medium leading-none">Agencia de Calidad San Juan</p>
-              <p className="text-white text-sm font-bold mt-0.5">SAVEAN</p>
-            </div>
-            <p className="text-gray-400 text-xs hidden sm:block">Sistema de Guías de Origen</p>
+      {/* ── Header ── */}
+      <header className="bg-gray-900 flex-shrink-0 h-14 flex items-center px-5 justify-between">
+        <div className="flex items-center gap-4">
+          <div className="border-r border-gray-700 pr-4">
+            <p className="text-gray-400 text-[10px] uppercase tracking-widest font-medium leading-none">
+              Agencia de Calidad San Juan
+            </p>
+            <p className="text-white text-sm font-bold mt-0.5">SAVEAN</p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-              <p className="text-white text-xs font-semibold leading-none">{usuario?.nombre}</p>
-            </div>
-            <div className="w-px h-6 bg-gray-700 hidden sm:block" />
-            <button
-              onClick={logout}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition text-xs font-medium"
-            >
-              <LogOut size={13} /> Salir
-            </button>
-          </div>
+          <span className="text-gray-500 text-xs hidden md:block">{labelSeccion[seccion]}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-gray-300 text-xs font-semibold hidden sm:block">{usuario?.nombre}</span>
+          <button
+            onClick={logout}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition text-xs font-medium"
+          >
+            <LogOut size={13} /> Salir
+          </button>
         </div>
       </header>
 
-      {/* ── Nav full-width ── */}
-      <nav className="bg-gray-800 w-full border-b border-gray-700">
-        <div className="w-full px-6 lg:px-10 flex">
-          {TABS_ADMIN.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setSeccion(t.key)}
-              className={`flex items-center gap-1.5 px-5 py-3 border-b-2 font-semibold text-xs uppercase tracking-wide transition ${
-                seccion === t.key
-                  ? 'border-white text-white bg-gray-700'
-                  : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-              }`}
-            >
-              {t.icon}
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </nav>
+      {/* ── Cuerpo: sidebar + contenido ── */}
+      <div className="flex flex-1 min-h-0">
 
-      {/* ── Contenido ── */}
-      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-10">
-        {seccion === 'panel'     && <SaveanAdmin />}
-        {seccion === 'nueva'     && <SaveanFormulario onVolver={() => setSeccion('panel')} />}
-        {seccion === 'informes'  && <SaveanInformes />}
-        {seccion === 'entradas'  && <AdminEntradas />}
-        {seccion === 'planillas' && <AdminPlanillas />}
-        {seccion === 'usuarios'  && <SaveanUsuarios />}
-        {seccion === 'perfil'    && <PerfilView rolLabel="Director · Agencia de Calidad San Juan" />}
-      </main>
+        {/* ── Sidebar ── */}
+        <aside className="w-52 bg-gray-900 flex flex-col flex-shrink-0 overflow-y-auto">
+
+          {/* Panel Entrada */}
+          <div className="px-3 pt-5 pb-3">
+            <div className="flex items-center gap-2 px-2 mb-1">
+              <ArrowDownToLine size={11} className="text-teal-400" />
+              <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest">Panel Entrada</p>
+            </div>
+            <p className="text-[9px] text-gray-500 px-2 mb-3 leading-relaxed">
+              Ingresos a la provincia
+            </p>
+            <SidebarItem
+              icon={<Truck size={14} />}
+              label="Entradas"
+              active={seccion === 'entradas'}
+              onClick={() => setSeccion('entradas')}
+              accent="bg-teal-500/20 text-teal-300"
+            />
+            <SidebarItem
+              icon={<ClipboardList size={14} />}
+              label="Planillas de Control"
+              active={seccion === 'planillas'}
+              onClick={() => setSeccion('planillas')}
+              accent="bg-teal-500/20 text-teal-300"
+            />
+          </div>
+
+          {/* Divisor */}
+          <div className="mx-4 border-t border-gray-700/60" />
+
+          {/* Panel Salida */}
+          <div className="px-3 pt-4 pb-3">
+            <div className="flex items-center gap-2 px-2 mb-1">
+              <ArrowUpFromLine size={11} className="text-orange-400" />
+              <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Panel Salida</p>
+            </div>
+            <p className="text-[9px] text-gray-500 px-2 mb-3 leading-relaxed">
+              Egreso de mercadería
+            </p>
+            <SidebarItem
+              icon={<BarChart2 size={14} />}
+              label="Panel de Guías"
+              active={seccion === 'guias'}
+              onClick={() => setSeccion('guias')}
+              accent="bg-orange-500/20 text-orange-300"
+            />
+            <SidebarItem
+              icon={<Plus size={14} />}
+              label="Nueva Guía"
+              active={seccion === 'nueva'}
+              onClick={() => setSeccion('nueva')}
+              accent="bg-orange-500/20 text-orange-300"
+            />
+            <SidebarItem
+              icon={<FileBarChart size={14} />}
+              label="Informes"
+              active={seccion === 'informes'}
+              onClick={() => setSeccion('informes')}
+              accent="bg-orange-500/20 text-orange-300"
+            />
+          </div>
+
+          {/* ── Usuarios y Perfil al fondo ── */}
+          <div className="mt-auto border-t border-gray-700/60 mx-4" />
+          <div className="px-3 py-3">
+            <SidebarItem
+              icon={<Users size={14} />}
+              label="Usuarios"
+              active={seccion === 'usuarios'}
+              onClick={() => setSeccion('usuarios')}
+              accent="bg-violet-500/20 text-violet-300"
+            />
+            <SidebarItem
+              icon={<User size={14} />}
+              label="Mi Perfil"
+              active={seccion === 'perfil'}
+              onClick={() => setSeccion('perfil')}
+              accent="bg-white/15 text-white"
+            />
+          </div>
+        </aside>
+
+        {/* ── Contenido principal ── */}
+        <main className="flex-1 overflow-y-auto bg-gray-100">
+          <div className="max-w-7xl mx-auto px-5 py-6 lg:px-8">
+            {seccion === 'guias'     && <SaveanAdmin />}
+            {seccion === 'nueva'     && <SaveanFormulario onVolver={() => setSeccion('guias')} />}
+            {seccion === 'informes'  && <SaveanInformes />}
+            {seccion === 'entradas'  && <AdminEntradas />}
+            {seccion === 'planillas' && <AdminPlanillas />}
+            {seccion === 'usuarios'  && <SaveanUsuarios />}
+            {seccion === 'perfil'    && <PerfilView rolLabel="Director · Agencia de Calidad San Juan" />}
+          </div>
+        </main>
+
+      </div>
     </div>
   );
 }
