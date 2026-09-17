@@ -6,7 +6,7 @@ import { LogOut, ArrowDownCircle, Search, Filter, X, ChevronDown, ChevronUp } fr
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 
 function getToken() {
-  return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+  return localStorage.getItem('sc_token') || '';
 }
 
 interface Ingreso {
