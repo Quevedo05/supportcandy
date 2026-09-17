@@ -162,6 +162,44 @@ interface ProductoIngresado {
 
 // ─── estilos compartidos ───────────────────────────────────────────────────────
 const inputCls = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent';
+
+function LocalidadSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const esOtra = value !== '' && !LOCALIDADES_ARG.includes(value);
+  const [modo, setModo] = useState<'lista' | 'texto'>(esOtra ? 'texto' : 'lista');
+
+  const handleSelect = (val: string) => {
+    if (val === '__otra__') {
+      setModo('texto');
+      onChange('');
+    } else {
+      setModo('lista');
+      onChange(val);
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <select
+        className={inputCls}
+        value={modo === 'texto' ? '__otra__' : value}
+        onChange={e => handleSelect(e.target.value)}
+      >
+        <option value="">Seleccioná localidad</option>
+        {LOCALIDADES_ARG.map(l => <option key={l} value={l}>{l}</option>)}
+        <option value="__otra__">Otra (escribir)...</option>
+      </select>
+      {modo === 'texto' && (
+        <input
+          className={inputCls}
+          placeholder="Escribí la localidad..."
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          autoFocus
+        />
+      )}
+    </div>
+  );
+}
 const labelCls = 'block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1';
 const btnPrimary = 'flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50';
 const btnSecondary = 'flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm font-medium rounded-lg transition';
@@ -567,10 +605,7 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica }: {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div><label className={labelCls}>Localidad</label>
-            <select className={inputCls} value={data.remitenteLocalidadCod} onChange={e => onChange({ remitenteLocalidadCod: e.target.value })}>
-              <option value="">Seleccioná localidad</option>
-              {LOCALIDADES_ARG.map(l => <option key={l} value={l}>{l}</option>)}
-            </select>
+            <LocalidadSelect value={data.remitenteLocalidadCod} onChange={v => onChange({ remitenteLocalidadCod: v })} />
           </div>
           <div><label className={labelCls}>Provincia</label>
             <select className={inputCls} value={data.remitenteProvinciaCod} onChange={e => onChange({ remitenteProvinciaCod: e.target.value })}>
@@ -594,10 +629,7 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica }: {
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div><label className={labelCls}>Localidad</label>
-            <select className={inputCls} value={data.destinatarioLocalidadCod} onChange={e => onChange({ destinatarioLocalidadCod: e.target.value })}>
-              <option value="">Seleccioná localidad</option>
-              {LOCALIDADES_ARG.map(l => <option key={l} value={l}>{l}</option>)}
-            </select>
+            <LocalidadSelect value={data.destinatarioLocalidadCod} onChange={v => onChange({ destinatarioLocalidadCod: v })} />
           </div>
           <div><label className={labelCls}>Provincia</label>
             <select className={inputCls} value={data.destinatarioProvinciaCod} onChange={e => onChange({ destinatarioProvinciaCod: e.target.value })}>
