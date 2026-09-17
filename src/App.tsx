@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginPage } from './components/LoginPage';
-import { TicketsApp } from './components/TicketsApp';
-import { SaveanApp } from './modules/savean/SaveanApp';
-import { DevPanel } from './components/DevPanel';
-import { ActivarCuenta } from './components/ActivarCuenta';
-import { ComiteDashboard } from './components/ComiteDashboard';
+
+const TicketsApp      = lazy(() => import('./components/TicketsApp').then(m => ({ default: m.TicketsApp })));
+const SaveanApp       = lazy(() => import('./modules/savean/SaveanApp').then(m => ({ default: m.SaveanApp })));
+const DevPanel        = lazy(() => import('./components/DevPanel').then(m => ({ default: m.DevPanel })));
+const ActivarCuenta   = lazy(() => import('./components/ActivarCuenta').then(m => ({ default: m.ActivarCuenta })));
+const ComiteDashboard = lazy(() => import('./components/ComiteDashboard').then(m => ({ default: m.ComiteDashboard })));
 import { CheckCircle2, XCircle, Clock, AlertCircle, ArrowLeft, User, Truck, Package, Shield } from 'lucide-react';
 
 // ─── Public guide verification (accessible without login) ──────────────────
@@ -178,10 +179,20 @@ function AppContent() {
   return <TicketsApp />;
 }
 
+function AppLoader() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="animate-spin rounded-full h-10 w-10 border-4 border-orange-500 border-t-transparent" />
+    </div>
+  );
+}
+
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <Suspense fallback={<AppLoader />}>
+        <AppContent />
+      </Suspense>
     </AuthProvider>
   );
 }

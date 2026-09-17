@@ -341,20 +341,21 @@ function PerfilView({ rolLabel }: { rolLabel: string }) {
 }
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
-function SaveanAppContent() {
+function SaveanAppContent({ rolOverride }: { rolOverride?: string }) {
   const { usuario } = useAuth();
-  if (usuario?.rol === 'admin' || usuario?.rol === 'dev') return <AdminApp />;
-  if (usuario?.rol === 'sanidad') return <SaveanSanidad />;
+  const rol = rolOverride ?? usuario?.rol;
+  if (rol === 'admin' || rol === 'dev') return <AdminApp />;
+  if (rol === 'sanidad') return <SaveanSanidad />;
   return <InspectorApp />;
 }
 
-export function SaveanApp() {
+export function SaveanApp({ rolOverride }: { rolOverride?: string } = {}) {
   const { usuario } = useAuth();
-  // punto_control no usa SaveanProvider (no necesita guías ni barreristas)
-  if (usuario?.rol === 'punto_control') return <SaveanPuntoControl />;
+  const rol = rolOverride ?? usuario?.rol;
+  if (rol === 'punto_control') return <SaveanPuntoControl />;
   return (
     <SaveanProvider>
-      <SaveanAppContent />
+      <SaveanAppContent rolOverride={rolOverride} />
     </SaveanProvider>
   );
 }

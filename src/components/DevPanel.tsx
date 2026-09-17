@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { TicketsApp } from './TicketsApp';
-import { SaveanApp } from '../modules/savean/SaveanApp';
 import {
   LogOut, Plus, Trash2, CheckCircle2, Clock,
   Users, Shield, Code2, ToggleLeft, ToggleRight, X,
   AlertCircle, RefreshCw, ArrowLeft, Ticket, Leaf,
   KeyRound, FileText, TreePine, Stethoscope, MapPin,
 } from 'lucide-react';
+
+const TicketsApp = lazy(() => import('./TicketsApp').then(m => ({ default: m.TicketsApp })));
+const SaveanApp  = lazy(() => import('../modules/savean/SaveanApp').then(m => ({ default: m.SaveanApp })));
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 
@@ -25,7 +26,7 @@ interface UsuarioAPI {
   creadoEn: string;
 }
 
-type Vista = 'panel' | 'tickets' | 'savean';
+type Vista = 'panel' | 'tickets' | 'savean' | 'savean-inspector' | 'savean-sanidad' | 'savean-punto-control';
 type ModuloForm = 'tickets' | 'savean';
 type ModuloTab = 'tickets' | 'savean' | 'comite';
 
@@ -565,17 +566,43 @@ export function DevPanel() {
   };
 
   // ── Vistas de módulos ────────────────────────────────────────────────────────
+  const moduleFallback = (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <RefreshCw size={22} className="animate-spin text-gray-400" />
+    </div>
+  );
   if (vista === 'tickets') {
     return (
       <VistaWrapper titulo="Sistema de Tickets" color="bg-blue-700" onVolver={() => setVista('panel')}>
-        <TicketsApp />
+        <Suspense fallback={moduleFallback}><TicketsApp /></Suspense>
       </VistaWrapper>
     );
   }
   if (vista === 'savean') {
     return (
-      <VistaWrapper titulo="SAVEAN · Guías de Origen" color="bg-orange-700" onVolver={() => setVista('panel')}>
-        <SaveanApp />
+      <VistaWrapper titulo="SAVEAN · Admin / Agencia" color="bg-orange-700" onVolver={() => setVista('panel')}>
+        <Suspense fallback={moduleFallback}><SaveanApp /></Suspense>
+      </VistaWrapper>
+    );
+  }
+  if (vista === 'savean-inspector') {
+    return (
+      <VistaWrapper titulo="SAVEAN · Inspector Barrerista" color="bg-amber-700" onVolver={() => setVista('panel')}>
+        <Suspense fallback={moduleFallback}><SaveanApp rolOverride="inspector" /></Suspense>
+      </VistaWrapper>
+    );
+  }
+  if (vista === 'savean-sanidad') {
+    return (
+      <VistaWrapper titulo="SAVEAN · Sanidad" color="bg-emerald-800" onVolver={() => setVista('panel')}>
+        <Suspense fallback={moduleFallback}><SaveanApp rolOverride="sanidad" /></Suspense>
+      </VistaWrapper>
+    );
+  }
+  if (vista === 'savean-punto-control') {
+    return (
+      <VistaWrapper titulo="SAVEAN · Punto de Control (Ruta 215)" color="bg-red-800" onVolver={() => setVista('panel')}>
+        <Suspense fallback={moduleFallback}><SaveanApp rolOverride="punto_control" /></Suspense>
       </VistaWrapper>
     );
   }
@@ -611,12 +638,25 @@ export function DevPanel() {
             >
               <Ticket size={15} /> Tickets
             </button>
-            <button
-              onClick={() => setVista('savean')}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold rounded-lg transition"
-            >
-              <Leaf size={15} /> SAVEAN
-            </button>
+
+            {/* SAVEAN — grupo de roles */}
+            <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5">
+              <Leaf size={13} className="text-orange-400 mr-1 flex-shrink-0" />
+              {([
+                { key: 'savean',              label: 'Admin',      color: 'bg-orange-600 hover:bg-orange-700' },
+                { key: 'savean-inspector',    label: 'Inspector',  color: 'bg-amber-600 hover:bg-amber-700' },
+                { key: 'savean-sanidad',      label: 'Sanidad',    color: 'bg-emerald-700 hover:bg-emerald-800' },
+                { key: 'savean-punto-control',label: 'Pto. Control', color: 'bg-red-700 hover:bg-red-800' },
+              ] as { key: Vista; label: string; color: string }[]).map(r => (
+                <button
+                  key={r.key}
+                  onClick={() => setVista(r.key)}
+                  className={`px-2.5 py-1 text-xs font-semibold text-white rounded-md transition ${r.color}`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
             <div className="w-px h-6 bg-slate-700 hidden sm:block" />
             <span className="text-xs text-slate-500 hidden sm:block">{usuario?.email}</span>
             <button
