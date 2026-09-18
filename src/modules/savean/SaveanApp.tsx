@@ -13,7 +13,7 @@ import { AdminPlanillas } from './components/AdminPlanillas';
 import { SaveanSanidad } from './components/SaveanSanidad';
 import { SaveanPuntoControl } from './components/SaveanPuntoControl';
 import {
-  LogOut, Shield, BarChart2, Plus, User, FileBarChart, Users,
+  LogOut, Shield, BarChart2, Plus, User, FileBarChart,
   ArrowDownToLine, ArrowUpFromLine, ClipboardList, Truck, Settings,
 } from 'lucide-react';
 
