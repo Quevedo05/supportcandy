@@ -17,6 +17,9 @@ const reportesRoutes = require('./routes/reportes');
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
 
+// Confiar en el primer proxy (nginx) para que express-rate-limit use la IP real del cliente
+app.set('trust proxy', 1);
+
 // ─── HTTPS redirect (producción) ─────────────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   app.use((req, res, next) => {
