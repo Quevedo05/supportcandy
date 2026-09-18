@@ -237,6 +237,7 @@ router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
          WHERE REPLACE(REPLACE(REPLACE(t.ciudadano_dni, '-', ''), ' ', ''), '.', '') = ?
            AND t.eliminado = 0
            AND t.estado != 'cerrado'
+           AND (t.etapa IS NULL OR t.etapa != 'Cerrado')
            AND (
              t.formularioId IS NULL
              OR f.programa IS NULL
@@ -499,6 +500,16 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
     if (etapa !== undefined) {
       setClauses.push('etapa = ?');
       params.push(etapa || null);
+      // Sincronizar el campo estado con la etapa visual
+      if (etapa === 'Cerrado') {
+        setClauses.push('estado = ?');
+        params.push('cerrado');
+        setClauses.push('fecha_cierre = NOW()');
+      } else if (etapa !== null && etapa !== '') {
+        setClauses.push('estado = ?');
+        params.push('en_progreso');
+        setClauses.push('fecha_cierre = NULL');
+      }
     }
 
     if (agentes !== undefined) {
