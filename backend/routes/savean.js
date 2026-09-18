@@ -325,6 +325,17 @@ router.get('/barreras', async (_req, res) => {
   }
 });
 
+// GET /api/savean/barreras/todas — AUTH + admin (incluye inactivas)
+router.get('/barreras/todas', autenticar, soloSavean, soloAdmin, async (_req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM barreras_savean ORDER BY nombre ASC');
+    return res.json({ barreras: rows.map(formatBarrera) });
+  } catch (err) {
+    console.error('[GET /savean/barreras/todas]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // POST /api/savean/barreras — AUTH + admin
 router.post('/barreras', autenticar, soloSavean, soloAdmin, async (req, res) => {
   try {
@@ -339,6 +350,27 @@ router.post('/barreras', autenticar, soloSavean, soloAdmin, async (req, res) => 
     return res.status(201).json(formatBarrera(row));
   } catch (err) {
     console.error('[POST /savean/barreras]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PATCH /api/savean/barreras/:id — AUTH + admin
+router.patch('/barreras/:id', autenticar, soloSavean, soloAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, activa } = req.body;
+    const sets = [];
+    const vals = [];
+    if (nombre !== undefined) { sets.push('nombre = ?'); vals.push(nombre); }
+    if (activa !== undefined) { sets.push('activa = ?'); vals.push(activa ? 1 : 0); }
+    if (sets.length === 0) return res.status(400).json({ error: 'No hay campos para actualizar' });
+    vals.push(id);
+    const [result] = await pool.query(`UPDATE barreras_savean SET ${sets.join(', ')} WHERE barreraId = ?`, vals);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Barrera no encontrada' });
+    const [[row]] = await pool.query('SELECT * FROM barreras_savean WHERE barreraId = ?', [id]);
+    return res.json(formatBarrera(row));
+  } catch (err) {
+    console.error('[PATCH /savean/barreras/:id]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

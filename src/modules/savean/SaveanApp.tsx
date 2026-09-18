@@ -6,6 +6,7 @@ import { SaveanFormulario } from './components/SaveanFormulario';
 import { SaveanAdmin } from './components/SaveanAdmin';
 import { SaveanInformes } from './components/SaveanInformes';
 import { SaveanUsuarios } from './components/SaveanUsuarios';
+import { SaveanConfiguracion } from './components/SaveanConfiguracion';
 import { SaveanEntrada } from './components/SaveanEntrada';
 import { AdminEntradas } from './components/AdminEntradas';
 import { AdminPlanillas } from './components/AdminPlanillas';
@@ -13,7 +14,7 @@ import { SaveanSanidad } from './components/SaveanSanidad';
 import { SaveanPuntoControl } from './components/SaveanPuntoControl';
 import {
   LogOut, Shield, BarChart2, Plus, User, FileBarChart, Users,
-  ArrowDownToLine, ArrowUpFromLine, ClipboardList, Truck,
+  ArrowDownToLine, ArrowUpFromLine, ClipboardList, Truck, Settings,
 } from 'lucide-react';
 
 // ─── Inspector app (barreristas) ────────────────────────────────────────────
@@ -140,7 +141,7 @@ function InspectorApp() {
 }
 
 // ─── Admin app (empleados de la agencia) ────────────────────────────────────
-type SeccionAdmin = 'guias' | 'nueva' | 'informes' | 'entradas' | 'planillas' | 'usuarios' | 'perfil';
+type SeccionAdmin = 'guias' | 'nueva' | 'informes' | 'entradas' | 'planillas' | 'usuarios' | 'configuracion' | 'perfil';
 
 function SidebarItem({
   icon, label, active, onClick, accent,
@@ -175,9 +176,10 @@ function AdminApp() {
     nueva:     'Panel Salida · Nueva Guía',
     informes:  'Panel Salida · Informes',
     entradas:  'Panel Entrada · Entradas a la Provincia',
-    planillas: 'Panel Entrada · Planillas de Control',
-    usuarios:  'Usuarios',
-    perfil:    'Mi Perfil',
+    planillas:      'Panel Entrada · Planillas de Control',
+    usuarios:       'Usuarios',
+    configuracion:  'Configuración',
+    perfil:         'Mi Perfil',
   };
 
   return (
@@ -271,15 +273,15 @@ function AdminApp() {
             />
           </div>
 
-          {/* ── Usuarios y Perfil al fondo ── */}
+          {/* ── Configuración, Usuarios y Perfil al fondo ── */}
           <div className="mt-auto border-t border-gray-700/60 mx-4" />
           <div className="px-3 py-3">
             <SidebarItem
-              icon={<Users size={14} />}
-              label="Usuarios"
-              active={seccion === 'usuarios'}
-              onClick={() => setSeccion('usuarios')}
-              accent="bg-violet-500/20 text-violet-300"
+              icon={<Settings size={14} />}
+              label="Configuración"
+              active={seccion === 'configuracion'}
+              onClick={() => setSeccion('configuracion')}
+              accent="bg-sky-500/20 text-sky-300"
             />
             <SidebarItem
               icon={<User size={14} />}
@@ -299,8 +301,9 @@ function AdminApp() {
             {seccion === 'informes'  && <SaveanInformes />}
             {seccion === 'entradas'  && <AdminEntradas />}
             {seccion === 'planillas' && <AdminPlanillas />}
-            {seccion === 'usuarios'  && <SaveanUsuarios />}
-            {seccion === 'perfil'    && <PerfilView rolLabel="Director · Agencia de Calidad San Juan" />}
+            {seccion === 'usuarios'       && <SaveanUsuarios />}
+            {seccion === 'configuracion'  && <SaveanConfiguracion />}
+            {seccion === 'perfil'         && <PerfilView rolLabel="Director · Agencia de Calidad San Juan" />}
           </div>
         </main>
 
