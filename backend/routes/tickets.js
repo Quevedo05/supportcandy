@@ -105,14 +105,14 @@ router.post('/crear-desde-formulario', crearTicketLimiter, async (req, res) => {
     if (!formularioId || typeof formularioId !== 'string') {
       errores.formularioId = 'El formularioId es requerido';
     }
-    if (!nombreCiudadano || nombreCiudadano.trim().length < 2) {
+    if (!nombreCiudadano || typeof nombreCiudadano !== 'string' || nombreCiudadano.trim().length < 2) {
       errores.nombreCiudadano = 'El nombre del ciudadano es requerido (mínimo 2 caracteres)';
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailCiudadano || !emailRegex.test(emailCiudadano.trim())) {
+    if (!emailCiudadano || typeof emailCiudadano !== 'string' || !emailRegex.test(emailCiudadano.trim())) {
       errores.emailCiudadano = 'El email del ciudadano no es válido';
     }
-    if (!descripcion || descripcion.trim().length === 0) {
+    if (!descripcion || typeof descripcion !== 'string' || descripcion.trim().length === 0) {
       errores.descripcion = 'La descripción es requerida';
     }
 
@@ -135,26 +135,36 @@ router.post('/crear-desde-formulario', crearTicketLimiter, async (req, res) => {
     const titulo = `Solicitud de ${nombreCiudadano.trim()} - ${formRows[0].programa}`;
     const ticketId = uuidv4();
 
-    // Insert without numero; after INSERT use id_seq (AUTO_INCREMENT) as the tracking number.
-    // numero is nullable so there is no UNIQUE=0 placeholder conflict under concurrent load.
-    const [result] = await pool.query(
-      `INSERT INTO tickets
-         (ticketId, titulo, descripcion, estado, prioridad, formularioId,
-          ciudadano_nombre, ciudadano_email, ciudadano_telefono)
-       VALUES (?, ?, ?, 'abierto', 'media', ?, ?, ?, ?)`,
-      [
-        ticketId,
-        titulo,
-        descripcion.trim(),
-        formularioId,
-        nombreCiudadano.trim(),
-        emailCiudadano.trim().toLowerCase(),
-        telefonoCiudadano ? telefonoCiudadano.trim() : null,
-      ]
-    );
-
-    const idSeq = result.insertId;
-    await pool.query('UPDATE tickets SET numero = ? WHERE id_seq = ?', [idSeq, idSeq]);
+    // Use a transaction so the INSERT and the numero assignment are atomic.
+    // numero is nullable (migration v5), so concurrent INSERTs don't clash on UNIQUE=0.
+    const conn = await pool.getConnection();
+    let idSeq;
+    try {
+      await conn.beginTransaction();
+      const [result] = await conn.query(
+        `INSERT INTO tickets
+           (ticketId, titulo, descripcion, estado, prioridad, formularioId,
+            ciudadano_nombre, ciudadano_email, ciudadano_telefono)
+         VALUES (?, ?, ?, 'abierto', 'media', ?, ?, ?, ?)`,
+        [
+          ticketId,
+          titulo,
+          descripcion.trim(),
+          formularioId,
+          nombreCiudadano.trim(),
+          emailCiudadano.trim().toLowerCase(),
+          telefonoCiudadano ? telefonoCiudadano.trim() : null,
+        ]
+      );
+      idSeq = result.insertId;
+      await conn.query('UPDATE tickets SET numero = ? WHERE id_seq = ?', [idSeq, idSeq]);
+      await conn.commit();
+    } catch (dbErr) {
+      await conn.rollback();
+      throw dbErr;
+    } finally {
+      conn.release();
+    }
 
     sheetsService.appendTicketRow(
       {
@@ -817,13 +827,19 @@ router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) 
   }
 });
 
-// PATCH /api/tickets/:ticketId/comentarios/:comentarioId — solo el autor puede editar sus adjuntos
+// PATCH /api/tickets/:ticketId/comentarios/:comentarioId — solo el autor puede editar su comentario
 router.patch('/:ticketId/comentarios/:comentarioId', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId, comentarioId } = req.params;
-    const { adjuntos } = req.body;
+    const { adjuntos, contenido } = req.body;
 
-    if (!Array.isArray(adjuntos)) {
+    const tieneAdjuntos = adjuntos !== undefined;
+    const tieneContenido = contenido !== undefined;
+
+    if (!tieneAdjuntos && !tieneContenido) {
+      return res.status(400).json({ error: 'Debe proporcionar adjuntos o contenido para actualizar' });
+    }
+    if (tieneAdjuntos && !Array.isArray(adjuntos)) {
       return res.status(400).json({ error: 'adjuntos debe ser un array' });
     }
 
@@ -836,12 +852,25 @@ router.patch('/:ticketId/comentarios/:comentarioId', autenticar, soloTickets, as
       return res.status(403).json({ error: 'Solo el autor puede editar este comentario' });
     }
 
+    const setClauses = [];
+    const params = [];
+
+    if (tieneAdjuntos) {
+      setClauses.push('adjuntos = ?');
+      params.push(adjuntos.length > 0 ? JSON.stringify(adjuntos) : null);
+    }
+    if (tieneContenido) {
+      setClauses.push('contenido = ?');
+      params.push(contenido || '');
+    }
+
+    params.push(comentarioId);
     await pool.query(
-      'UPDATE comentarios SET adjuntos = ? WHERE comentarioId = ?',
-      [adjuntos.length > 0 ? JSON.stringify(adjuntos) : null, comentarioId]
+      `UPDATE comentarios SET ${setClauses.join(', ')} WHERE comentarioId = ?`,
+      params
     );
 
-    return res.status(200).json({ ok: true, adjuntos });
+    return res.status(200).json({ ok: true, adjuntos: tieneAdjuntos ? adjuntos : undefined, contenido: tieneContenido ? contenido : undefined });
   } catch (err) {
     console.error('[PATCH /tickets/:id/comentarios/:cid]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });

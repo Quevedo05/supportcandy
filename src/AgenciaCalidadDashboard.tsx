@@ -870,6 +870,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const adjuntosCamposRef = React.useRef<HTMLInputElement>(null);
   const [editandoAdjuntosId, setEditandoAdjuntosId] = useState<string | null>(null);
   const [adjuntosEditandoTmp, setAdjuntosEditandoTmp] = useState<Adjunto[]>([]);
+  const [editandoTextoId, setEditandoTextoId] = useState<string | null>(null);
+  const [textoEditandoTmp, setTextoEditandoTmp] = useState('');
   const adjuntosComentarioRef = React.useRef<HTMLInputElement>(null);
   const [seccionesAbiertas, setSeccionesAbiertas] = useState<Record<string, boolean>>({
     solicitud: true, campos: true, legajo: true, asignaciones: true, observaciones: true, auditoria: false, comite: true,
@@ -1192,6 +1194,15 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                             <span className="text-xs bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">{entrada.autorRol}</span>
                           )}
                           <span className="text-xs text-slate-400">respondió {formatearFechaHora(entrada.fecha)}</span>
+                          {esPropio && editandoTextoId !== entrada.id && (
+                            <button
+                              onClick={() => { setEditandoTextoId(entrada.id); setTextoEditandoTmp(entrada.contenido); }}
+                              className="text-slate-300 hover:text-[#FF9500] transition-colors"
+                              title="Editar comentario"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
                           {(esPropio || usuario?.rol === 'admin') && (
                             <button
                               onClick={async () => {
@@ -1223,8 +1234,53 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         {entrada.email && (
                           <p className="text-xs text-slate-400">{entrada.email}</p>
                         )}
-                        {entrada.contenido && (
-                          <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{entrada.contenido}</p>
+                        {editandoTextoId === entrada.id ? (
+                          <div className="mt-2 space-y-2">
+                            <textarea
+                              value={textoEditandoTmp}
+                              onChange={(e) => setTextoEditandoTmp(e.target.value)}
+                              rows={3}
+                              className="w-full px-2 py-1.5 border border-orange-300 rounded text-sm resize-none focus:outline-none focus:ring-1 focus:ring-orange-400"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async () => {
+                                  const token = localStorage.getItem('sc_token');
+                                  const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+                                  try {
+                                    const res = await fetch(`${apiUrl}/tickets/${ticket.id}/comentarios/${entrada.id}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                      body: JSON.stringify({ contenido: textoEditandoTmp }),
+                                    });
+                                    if (res.ok) {
+                                      onActualizarTicket(ticket.id, {
+                                        comentarios: ticket.comentarios.map((c) =>
+                                          c.id === entrada.id ? { ...c, contenido: textoEditandoTmp } : c
+                                        ),
+                                      });
+                                      setEditandoTextoId(null);
+                                    } else {
+                                      alert('No se pudo guardar el comentario.');
+                                    }
+                                  } catch { alert('Error de conexión.'); }
+                                }}
+                                className="px-3 py-1 bg-orange-500 text-white text-xs font-semibold rounded hover:bg-orange-600"
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                onClick={() => setEditandoTextoId(null)}
+                                className="px-3 py-1 border border-slate-300 text-slate-600 text-xs rounded hover:bg-slate-50"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          entrada.contenido && (
+                            <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{entrada.contenido}</p>
+                          )
                         )}
 
                         {/* Adjuntos en modo normal */}

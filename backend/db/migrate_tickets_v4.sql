@@ -8,7 +8,7 @@
 USE agencia_calidad;
 
 ALTER TABLE tickets
-  ADD COLUMN IF NOT EXISTS eliminado         TINYINT(1) NOT NULL DEFAULT 0 AFTER leido,
-  ADD COLUMN IF NOT EXISTS fecha_eliminacion DATETIME NULL AFTER eliminado;
+  ADD COLUMN eliminado         TINYINT(1) NOT NULL DEFAULT 0 AFTER leido,
+  ADD COLUMN fecha_eliminacion DATETIME NULL AFTER eliminado;
 
 CREATE INDEX IF NOT EXISTS idx_tickets_eliminado ON tickets (eliminado);

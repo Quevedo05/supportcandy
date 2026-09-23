@@ -19,4 +19,4 @@ UPDATE tickets SET numero = id_seq WHERE numero = 0;
 
 -- 3. Agregar columna eliminado_por (faltaba en v4)
 ALTER TABLE tickets
-  ADD COLUMN IF NOT EXISTS eliminado_por VARCHAR(255) NULL AFTER fecha_eliminacion;
+  ADD COLUMN eliminado_por VARCHAR(255) NULL AFTER fecha_eliminacion;
