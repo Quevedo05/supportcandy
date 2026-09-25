@@ -145,7 +145,7 @@ export function SaveanUsuarios() {
     }
   };
 
-  const inspectores = users.filter(u => u.rol === 'inspector');
+  const inspectores = users.filter(u => u.rol !== 'admin');
   const directores  = users.filter(u => u.rol === 'admin');
 
   return (
