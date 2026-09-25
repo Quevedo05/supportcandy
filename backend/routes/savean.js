@@ -523,7 +523,7 @@ router.delete('/barreristas/:id', autenticar, soloSavean, soloAdmin, async (req,
 router.get('/usuarios', autenticar, soloSavean, soloAdmin, async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT usuarioId, nombre, email, rol, activo FROM usuarios WHERE modulo = 'savean' AND email LIKE '%@savean.local' ORDER BY creado_en ASC`
+      `SELECT usuarioId, nombre, email, rol, activo FROM usuarios WHERE modulo = 'savean' ORDER BY creado_en ASC`
     );
     return res.json({
       usuarios: rows.map(r => ({
