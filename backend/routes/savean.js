@@ -580,6 +580,28 @@ router.post('/usuarios', autenticar, soloSavean, soloAdmin, async (req, res) => 
   }
 });
 
+// PATCH /api/savean/usuarios/:id/password — AUTH + admin
+router.patch('/usuarios/:id/password', autenticar, soloSavean, soloAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+    if (!password || password.length < 4) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+    }
+    const [rows] = await pool.query(
+      `SELECT usuarioId FROM usuarios WHERE usuarioId = ? AND modulo = 'savean'`,
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const passwordHash = await bcrypt.hash(password, 10);
+    await pool.query('UPDATE usuarios SET password_hash = ? WHERE usuarioId = ?', [passwordHash, id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[PATCH /savean/usuarios/:id/password]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // DELETE /api/savean/usuarios/:id — AUTH + admin
 router.delete('/usuarios/:id', autenticar, soloSavean, soloAdmin, async (req, res) => {
   try {

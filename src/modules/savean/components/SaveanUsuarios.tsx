@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { Plus, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, KeyRound, X, Check } from 'lucide-react';
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 function getToken() { return localStorage.getItem('sc_token') || ''; }
@@ -18,18 +18,84 @@ interface SaveanUser {
   activo: boolean;
 }
 
+function getUsername(u: SaveanUser) {
+  return (u.username || u.email).replace(/@.*$/, '');
+}
+
+function ResetPasswordRow({ usuarioId, onDone }: { usuarioId: string; onDone: () => void }) {
+  const [pass, setPass]       = useState('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr]         = useState('');
+  const [ok, setOk]           = useState(false);
+
+  const handleReset = async () => {
+    if (pass.length < 4) { setErr('Mínimo 4 caracteres.'); return; }
+    setLoading(true); setErr('');
+    try {
+      const res = await fetch(`${API_URL}/savean/usuarios/${usuarioId}/password`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ password: pass }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({})) as { error?: string };
+        setErr(d.error || 'Error al cambiar contraseña.'); return;
+      }
+      setOk(true);
+      setTimeout(onDone, 1200);
+    } catch {
+      setErr('Error de conexión.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (ok) return (
+    <td colSpan={4} className="px-3 py-2 text-green-700 text-xs font-semibold">
+      ✓ Contraseña actualizada
+    </td>
+  );
+
+  return (
+    <td colSpan={4} className="px-3 py-2">
+      <div className="flex items-center gap-2">
+        <input
+          autoFocus
+          type="password"
+          placeholder="Nueva contraseña"
+          value={pass}
+          onChange={e => setPass(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleReset()}
+          className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-gray-400 w-44"
+        />
+        <button
+          onClick={handleReset}
+          disabled={loading}
+          className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-300 text-white text-xs font-semibold px-3 py-1 rounded transition"
+        >
+          <Check size={11} /> {loading ? '...' : 'Guardar'}
+        </button>
+        <button onClick={onDone} className="text-gray-400 hover:text-gray-600">
+          <X size={14} />
+        </button>
+        {err && <span className="text-red-600 text-xs">{err}</span>}
+      </div>
+    </td>
+  );
+}
+
 export function SaveanUsuarios() {
   const { usuario } = useAuth();
 
-  const [users, setUsers]       = useState<SaveanUser[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [err, setErr]           = useState('');
-  const [form, setForm]         = useState({ nombre: '', username: '', password: '' });
+  const [users, setUsers]         = useState<SaveanUser[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [err, setErr]             = useState('');
+  const [form, setForm]           = useState({ nombre: '', username: '', password: '' });
   const [guardando, setGuardando] = useState(false);
+  const [resetId, setResetId]     = useState<string | null>(null);
 
   const cargar = () => {
-    setLoading(true);
-    setErr('');
+    setLoading(true); setErr('');
     fetch(`${API_URL}/savean/usuarios`, { headers: { Authorization: `Bearer ${getToken()}` } })
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then(data => setUsers(data.usuarios ?? []))
@@ -98,8 +164,7 @@ export function SaveanUsuarios() {
             type="text" placeholder="Usuario"
             value={form.username}
             onChange={e => {
-              let v = e.target.value.toLowerCase().replace(/\s/g, '');
-              if (v.includes('@')) v = v.split('@')[0];
+              let v = e.target.value.toLowerCase().replace(/\s/g, '').replace(/@.*$/, '');
               setForm({ ...form, username: v });
             }}
             className={inputCls}
@@ -139,29 +204,45 @@ export function SaveanUsuarios() {
                   <th className="text-left px-3 py-2 font-semibold">Nombre</th>
                   <th className="text-left px-3 py-2 font-semibold">Usuario</th>
                   <th className="text-left px-3 py-2 font-semibold">Rol</th>
-                  <th className="text-left px-3 py-2 font-semibold">Acción</th>
+                  <th className="text-left px-3 py-2 font-semibold">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((u, i) => (
-                  <tr key={u.usuarioId} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-3 py-2 text-gray-800 font-medium">{u.nombre}</td>
-                    <td className="px-3 py-2 text-gray-500 font-mono">{u.username || u.email.replace('@savean.local', '')}</td>
-                    <td className="px-3 py-2">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
-                        u.rol === 'admin' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {u.rol === 'admin' ? 'Director' : 'Inspector'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      {u.usuarioId !== usuario?.usuarioId && u.rol !== 'admin' && (
-                        <button onClick={() => handleEliminar(u.usuarioId)} className={btnDanger}>
-                          <Trash2 size={11} /> Eliminar
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+                  resetId === u.usuarioId ? (
+                    <tr key={u.usuarioId} className="bg-gray-50 border-b border-gray-100">
+                      <ResetPasswordRow usuarioId={u.usuarioId} onDone={() => setResetId(null)} />
+                    </tr>
+                  ) : (
+                    <tr key={u.usuarioId} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-3 py-2 text-gray-800 font-medium">{u.nombre}</td>
+                      <td className="px-3 py-2 text-gray-500 font-mono">{getUsername(u)}</td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                          u.rol === 'admin' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {u.rol === 'admin' ? 'Director' : 'Inspector'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          {u.usuarioId !== usuario?.usuarioId && (
+                            <button
+                              onClick={() => setResetId(u.usuarioId)}
+                              className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold px-3 py-1 rounded transition"
+                            >
+                              <KeyRound size={11} /> Contraseña
+                            </button>
+                          )}
+                          {u.usuarioId !== usuario?.usuarioId && u.rol !== 'admin' && (
+                            <button onClick={() => handleEliminar(u.usuarioId)} className={btnDanger}>
+                              <Trash2 size={11} /> Eliminar
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
                 ))}
               </tbody>
             </table>
