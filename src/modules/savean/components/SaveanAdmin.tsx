@@ -197,7 +197,7 @@ export function SaveanAdmin() {
 
   const openGuiaFromModal = (g: GuiaSavean) => { setKpiModal(null); setGuiaVista(g); };
 
-  if (guiaVista) return <GuiaDetalle guia={guiaVista} onVolver={() => setGuiaVista(null)} />;
+  if (guiaVista) return <GuiaDetalle guia={guiaVista} onVolver={() => setGuiaVista(null)} abiertaPorQR={true} />;
 
   return (
     <div className="space-y-4 text-sm">

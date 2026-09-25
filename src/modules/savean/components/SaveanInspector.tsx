@@ -269,9 +269,10 @@ const sec = 'text-xs font-bold text-orange-600 uppercase tracking-wide border-b 
 interface GuiaDetalleProps {
   guia: GuiaSavean;
   onVolver: () => void;
+  abiertaPorQR: boolean;
 }
 
-export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
+export function GuiaDetalle({ guia, onVolver, abiertaPorQR }: GuiaDetalleProps) {
   const { barreras, verificarGuia, denegarGuia, modificarYVerificarGuia, obtenerGuia } = useSavean();
 
   const [barreraId, setBarreraId] = useState(guia.barreraId ?? '');
@@ -309,7 +310,7 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
 
   const barrerasActivas = barreras.filter((b) => b.activa);
   const guiaActual = guiaFresca ?? obtenerGuia(guia.id) ?? guia;
-  const puedeActuar = guiaActual.estado === 'pendiente';
+  const puedeActuar = guiaActual.estado === 'pendiente' && abiertaPorQR;
 
   const actualizarItem = (idx: number, campo: keyof ItemMercaderia, valor: string | number) => {
     setItemsCambios(prev => prev.map((it, i) => i === idx ? { ...it, [campo]: valor } : it));
@@ -392,7 +393,7 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
         </div>
       )}
 
-      {/* Barrera selector */}
+      {/* Barrera selector — solo si fue abierta por QR */}
       {puedeActuar && (
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
           <label className="block text-sm font-semibold text-orange-800 mb-2">
@@ -417,6 +418,16 @@ export function GuiaDetalle({ guia, onVolver }: GuiaDetalleProps) {
               ))}
             </select>
           )}
+        </div>
+      )}
+
+      {/* Aviso si fue abierta desde la lista (sin QR) y está pendiente */}
+      {guiaActual.estado === 'pendiente' && !abiertaPorQR && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle size={18} className="text-yellow-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-yellow-800 font-medium">
+            Para verificar, modificar o denegar esta guía, el transportista debe presentarla escaneando el código QR en la barrera.
+          </p>
         </div>
       )}
 
@@ -789,13 +800,15 @@ export function SaveanInspector() {
   const [filtro, setFiltro] = useState<FiltroEstado>('todos');
   const [busqueda, setBusqueda] = useState('');
   const [guiaSeleccionada, setGuiaSeleccionada] = useState<GuiaSavean | null>(null);
+  const [abiertaPorQR, setAbiertaPorQR] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
   if (guiaSeleccionada) {
     return (
       <GuiaDetalle
         guia={guiaSeleccionada}
-        onVolver={() => setGuiaSeleccionada(null)}
+        onVolver={() => { setGuiaSeleccionada(null); setAbiertaPorQR(false); }}
+        abiertaPorQR={abiertaPorQR}
       />
     );
   }
@@ -875,7 +888,7 @@ export function SaveanInspector() {
       {showScanner && (
         <QRScanner
           onClose={() => setShowScanner(false)}
-          onFound={(guia) => { setShowScanner(false); setGuiaSeleccionada(guia); }}
+          onFound={(guia) => { setShowScanner(false); setAbiertaPorQR(true); setGuiaSeleccionada(guia); }}
         />
       )}
 
@@ -910,7 +923,7 @@ export function SaveanInspector() {
           {guiasFiltradas.map((g) => (
             <div
               key={g.id}
-              onClick={() => setGuiaSeleccionada(g)}
+              onClick={() => { setAbiertaPorQR(false); setGuiaSeleccionada(g); }}
               className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md hover:border-orange-200 transition cursor-pointer group"
             >
               <div className="flex items-start justify-between gap-3">
