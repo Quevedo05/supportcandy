@@ -56,10 +56,11 @@ app.use(
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
 // CORS_ORIGIN is a comma-separated list of allowed origins
-const allowedOrigins = (process.env.CORS_ORIGIN || '')
-  .split(',')
-  .map((o) => o.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  ...(process.env.CORS_ORIGIN || '').split(',').map((o) => o.trim()).filter(Boolean),
+  'http://localhost:5173',
+  'http://localhost:4173',
+];
 
 app.use(
   cors({
