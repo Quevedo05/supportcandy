@@ -1437,8 +1437,9 @@ function ActaNoPago({ onVolver }: { onVolver: () => void }) {
   const [procedenteDe, setProcedenteDe] = useState('');
   const [destino,      setDestino]      = useState('');
 
-  const [monto,  setMonto]  = useState('');
-  const [chofer, setChofer] = useState('');
+  const [monto,       setMonto]       = useState('');
+  const [chofer,      setChofer]      = useState('');
+  const [emailChofer, setEmailChofer] = useState('');
 
   const [cargando, setCargando] = useState(false);
   const [err,      setErr]      = useState('');
@@ -1495,7 +1496,7 @@ function ActaNoPago({ onVolver }: { onVolver: () => void }) {
           destinatarioNombre: '', destinatarioCuit: '', destinatarioLocalidadCod: '', destinatarioProvinciaCod: '',
           destinoTipo: '', productos: [],
           transporteEmpresa: '', transporteCuit: '', transportePatente: chasis, transporteAcoplado: acoplado,
-          transporteLicencia: '', emailConductor: '',
+          transporteLicencia: '', emailConductor: emailChofer.trim() || null,
           senasaNumero: '', telefonoChofer: '', destinoComercial: '', tipoCargaDetalle: '', destinoTipoCarnico: '',
         }),
       });
@@ -1506,7 +1507,7 @@ function ActaNoPago({ onVolver }: { onVolver: () => void }) {
     finally { setCargando(false); }
   };
 
-  if (exito) return <PantallaExito numero={exito} emailEnviado={false} onNuevo={onVolver} />;
+  if (exito) return <PantallaExito numero={exito} emailEnviado={Boolean(emailChofer.trim())} onNuevo={onVolver} />;
 
   return (
     <div className="space-y-5">
@@ -1615,6 +1616,23 @@ function ActaNoPago({ onVolver }: { onVolver: () => void }) {
             <span>quedando notificado a su parecer y el transporte.</span>
           </div>
         </div>
+      </div>
+
+      {/* Email opcional del chofer */}
+      <div className="border-t pt-4">
+        <label className={labelCls}>¿El chofer quiere una copia por email? (opcional)</label>
+        <input
+          className={inputCls}
+          type="email"
+          placeholder="ejemplo@correo.com"
+          value={emailChofer}
+          onChange={e => setEmailChofer(e.target.value)}
+        />
+        {emailChofer.trim() && (
+          <p className="text-xs text-orange-600 mt-1">
+            Se enviará el acta en PDF a este correo al generar.
+          </p>
+        )}
       </div>
 
       {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{err}</p>}
