@@ -135,7 +135,10 @@ export function ActivarCuenta({ token }: Props) {
   const sistemaLabel = u.modulo === 'savean' ? 'SAVEAN — Guías de Origen' : 'Sistema de Tickets';
   const rolLabel =
     u.modulo === 'savean'
-      ? u.rol === 'admin' ? 'Director / Agencia' : 'Inspector Barrerista'
+      ? u.rol === 'admin'          ? 'Administrador'
+      : u.rol === 'sanidad'        ? 'Sanidad'
+      : u.rol === 'punto_control'  ? 'Punto de Control'
+      : 'Inspector'
       : u.rol === 'admin' ? 'Administrador' : 'Usuario';
 
   return (

@@ -792,16 +792,19 @@ export function GuiaDetalle({ guia, onVolver, abiertaPorQR }: GuiaDetalleProps) 
   );
 }
 
-// ───────────────────────────── Main inspector ─────────────────────────────
+// ───────────────────────────── Main inspector (modo admin: lista completa) ─────────────────────────────
 type FiltroEstado = 'todos' | EstadoGuia;
 
-export function SaveanInspector() {
+export function SaveanInspector({ soloQR = false }: { soloQR?: boolean }) {
   const { guias, errorCarga } = useSavean();
   const [filtro, setFiltro] = useState<FiltroEstado>('todos');
   const [busqueda, setBusqueda] = useState('');
   const [guiaSeleccionada, setGuiaSeleccionada] = useState<GuiaSavean | null>(null);
   const [abiertaPorQR, setAbiertaPorQR] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [manualNumero, setManualNumero] = useState('');
+  const [manualError, setManualError] = useState('');
+  const { obtenerGuiaPorNumero } = useSavean();
 
   if (guiaSeleccionada) {
     return (
@@ -813,6 +816,93 @@ export function SaveanInspector() {
     );
   }
 
+  // ── Modo inspector: solo escáner + búsqueda manual ──────────────────────────
+  if (soloQR) {
+    const buscarManual = async () => {
+      setManualError('');
+      const numero = manualNumero.trim();
+      if (!numero) return;
+      const encontrada = obtenerGuiaPorNumero(numero);
+      if (encontrada) {
+        setAbiertaPorQR(true);
+        setGuiaSeleccionada(encontrada);
+        return;
+      }
+      try {
+        const res = await fetch(`${API_URL}/savean/guias/numero/${encodeURIComponent(numero)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAbiertaPorQR(true);
+          setGuiaSeleccionada(data);
+        } else {
+          setManualError('No se encontró ninguna guía con ese número.');
+        }
+      } catch {
+        setManualError('Error al buscar la guía. Verificá tu conexión.');
+      }
+    };
+
+    return (
+      <div className="max-w-md mx-auto space-y-6 pt-2">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Verificar Guía de Salida</h2>
+          <p className="text-sm text-gray-400 mt-0.5">Escaneá el QR del transportista o ingresá el número de guía</p>
+        </div>
+
+        {/* Botón QR grande */}
+        <button
+          onClick={() => setShowScanner(true)}
+          className="w-full flex flex-col items-center justify-center gap-3 py-10 bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white rounded-2xl transition shadow-md"
+        >
+          <Camera size={40} />
+          <span className="text-base font-bold tracking-wide">Escanear código QR</span>
+          <span className="text-orange-200 text-xs">Apuntá la cámara al QR de la guía</span>
+        </button>
+
+        {/* Divisor */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 border-t border-gray-200" />
+          <span className="text-xs text-gray-400 font-medium">o ingresá el número</span>
+          <div className="flex-1 border-t border-gray-200" />
+        </div>
+
+        {/* Búsqueda manual */}
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={manualNumero}
+              onChange={e => { setManualNumero(e.target.value); setManualError(''); }}
+              onKeyDown={e => e.key === 'Enter' && buscarManual()}
+              placeholder="Ej: SAVEAN-2025-00001"
+              className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none"
+            />
+            <button
+              onClick={buscarManual}
+              disabled={!manualNumero.trim()}
+              className="px-5 py-3 bg-gray-800 hover:bg-gray-900 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl text-sm transition"
+            >
+              Buscar
+            </button>
+          </div>
+          {manualError && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2">
+              <AlertCircle size={13} /> {manualError}
+            </p>
+          )}
+        </div>
+
+        {showScanner && (
+          <QRScanner
+            onClose={() => setShowScanner(false)}
+            onFound={(guia) => { setShowScanner(false); setAbiertaPorQR(true); setGuiaSeleccionada(guia); }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ── Modo admin: lista completa ───────────────────────────────────────────────
   const guiasFiltradas = guias
     .filter((g) => filtro === 'todos' || g.estado === filtro)
     .filter((g) => {
@@ -826,7 +916,6 @@ export function SaveanInspector() {
       );
     })
     .sort((a, b) => {
-      // pendientes first, then by date desc
       if (a.estado === 'pendiente' && b.estado !== 'pendiente') return -1;
       if (a.estado !== 'pendiente' && b.estado === 'pendiente') return 1;
       return new Date(b.fechaEmision).getTime() - new Date(a.fechaEmision).getTime();

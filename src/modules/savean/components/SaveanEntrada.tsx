@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSavean } from '../context/SaveanContext';
-import { ChevronLeft, ChevronRight, Check, Plus, Trash2, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Plus, Trash2, Search, ClipboardList, Beef, Leaf, Ban } from 'lucide-react';
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 
@@ -287,7 +287,9 @@ function Step1({
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Paso 1 de 3</p>
+        {data.generarActa && (
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Paso 1 de 3</p>
+        )}
         <h2 className="text-base font-bold text-gray-900">Registro en planilla de control</h2>
         <p className="text-xs text-gray-500 mt-0.5">Completá los datos del vehículo que ingresa</p>
       </div>
@@ -544,13 +546,14 @@ interface Step3Data {
   destinoTipoCarnico: string;
 }
 
-function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica }: {
+function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica, pasoLabel = 'Paso 3 de 3' }: {
   data: Step3Data;
   onChange: (d: Partial<Step3Data>) => void;
   onBack: () => void;
   onSubmit: () => void;
   cargando: boolean;
   esCargaCarnica: boolean;
+  pasoLabel?: string;
 }) {
   const [busqueda, setBusqueda] = useState('');
   const [mostrarBuscador, setMostrarBuscador] = useState(false);
@@ -590,7 +593,7 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica }: {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Paso 3 de 3</p>
+        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">{pasoLabel}</p>
         <h2 className="text-base font-bold text-gray-900">Declaración Jurada de Productos Vegetales</h2>
       </div>
 
@@ -831,10 +834,849 @@ function PantallaExito({ numero, emailEnviado, onNuevo }: { numero: string; emai
   );
 }
 
+// ─── Mapeo barrera → localidad/departamento ──────────────────────────────────
+const BARRERA_LUGAR: { key: string; localidad: string; departamento: string }[] = [
+  { key: 'encon',      localidad: 'Encon',      departamento: '25 de Mayo' },
+  { key: 'san carlos', localidad: 'Alto Verde',  departamento: 'Sarmiento'  },
+  { key: 'vallecito',  localidad: 'Vallecito',   departamento: 'Caucete'    },
+];
+
+function resolverLugar(nombreBarrera: string) {
+  const n = nombreBarrera.toLowerCase();
+  return BARRERA_LUGAR.find(b => n.includes(b.key)) ?? null;
+}
+
+// ─── Acta Cárnica ─────────────────────────────────────────────────────────────
+const PRODS_CARNICOS = [
+  { key: 'vacuno'      as const, label: 'Vacuno'                  },
+  { key: 'cerdo'       as const, label: 'Cerdo'                   },
+  { key: 'galloGallina'as const, label: 'Gallo/Gallina'           },
+  { key: 'subProductos'as const, label: 'Sub productos (fiambre)' },
+];
+
+function ActaCarnica({ onVolver }: { onVolver: () => void }) {
+  const { barreras } = useSavean();
+
+  const [barreraId,    setBarreraId]    = useState('');
+  const [actaControl,  setActaControl]  = useState('');
+  const [localidad,    setLocalidad]    = useState('');
+  const [departamento, setDepartamento] = useState('');
+  const [planillaId,   setPlanillaId]   = useState('');
+  const [tipoVehiculo, setTipoVehiculo] = useState<'auto'|'colectivo'|'camion'|''>('');
+
+  const [interesadoNombre,    setInteresadoNombre]    = useState('');
+  const [interesadoDni,       setInteresadoDni]       = useState('');
+  const [interesadoDomicilio, setInteresadoDomicilio] = useState('');
+  const [interesadoLocalidad, setInteresadoLocalidad] = useState('');
+  const [interesadoProvincia, setInteresadoProvincia] = useState('');
+
+  const [vehiculo,     setVehiculo]     = useState('');
+  const [chasis,       setChasis]       = useState('');
+  const [acoplado,     setAcoplado]     = useState('');
+  const [procedenteDe, setProcedenteDe] = useState('');
+  const [destino,      setDestino]      = useState('');
+
+  const [permisoTransito,      setPermisoTransito]      = useState('');
+  const [habilitacionSenasa,   setHabilitacionSenasa]   = useState('');
+  const [precintosNum,         setPrecintosNum]         = useState('');
+  const [destinoComercialCarn, setDestinoComercialCarn] = useState('');
+  const [colocacionPrecintos,  setColocacionPrecintos]  = useState('');
+  const [productos, setProductos] = useState<Record<'vacuno'|'cerdo'|'galloGallina'|'subProductos', boolean>>(
+    { vacuno: false, cerdo: false, galloGallina: false, subProductos: false }
+  );
+
+  const [cargando, setCargando] = useState(false);
+  const [err,      setErr]      = useState('');
+  const [exito,    setExito]    = useState<string | null>(null);
+
+  const handleBarreraChange = async (id: string) => {
+    setBarreraId(id);
+    const barrera = barreras.find(b => b.id === id);
+    if (!barrera) { setActaControl(''); setLocalidad(''); setDepartamento(''); return; }
+    setActaControl(barrera.nombre);
+    const lugar = resolverLugar(barrera.nombre);
+    setLocalidad(lugar?.localidad ?? '');
+    setDepartamento(lugar?.departamento ?? '');
+    try {
+      const res = await fetch(`${API_URL}/savean/entrada/planilla-actual?barreraId=${id}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) setPlanillaId((await res.json()).id);
+    } catch {}
+  };
+
+  const buildDeclaracion = () => {
+    const prods = PRODS_CARNICOS.filter(p => productos[p.key]).map(p => p.label).join(' – ');
+    return [
+      `El señor declara transportar según Permiso de transito Nº ${permisoTransito}`,
+      `Productos o sub productos origen: ${prods}`,
+      `Habilitación Senasa: ${habilitacionSenasa}`,
+      `Precintos Nº ${precintosNum}`,
+      `Destino comercial: ${destinoComercialCarn}`,
+      `Colocación de precintos Nº ${colocacionPrecintos}`,
+      `Ingresa a san juan dirigido a punto control en ruta prov 215 y punta del monte (Rawson)`,
+      `Procedimiento realizado y avalado según res 22375//-085`,
+    ].join('\n');
+  };
+
+  const handleSubmit = async () => {
+    if (!barreraId)      { setErr('Seleccioná una barrera.'); return; }
+    if (!chasis.trim())  { setErr('Ingresá el Chasis N°.');  return; }
+    setCargando(true); setErr('');
+    try {
+      let entradaId = '';
+      if (planillaId) {
+        const r = await fetch(`${API_URL}/savean/entrada/entradas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+          body: JSON.stringify({ planillaId, tipoVehiculo: tipoVehiculo || 'camion', patente: chasis, procedencia: procedenteDe, decomisoCg: null, decomisoCFruta: null }),
+        });
+        if (r.ok) entradaId = (await r.json()).id;
+      }
+      const res = await fetch(`${API_URL}/savean/entrada/ingresos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({
+          entradaId: entradaId || null,
+          barreraId, barreraNombre: actaControl,
+          esCargaCarnica: true,
+          tipoProducto: 'carnico',
+          actaTipo: 'constatacion', actaControl,
+          localidad, departamento, provincia: 'San Juan',
+          interesadoNombre, interesadoDni, interesadoDomicilio, interesadoLocalidad, interesadoProvincia,
+          vehiculo, chasis, acoplado, procedenteDe, destino,
+          declaracion: buildDeclaracion(),
+          remitenteNombre: '', remitenteCuit: '', remitenteLocalidadCod: '', remitenteProvinciaCod: '',
+          destinatarioNombre: '', destinatarioCuit: '', destinatarioLocalidadCod: '', destinatarioProvinciaCod: '',
+          destinoTipo: '', productos: [],
+          transporteEmpresa: '', transporteCuit: '', transportePatente: chasis, transporteAcoplado: acoplado,
+          transporteLicencia: '', emailConductor: '',
+          senasaNumero: habilitacionSenasa, telefonoChofer: '',
+          destinoComercial: destinoComercialCarn,
+          tipoCargaDetalle: PRODS_CARNICOS.filter(p => productos[p.key]).map(p => p.label).join(', '),
+          destinoTipoCarnico: 'interno',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error || 'Error al crear el ingreso.'); return; }
+      setExito(data.numero);
+    } catch { setErr('Error de conexión.'); }
+    finally { setCargando(false); }
+  };
+
+  if (exito) return <PantallaExito numero={exito} emailEnviado={false} onNuevo={onVolver} />;
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="text-xs text-red-500 font-semibold uppercase tracking-wide mb-0.5">Constatación · Producto Cárnico</p>
+        <h2 className="text-base font-bold text-gray-900">Acta Fitozoosanitaria</h2>
+        <p className="text-xs text-gray-500 mt-0.5">El vehículo se registrará automáticamente en la planilla de control</p>
+      </div>
+
+      {/* Control = barrera */}
+      <div>
+        <label className={labelCls}>Control *</label>
+        <select className={inputCls} value={barreraId} onChange={e => handleBarreraChange(e.target.value)}>
+          <option value="">Seleccioná una barrera</option>
+          {barreras.filter(b => b.activa).map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
+        </select>
+      </div>
+
+      {/* Tipo de vehículo */}
+      <div>
+        <label className={labelCls}>Tipo de vehículo *</label>
+        <div className="grid grid-cols-3 gap-2">
+          {(['auto', 'colectivo', 'camion'] as const).map(t => (
+            <button key={t} type="button" onClick={() => setTipoVehiculo(t)}
+              className={`py-2.5 rounded-lg border text-sm font-semibold transition ${
+                tipoVehiculo === t ? 'bg-green-600 border-green-600 text-white' : 'border-gray-300 text-gray-600 hover:border-green-400'
+              }`}>
+              {t === 'auto' ? 'Auto' : t === 'colectivo' ? 'Colectivo' : 'Camión'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Lugar del control */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Lugar del control</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div><label className={labelCls}>Localidad</label>
+            <input className={inputCls} value={localidad} onChange={e => setLocalidad(e.target.value)} /></div>
+          <div><label className={labelCls}>Departamento</label>
+            <input className={inputCls} value={departamento} onChange={e => setDepartamento(e.target.value)} /></div>
+          <div><label className={labelCls}>Provincia</label>
+            <input className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`} value="San Juan" readOnly /></div>
+        </div>
+      </div>
+
+      {/* Interesado */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Interesado</p>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div><label className={labelCls}>Nombre completo</label>
+            <input className={inputCls} value={interesadoNombre} onChange={e => setInteresadoNombre(e.target.value)} /></div>
+          <div><label className={labelCls}>DNI</label>
+            <input className={inputCls} value={interesadoDni} onChange={e => setInteresadoDni(e.target.value)} /></div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div><label className={labelCls}>Domicilio</label>
+            <input className={inputCls} value={interesadoDomicilio} onChange={e => setInteresadoDomicilio(e.target.value)} /></div>
+          <div><label className={labelCls}>Localidad</label>
+            <input className={inputCls} value={interesadoLocalidad} onChange={e => setInteresadoLocalidad(e.target.value)} /></div>
+          <div><label className={labelCls}>Provincia</label>
+            <input className={inputCls} value={interesadoProvincia} onChange={e => setInteresadoProvincia(e.target.value)} /></div>
+        </div>
+      </div>
+
+      {/* Vehículo */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Vehículo</p>
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          <div><label className={labelCls}>Vehículo</label>
+            <input className={inputCls} value={vehiculo} onChange={e => setVehiculo(e.target.value)} /></div>
+          <div><label className={labelCls}>Chasis N°</label>
+            <input className={inputCls} value={chasis} onChange={e => setChasis(e.target.value.toUpperCase())} /></div>
+          <div><label className={labelCls}>Acoplado N°</label>
+            <input className={inputCls} value={acoplado} onChange={e => setAcoplado(e.target.value.toUpperCase())} /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>Procedente de</label>
+            <input className={inputCls} value={procedenteDe} onChange={e => setProcedenteDe(e.target.value)} /></div>
+          <div><label className={labelCls}>Destino</label>
+            <input className={inputCls} value={destino} onChange={e => setDestino(e.target.value)} /></div>
+        </div>
+      </div>
+
+      {/* Declaración cárnica estructurada */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">El señor declara</p>
+        <div className="space-y-3 bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
+
+          <div className="flex items-baseline gap-1 flex-wrap">
+            <span>El señor declara transportar según Permiso de tránsito N°</span>
+            <input
+              className="border-b border-gray-400 bg-transparent w-32 focus:outline-none focus:border-green-500"
+              value={permisoTransito} onChange={e => setPermisoTransito(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <p className="mb-2">Productos o sub productos origen:</p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 pl-2">
+              {PRODS_CARNICOS.map(p => (
+                <label key={p.key} className="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox"
+                    checked={productos[p.key]}
+                    onChange={e => setProductos(prev => ({ ...prev, [p.key]: e.target.checked }))}
+                    className="w-4 h-4 accent-red-600"
+                  />
+                  <span>{p.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-baseline gap-1 flex-wrap">
+            <span>Habilitación SENASA:</span>
+            <input
+              className="border-b border-gray-400 bg-transparent w-44 focus:outline-none focus:border-green-500"
+              value={habilitacionSenasa} onChange={e => setHabilitacionSenasa(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-baseline gap-1 flex-wrap">
+            <span>Precintos N°</span>
+            <input
+              className="border-b border-gray-400 bg-transparent w-32 focus:outline-none focus:border-green-500"
+              value={precintosNum} onChange={e => setPrecintosNum(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-baseline gap-1 flex-wrap">
+            <span>Destino comercial:</span>
+            <input
+              className="border-b border-gray-400 bg-transparent w-44 focus:outline-none focus:border-green-500"
+              value={destinoComercialCarn} onChange={e => setDestinoComercialCarn(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-baseline gap-1 flex-wrap">
+            <span>Colocación de precintos N°</span>
+            <input
+              className="border-b border-gray-400 bg-transparent w-32 focus:outline-none focus:border-green-500"
+              value={colocacionPrecintos} onChange={e => setColocacionPrecintos(e.target.value)}
+            />
+          </div>
+
+          <p className="text-xs text-gray-500 italic">
+            Ingresa a san juan dirigido a punto control en ruta prov 215 y punta del monte (Rawson)
+          </p>
+          <p className="text-xs text-gray-500 italic">
+            Procedimiento realizado y avalado según res 22375//-085
+          </p>
+        </div>
+      </div>
+
+      {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{err}</p>}
+
+      <div className="flex gap-3 pt-2">
+        <button onClick={onVolver} className={btnSecondary}><ChevronLeft size={15} />Cancelar</button>
+        <button onClick={handleSubmit} disabled={cargando} className={btnPrimary}>
+          <Check size={15} />{cargando ? 'Generando acta...' : 'Finalizar y generar acta'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Acta Vegetal ─────────────────────────────────────────────────────────────
+function ActaVegetal({ onVolver }: { onVolver: () => void }) {
+  const { barreras } = useSavean();
+
+  const [barreraId,    setBarreraId]    = useState('');
+  const [actaControl,  setActaControl]  = useState('');
+  const [localidad,    setLocalidad]    = useState('');
+  const [departamento, setDepartamento] = useState('');
+  const [planillaId,   setPlanillaId]   = useState('');
+  const [tipoVehiculo, setTipoVehiculo] = useState<'auto'|'colectivo'|'camion'|''>('');
+
+  const [interesadoNombre,    setInteresadoNombre]    = useState('');
+  const [interesadoDni,       setInteresadoDni]       = useState('');
+  const [interesadoDomicilio, setInteresadoDomicilio] = useState('');
+  const [interesadoLocalidad, setInteresadoLocalidad] = useState('');
+  const [interesadoProvincia, setInteresadoProvincia] = useState('');
+
+  const [vehiculo,     setVehiculo]     = useState('');
+  const [chasis,       setChasis]       = useState('');
+  const [acoplado,     setAcoplado]     = useState('');
+  const [procedenteDe, setProcedenteDe] = useState('');
+  const [destino,      setDestino]      = useState('');
+
+  const [declaracion, setDeclaracion] = useState('');
+
+  // Decomiso
+  const [decomiso,            setDecomiso]            = useState(false);
+  const [decomMarca,          setDecomMarca]          = useState('');
+  const [decomDominio,        setDecomDominio]        = useState('');
+  const [decomCantidad,       setDecomCantidad]       = useState('');
+  const [decomProductoHosp,   setDecomProductoHosp]   = useState('');
+
+  const [paso,     setPaso]     = useState<'acta' | 'ddjj'>('acta');
+  const [cargando, setCargando] = useState(false);
+  const [err,      setErr]      = useState('');
+  const [exito,    setExito]    = useState<string | null>(null);
+
+  const [step3, setStep3] = useState<Step3Data>({
+    remitenteNombre: '', remitenteCuit: '', remitenteLocalidadCod: '', remitenteProvinciaCod: '',
+    destinatarioNombre: '', destinatarioCuit: '', destinatarioLocalidadCod: '', destinatarioProvinciaCod: '',
+    destinoTipo: '', productos: [],
+    transporteEmpresa: '', transporteCuit: '', transportePatente: '', transporteAcoplado: '', transporteLicencia: '',
+    emailConductor: '',
+    senasaNumero: '', telefonoChofer: '', destinoComercial: '', tipoCargaDetalle: '', destinoTipoCarnico: '',
+  });
+
+  const handleBarreraChange = async (id: string) => {
+    setBarreraId(id);
+    const barrera = barreras.find(b => b.id === id);
+    if (!barrera) { setActaControl(''); setLocalidad(''); setDepartamento(''); return; }
+    setActaControl(barrera.nombre);
+    const lugar = resolverLugar(barrera.nombre);
+    setLocalidad(lugar?.localidad ?? '');
+    setDepartamento(lugar?.departamento ?? '');
+    try {
+      const res = await fetch(`${API_URL}/savean/entrada/planilla-actual?barreraId=${id}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) setPlanillaId((await res.json()).id);
+    } catch {}
+  };
+
+  const handleChasisChange = (val: string) => {
+    setChasis(val.toUpperCase());
+    if (!decomDominio) setDecomDominio(val.toUpperCase());
+  };
+
+  const handleSiguiente = () => {
+    if (!barreraId)     { setErr('Seleccioná una barrera.'); return; }
+    if (!chasis.trim()) { setErr('Ingresá el Chasis N°.');  return; }
+    setErr('');
+    setPaso('ddjj');
+  };
+
+  const buildDecomText = () =>
+    `En la hora antes mencionada al encabezado se presenta en el puesto vehiculo marca ${decomMarca} dominio ${decomDominio} que al realizar la inspección ocular y entrevista al conductor y pasajeros se logra constatar la cantidad de ${decomCantidad} de producto hospedero ${decomProductoHosp}, informando a los pasajeros del procedimiento y motivos dando consentimiento se procede al decomiso y posterior destrucción de lo incautado en presencia de los mismo.\nProcedimiento avalado según res 237/2026 – 472/2014 (art3-66-68) -- res515. Y demás que complmentan dicho procedimiento.`;
+
+  const buildDeclaracionFinal = () =>
+    decomiso ? `${declaracion}\n\n${buildDecomText()}` : declaracion;
+
+  const handleSubmit = async () => {
+    setCargando(true); setErr('');
+    try {
+      let entradaId = '';
+      if (planillaId) {
+        const r = await fetch(`${API_URL}/savean/entrada/entradas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+          body: JSON.stringify({ planillaId, tipoVehiculo: tipoVehiculo || 'camion', patente: chasis, procedencia: procedenteDe, decomisoCg: null, decomisoCFruta: null }),
+        });
+        if (r.ok) entradaId = (await r.json()).id;
+      }
+      const res = await fetch(`${API_URL}/savean/entrada/ingresos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({
+          entradaId: entradaId || null,
+          barreraId, barreraNombre: actaControl,
+          esCargaCarnica: false,
+          tipoProducto: 'vegetal',
+          actaTipo: decomiso ? 'decomiso' : 'constatacion',
+          actaControl, localidad, departamento, provincia: 'San Juan',
+          interesadoNombre, interesadoDni, interesadoDomicilio, interesadoLocalidad, interesadoProvincia,
+          vehiculo, chasis, acoplado, procedenteDe, destino,
+          declaracion: buildDeclaracionFinal(),
+          ...step3,
+          transportePatente: step3.transportePatente || chasis,
+          transporteAcoplado: step3.transporteAcoplado || acoplado,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error || 'Error al crear el ingreso.'); return; }
+      setExito(data.numero);
+    } catch { setErr('Error de conexión.'); }
+    finally { setCargando(false); }
+  };
+
+  if (exito) return <PantallaExito numero={exito} emailEnviado={Boolean(step3.emailConductor)} onNuevo={onVolver} />;
+
+  if (paso === 'ddjj') return (
+    <Step3
+      data={step3} onChange={d => setStep3(p => ({ ...p, ...d }))}
+      onBack={() => setPaso('acta')} onSubmit={handleSubmit}
+      cargando={cargando} esCargaCarnica={false}
+      pasoLabel="Paso 2 de 2 · Producto Vegetal"
+    />
+  );
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="text-xs text-emerald-600 font-semibold uppercase tracking-wide mb-0.5">Paso 1 de 2 · Producto Vegetal</p>
+        <h2 className="text-base font-bold text-gray-900">Acta Fitozoosanitaria</h2>
+        <p className="text-xs text-gray-500 mt-0.5">El vehículo se registrará automáticamente en la planilla de control</p>
+      </div>
+
+      {/* Control = barrera */}
+      <div>
+        <label className={labelCls}>Control *</label>
+        <select className={inputCls} value={barreraId} onChange={e => handleBarreraChange(e.target.value)}>
+          <option value="">Seleccioná una barrera</option>
+          {barreras.filter(b => b.activa).map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
+        </select>
+      </div>
+
+      {/* Tipo de vehículo */}
+      <div>
+        <label className={labelCls}>Tipo de vehículo *</label>
+        <div className="grid grid-cols-3 gap-2">
+          {(['auto', 'colectivo', 'camion'] as const).map(t => (
+            <button key={t} type="button" onClick={() => setTipoVehiculo(t)}
+              className={`py-2.5 rounded-lg border text-sm font-semibold transition ${
+                tipoVehiculo === t ? 'bg-green-600 border-green-600 text-white' : 'border-gray-300 text-gray-600 hover:border-green-400'
+              }`}>
+              {t === 'auto' ? 'Auto' : t === 'colectivo' ? 'Colectivo' : 'Camión'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Lugar del control */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Lugar del control</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div><label className={labelCls}>Localidad</label>
+            <input className={inputCls} value={localidad} onChange={e => setLocalidad(e.target.value)} /></div>
+          <div><label className={labelCls}>Departamento</label>
+            <input className={inputCls} value={departamento} onChange={e => setDepartamento(e.target.value)} /></div>
+          <div><label className={labelCls}>Provincia</label>
+            <input className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`} value="San Juan" readOnly /></div>
+        </div>
+      </div>
+
+      {/* Interesado */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Interesado</p>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div><label className={labelCls}>Nombre completo</label>
+            <input className={inputCls} value={interesadoNombre} onChange={e => setInteresadoNombre(e.target.value)} /></div>
+          <div><label className={labelCls}>DNI</label>
+            <input className={inputCls} value={interesadoDni} onChange={e => setInteresadoDni(e.target.value)} /></div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div><label className={labelCls}>Domicilio</label>
+            <input className={inputCls} value={interesadoDomicilio} onChange={e => setInteresadoDomicilio(e.target.value)} /></div>
+          <div><label className={labelCls}>Localidad</label>
+            <input className={inputCls} value={interesadoLocalidad} onChange={e => setInteresadoLocalidad(e.target.value)} /></div>
+          <div><label className={labelCls}>Provincia</label>
+            <input className={inputCls} value={interesadoProvincia} onChange={e => setInteresadoProvincia(e.target.value)} /></div>
+        </div>
+      </div>
+
+      {/* Vehículo */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Vehículo</p>
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          <div><label className={labelCls}>Vehículo</label>
+            <input className={inputCls} value={vehiculo} onChange={e => setVehiculo(e.target.value)} /></div>
+          <div><label className={labelCls}>Chasis N°</label>
+            <input className={inputCls} value={chasis} onChange={e => handleChasisChange(e.target.value)} /></div>
+          <div><label className={labelCls}>Acoplado N°</label>
+            <input className={inputCls} value={acoplado} onChange={e => setAcoplado(e.target.value.toUpperCase())} /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>Procedente de</label>
+            <input className={inputCls} value={procedenteDe} onChange={e => setProcedenteDe(e.target.value)} /></div>
+          <div><label className={labelCls}>Destino</label>
+            <input className={inputCls} value={destino} onChange={e => setDestino(e.target.value)} /></div>
+        </div>
+      </div>
+
+      {/* El señor declara — texto libre */}
+      <div className="border-t pt-4">
+        <label className={labelCls}>El señor declara</label>
+        <textarea
+          className={`${inputCls} resize-none`}
+          rows={4}
+          value={declaracion}
+          onChange={e => setDeclaracion(e.target.value)}
+          placeholder="Escribí la declaración..."
+        />
+      </div>
+
+      {/* Botón Decomiso */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setDecomiso(v => !v)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 font-semibold text-sm transition ${
+            decomiso
+              ? 'bg-amber-500 border-amber-500 text-white'
+              : 'border-amber-400 text-amber-600 hover:bg-amber-50'
+          }`}
+        >
+          {decomiso ? '✓ Decomiso activado' : '+ Decomiso'}
+        </button>
+
+        {decomiso && (
+          <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3 text-sm text-gray-700">
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-1">Texto de decomiso</p>
+
+            <p className="leading-relaxed">
+              En la hora antes mencionada al encabezado se presenta en el puesto vehiculo marca{' '}
+              <input
+                className="border-b border-gray-400 bg-transparent w-32 focus:outline-none focus:border-amber-500"
+                value={decomMarca} onChange={e => setDecomMarca(e.target.value)}
+              />
+              {' '}dominio{' '}
+              <input
+                className="border-b border-gray-400 bg-transparent w-28 focus:outline-none focus:border-amber-500"
+                value={decomDominio} onChange={e => setDecomDominio(e.target.value.toUpperCase())}
+              />
+              {' '}que al realizar la inspección ocular y entrevista al conductor y pasajeros se logra constatar la cantidad de{' '}
+              <input
+                className="border-b border-gray-400 bg-transparent w-20 focus:outline-none focus:border-amber-500"
+                value={decomCantidad} onChange={e => setDecomCantidad(e.target.value)}
+              />
+              {' '}de producto hospedero{' '}
+              <input
+                className="border-b border-gray-400 bg-transparent w-36 focus:outline-none focus:border-amber-500"
+                value={decomProductoHosp} onChange={e => setDecomProductoHosp(e.target.value)}
+              />
+              , informando a los pasajeros del procedimiento y motivos dando consentimiento se procede al decomiso y posterior destrucción de lo incautado en presencia de los mismo.
+            </p>
+            <p className="text-xs text-gray-500 italic">
+              Procedimiento avalado según res 237/2026 – 472/2014 (art3-66-68) -- res515. Y demás que complmentan dicho procedimiento.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{err}</p>}
+
+      <div className="flex gap-3 pt-2">
+        <button onClick={onVolver} className={btnSecondary}><ChevronLeft size={15} />Cancelar</button>
+        <button onClick={handleSiguiente} className={btnPrimary}>
+          Siguiente <ChevronRight size={15} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Acta No Pagó ─────────────────────────────────────────────────────────────
+function ActaNoPago({ onVolver }: { onVolver: () => void }) {
+  const { barreras } = useSavean();
+
+  const [barreraId,    setBarreraId]    = useState('');
+  const [actaControl,  setActaControl]  = useState('');
+  const [localidad,    setLocalidad]    = useState('');
+  const [departamento, setDepartamento] = useState('');
+  const [planillaId,   setPlanillaId]   = useState('');
+  const [tipoVehiculo, setTipoVehiculo] = useState<'auto'|'colectivo'|'camion'|''>('');
+
+  const [interesadoNombre,    setInteresadoNombre]    = useState('');
+  const [interesadoDni,       setInteresadoDni]       = useState('');
+  const [interesadoDomicilio, setInteresadoDomicilio] = useState('');
+  const [interesadoLocalidad, setInteresadoLocalidad] = useState('');
+  const [interesadoProvincia, setInteresadoProvincia] = useState('');
+
+  const [vehiculo,     setVehiculo]     = useState('');
+  const [chasis,       setChasis]       = useState('');
+  const [acoplado,     setAcoplado]     = useState('');
+  const [procedenteDe, setProcedenteDe] = useState('');
+  const [destino,      setDestino]      = useState('');
+
+  const [monto,  setMonto]  = useState('');
+  const [chofer, setChofer] = useState('');
+
+  const [cargando, setCargando] = useState(false);
+  const [err,      setErr]      = useState('');
+  const [exito,    setExito]    = useState<string | null>(null);
+
+  const handleBarreraChange = async (id: string) => {
+    setBarreraId(id);
+    const barrera = barreras.find(b => b.id === id);
+    if (!barrera) { setActaControl(''); setLocalidad(''); setDepartamento(''); return; }
+    setActaControl(barrera.nombre);
+    const lugar = resolverLugar(barrera.nombre);
+    setLocalidad(lugar?.localidad ?? '');
+    setDepartamento(lugar?.departamento ?? '');
+    try {
+      const res = await fetch(`${API_URL}/savean/entrada/planilla-actual?barreraId=${id}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) setPlanillaId((await res.json()).id);
+    } catch {}
+  };
+
+  const buildDeclaracion = (numeroActa = '') =>
+    `No abonar arancel correspondiente a la desinseccion según res 11028/25 de valor $${monto}, se podra abonar en barreras fitosanitarias (encon, vallecito, san carlos), o agencia calidad san juan (25 de mayo 577 e).\nSe entrega copia al sr chofer ${chofer} ${numeroActa} quedando notificado a su parecer y el transporte.`;
+
+  const handleSubmit = async () => {
+    if (!barreraId)     { setErr('Seleccioná una barrera.'); return; }
+    if (!chasis.trim()) { setErr('Ingresá el Chasis N°.');  return; }
+    setCargando(true); setErr('');
+    try {
+      let entradaId = '';
+      if (planillaId) {
+        const r = await fetch(`${API_URL}/savean/entrada/entradas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+          body: JSON.stringify({ planillaId, tipoVehiculo: tipoVehiculo || 'camion', patente: chasis, procedencia: procedenteDe, decomisoCg: null, decomisoCFruta: null }),
+        });
+        if (r.ok) entradaId = (await r.json()).id;
+      }
+      const res = await fetch(`${API_URL}/savean/entrada/ingresos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({
+          entradaId: entradaId || null,
+          barreraId, barreraNombre: actaControl,
+          esCargaCarnica: false,
+          noPago: true,
+          montoNoPago: parseFloat(monto) || null,
+          actaTipo: 'constatacion', actaControl,
+          localidad, departamento, provincia: 'San Juan',
+          interesadoNombre, interesadoDni, interesadoDomicilio, interesadoLocalidad, interesadoProvincia,
+          vehiculo, chasis, acoplado, procedenteDe, destino,
+          declaracion: buildDeclaracion(),
+          remitenteNombre: '', remitenteCuit: '', remitenteLocalidadCod: '', remitenteProvinciaCod: '',
+          destinatarioNombre: '', destinatarioCuit: '', destinatarioLocalidadCod: '', destinatarioProvinciaCod: '',
+          destinoTipo: '', productos: [],
+          transporteEmpresa: '', transporteCuit: '', transportePatente: chasis, transporteAcoplado: acoplado,
+          transporteLicencia: '', emailConductor: '',
+          senasaNumero: '', telefonoChofer: '', destinoComercial: '', tipoCargaDetalle: '', destinoTipoCarnico: '',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error || 'Error al crear el ingreso.'); return; }
+      setExito(data.numero);
+    } catch { setErr('Error de conexión.'); }
+    finally { setCargando(false); }
+  };
+
+  if (exito) return <PantallaExito numero={exito} emailEnviado={false} onNuevo={onVolver} />;
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="text-xs text-orange-500 font-semibold uppercase tracking-wide mb-0.5">Constatación · No Pagó</p>
+        <h2 className="text-base font-bold text-gray-900">Acta Fitozoosanitaria</h2>
+        <p className="text-xs text-gray-500 mt-0.5">El vehículo se registrará automáticamente en la planilla de control</p>
+      </div>
+
+      {/* Control = barrera */}
+      <div>
+        <label className={labelCls}>Control *</label>
+        <select className={inputCls} value={barreraId} onChange={e => handleBarreraChange(e.target.value)}>
+          <option value="">Seleccioná una barrera</option>
+          {barreras.filter(b => b.activa).map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
+        </select>
+      </div>
+
+      {/* Tipo de vehículo */}
+      <div>
+        <label className={labelCls}>Tipo de vehículo *</label>
+        <div className="grid grid-cols-3 gap-2">
+          {(['auto', 'colectivo', 'camion'] as const).map(t => (
+            <button key={t} type="button" onClick={() => setTipoVehiculo(t)}
+              className={`py-2.5 rounded-lg border text-sm font-semibold transition ${
+                tipoVehiculo === t ? 'bg-green-600 border-green-600 text-white' : 'border-gray-300 text-gray-600 hover:border-green-400'
+              }`}>
+              {t === 'auto' ? 'Auto' : t === 'colectivo' ? 'Colectivo' : 'Camión'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Lugar del control */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Lugar del control</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div><label className={labelCls}>Localidad</label>
+            <input className={inputCls} value={localidad} onChange={e => setLocalidad(e.target.value)} /></div>
+          <div><label className={labelCls}>Departamento</label>
+            <input className={inputCls} value={departamento} onChange={e => setDepartamento(e.target.value)} /></div>
+          <div><label className={labelCls}>Provincia</label>
+            <input className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`} value="San Juan" readOnly /></div>
+        </div>
+      </div>
+
+      {/* Interesado */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Interesado</p>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div><label className={labelCls}>Nombre completo</label>
+            <input className={inputCls} value={interesadoNombre} onChange={e => setInteresadoNombre(e.target.value)} /></div>
+          <div><label className={labelCls}>DNI</label>
+            <input className={inputCls} value={interesadoDni} onChange={e => setInteresadoDni(e.target.value)} /></div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div><label className={labelCls}>Domicilio</label>
+            <input className={inputCls} value={interesadoDomicilio} onChange={e => setInteresadoDomicilio(e.target.value)} /></div>
+          <div><label className={labelCls}>Localidad</label>
+            <input className={inputCls} value={interesadoLocalidad} onChange={e => setInteresadoLocalidad(e.target.value)} /></div>
+          <div><label className={labelCls}>Provincia</label>
+            <input className={inputCls} value={interesadoProvincia} onChange={e => setInteresadoProvincia(e.target.value)} /></div>
+        </div>
+      </div>
+
+      {/* Vehículo */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Vehículo</p>
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          <div><label className={labelCls}>Vehículo</label>
+            <input className={inputCls} value={vehiculo} onChange={e => setVehiculo(e.target.value)} /></div>
+          <div><label className={labelCls}>Chasis N°</label>
+            <input className={inputCls} value={chasis} onChange={e => setChasis(e.target.value.toUpperCase())} /></div>
+          <div><label className={labelCls}>Acoplado N°</label>
+            <input className={inputCls} value={acoplado} onChange={e => setAcoplado(e.target.value.toUpperCase())} /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>Procedente de</label>
+            <input className={inputCls} value={procedenteDe} onChange={e => setProcedenteDe(e.target.value)} /></div>
+          <div><label className={labelCls}>Destino</label>
+            <input className={inputCls} value={destino} onChange={e => setDestino(e.target.value)} /></div>
+        </div>
+      </div>
+
+      {/* El señor declara — texto pre-armado */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">El señor declara</p>
+        <div className="space-y-3 bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-gray-700">
+          <div className="flex items-baseline gap-1 flex-wrap">
+            <span>No abonar arancel correspondiente a la desinsección según res 11028/25 de valor $</span>
+            <input
+              className="border-b border-gray-400 bg-transparent w-28 focus:outline-none focus:border-orange-500"
+              placeholder="monto"
+              value={monto} onChange={e => setMonto(e.target.value)}
+            />
+            <span>, se podrá abonar en barreras fitosanitarias (encon, vallecito, san carlos), o agencia calidad san juan (25 de mayo 577 e).</span>
+          </div>
+          <div className="flex items-baseline gap-1 flex-wrap">
+            <span>Se entrega copia al sr chofer</span>
+            <input
+              className="border-b border-gray-400 bg-transparent w-44 focus:outline-none focus:border-orange-500"
+              placeholder="nombre del chofer"
+              value={chofer} onChange={e => setChofer(e.target.value)}
+            />
+            <span className="text-gray-400 italic text-xs">"N° de acta — se completa al generar"</span>
+            <span>quedando notificado a su parecer y el transporte.</span>
+          </div>
+        </div>
+      </div>
+
+      {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{err}</p>}
+
+      <div className="flex gap-3 pt-2">
+        <button onClick={onVolver} className={btnSecondary}><ChevronLeft size={15} />Cancelar</button>
+        <button onClick={handleSubmit} disabled={cargando} className={btnPrimary}>
+          <Check size={15} />{cargando ? 'Generando acta...' : 'Finalizar y generar acta'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Menú de selección de tipo de ingreso ────────────────────────────────────
+type TipoIngreso = 'planilla' | 'carnico' | 'vegetal' | 'nopago';
+
+const opciones: { tipo: TipoIngreso; label: string; desc: string; icon: JSX.Element }[] = [
+  { tipo: 'planilla', label: 'Planilla de Control',  desc: 'Vehículo sin productos vegetales ni cárnicos',  icon: <ClipboardList size={18} /> },
+  { tipo: 'carnico',  label: 'Producto Cárnico',     desc: 'Vehículo con carga cárnica',                   icon: <Beef size={18} /> },
+  { tipo: 'vegetal',  label: 'Producto Vegetal',     desc: 'Vehículo con carga vegetal',                   icon: <Leaf size={18} /> },
+  { tipo: 'nopago',   label: 'No Pagó',              desc: 'Vehículo que no abonó el arancel',             icon: <Ban size={18} /> },
+];
+
+function MenuIngreso({ onVolver, onSelect }: { onVolver: () => void; onSelect: (t: TipoIngreso) => void }) {
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <button onClick={onVolver} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
+          <ChevronLeft size={16} />Volver
+        </button>
+        <h1 className="text-lg font-bold text-gray-900">Entrada a la Provincia</h1>
+      </div>
+      <p className="text-xs text-gray-400 uppercase tracking-widest font-medium">Seleccioná el tipo de ingreso</p>
+      <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
+        {opciones.map((op, i) => (
+          <button
+            key={op.tipo}
+            onClick={() => onSelect(op.tipo)}
+            className="w-full flex items-center justify-between px-5 py-4 bg-white hover:bg-gray-50 transition group"
+          >
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-bold text-gray-300 w-4">{i + 1}</span>
+              <span className="text-gray-400 group-hover:text-gray-600 transition">{op.icon}</span>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-800">{op.label}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{op.desc}</p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition flex-shrink-0" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 export function SaveanEntrada({ onVolver }: { onVolver: () => void }) {
   const { barreras } = useSavean();
 
+  const [tipo, setTipo] = useState<TipoIngreso | null>(null);
   const [paso, setPaso] = useState<1 | 2 | 3 | 'ok'>(1);
   const [planillaId, setPlanillaId] = useState('');
   const [entradaId, setEntradaId] = useState('');
@@ -900,19 +1742,38 @@ export function SaveanEntrada({ onVolver }: { onVolver: () => void }) {
     setStep3({ remitenteNombre: '', remitenteCuit: '', remitenteLocalidadCod: '', remitenteProvinciaCod: '', destinatarioNombre: '', destinatarioCuit: '', destinatarioLocalidadCod: '', destinatarioProvinciaCod: '', destinoTipo: '', productos: [], transporteEmpresa: '', transporteCuit: '', transportePatente: '', transporteAcoplado: '', transporteLicencia: '', emailConductor: '', senasaNumero: '', telefonoChofer: '', destinoComercial: '', tipoCargaDetalle: '', destinoTipoCarnico: '' });
   };
 
+  if (tipo === null) return <MenuIngreso onVolver={onVolver} onSelect={setTipo} />;
+
+  if (tipo === 'carnico' || tipo === 'vegetal' || tipo === 'nopago') {
+    const Acta = tipo === 'carnico' ? ActaCarnica : tipo === 'vegetal' ? ActaVegetal : ActaNoPago;
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 mb-4">
+          <button onClick={() => setTipo(null)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
+            <ChevronLeft size={16} />Volver
+          </button>
+          <h1 className="text-lg font-bold text-gray-900">Entrada a la Provincia</h1>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
+          <Acta onVolver={() => setTipo(null)} />
+        </div>
+      </div>
+    );
+  }
+
   // Barra de progreso
   const progreso = paso === 1 ? 33 : paso === 2 ? 66 : paso === 3 ? 100 : 100;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={onVolver} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
+        <button onClick={() => setTipo(null)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
           <ChevronLeft size={16} />Volver
         </button>
         <h1 className="text-lg font-bold text-gray-900">Entrada a la Provincia</h1>
       </div>
 
-      {paso !== 'ok' && (
+      {paso !== 'ok' && (paso !== 1 || step1.generarActa) && (
         <div className="w-full bg-gray-200 rounded-full h-1.5 mb-5">
           <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${progreso}%` }} />
         </div>
@@ -925,7 +1786,7 @@ export function SaveanEntrada({ onVolver }: { onVolver: () => void }) {
             barreras={barreras} planillaId={planillaId}
             onPlanillaCreada={setPlanillaId}
             onEntradaCreada={setEntradaId}
-            onNext={() => setPaso(2)} onCancelar={onVolver}
+            onNext={() => setPaso(2)} onCancelar={() => setTipo(null)}
           />
         )}
         {paso === 2 && (

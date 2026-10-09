@@ -27,6 +27,13 @@ function soloAdminOSanidad(req, res, next) {
   next();
 }
 
+function noPuntoControl(req, res, next) {
+  if (req.usuario?.rol === 'punto_control') {
+    return res.status(403).json({ error: 'Acceso denegado.' });
+  }
+  next();
+}
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function parseJson(val) {
@@ -81,6 +88,7 @@ function formatIngreso(row) {
     fechaHora: row.fecha_hora,
     // Acta
     actaTipo: row.acta_tipo,
+    tipoProducto: row.tipo_producto || null,
     actaControl: row.acta_control || null,
     localidad: row.localidad || null,
     departamento: row.departamento || null,
@@ -115,6 +123,12 @@ function formatIngreso(row) {
     // Email
     emailConductor: row.email_conductor || null,
     pdfEnviado: Boolean(row.pdf_enviado),
+    // No Pago
+    noPago: Boolean(row.no_pago),
+    montoNoPago: row.monto_no_pago ? Number(row.monto_no_pago) : null,
+    pagoEstado: row.pago_estado || 'pendiente',
+    pagoLugar: row.pago_lugar || null,
+    pagoFecha: row.pago_fecha ? String(row.pago_fecha).slice(0, 10) : null,
     creadoEn: row.creado_en,
   };
 }
@@ -319,9 +333,13 @@ router.post('/ingresos', autenticar, soloSavean, soloInspector, async (req, res)
     transporteEmpresa, transporteCuit, transportePatente, transporteAcoplado, transporteLicencia,
     // Email
     emailConductor,
+    // Tipo de producto
+    tipoProducto,
     // Carga cárnica
     esCargaCarnica,
     senasaNumero, telefonoChofer, destinoComercial, tipoCargaDetalle, destinoTipoCarnico,
+    // No Pago
+    noPago, montoNoPago,
   } = req.body;
 
   if (!barreraId || !actaTipo) {
@@ -352,7 +370,7 @@ router.post('/ingresos', autenticar, soloSavean, soloInspector, async (req, res)
       `INSERT INTO ingresos_savean (
         ingresoId, numero, entrada_id,
         barrera_id, barrera_nombre, inspector_id, inspector_nombre, fecha_hora,
-        acta_tipo, acta_control, localidad, departamento, provincia,
+        acta_tipo, tipo_producto, acta_control, localidad, departamento, provincia,
         interesado_nombre, interesado_dni,
         interesado_domicilio, interesado_localidad, interesado_provincia,
         vehiculo, chasis, acoplado, procedente_de, destino, declaracion,
@@ -360,11 +378,12 @@ router.post('/ingresos', autenticar, soloSavean, soloInspector, async (req, res)
         destinatario_nombre, destinatario_cuit, destinatario_localidad_cod, destinatario_provincia_cod,
         destino_tipo, productos,
         transporte_empresa, transporte_cuit, transporte_patente, transporte_acoplado, transporte_licencia,
-        email_conductor, pdf_enviado
+        email_conductor, pdf_enviado,
+        no_pago, monto_no_pago
       ) VALUES (
         ?, ?, ?,
         ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?,
         ?, ?,
         ?, ?, ?,
         ?, ?, ?, ?, ?, ?,
@@ -372,13 +391,14 @@ router.post('/ingresos', autenticar, soloSavean, soloInspector, async (req, res)
         ?, ?, ?, ?,
         ?, ?,
         ?, ?, ?, ?, ?,
-        ?, 0
+        ?, 0,
+        ?, ?
       )`,
       [
         ingresoId, numero, entradaId || null,
         barreraId, barreraNombre || '',
         req.usuario.usuarioId, inspectorNombre, ahora,
-        actaTipo, actaControl || null, localidad || null, departamento || null, provincia || null,
+        actaTipo, tipoProducto || null, actaControl || null, localidad || null, departamento || null, provincia || null,
         interesadoNombre || null, interesadoDni || null,
         interesadoDomicilio || null, interesadoLocalidad || null, interesadoProvincia || null,
         vehiculo || null, chasis || null, acoplado || null, procedenteDe || null, destino || null, declaracion || null,
@@ -388,6 +408,7 @@ router.post('/ingresos', autenticar, soloSavean, soloInspector, async (req, res)
         transporteEmpresa || null, transporteCuit || null, transportePatente || null,
         transporteAcoplado || null, transporteLicencia || null,
         emailConductor || null,
+        noPago ? 1 : 0, montoNoPago ? Number(montoNoPago) : null,
       ]
     );
 
@@ -489,15 +510,56 @@ router.get('/planillas/:id/pdf', autenticar, soloSavean, soloAdminOSanidad, asyn
   }
 });
 
+// GET /api/savean/entrada/ingresos/no-pago — inspectores, admins y sanidad
+router.get('/ingresos/no-pago', autenticar, soloSavean, noPuntoControl, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM ingresos_savean WHERE no_pago = 1 AND pago_estado = 'pendiente' ORDER BY fecha_hora DESC`
+    );
+    return res.json(rows.map(formatIngreso));
+  } catch (err) {
+    console.error('[GET /savean/entrada/ingresos/no-pago]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PATCH /api/savean/entrada/ingresos/:id/pagar — inspectores, admins y sanidad
+router.patch('/ingresos/:id/pagar', autenticar, soloSavean, noPuntoControl, async (req, res) => {
+  const { pagoLugar, pagoFecha } = req.body;
+  if (!pagoLugar || !pagoFecha) {
+    return res.status(400).json({ error: 'pagoLugar y pagoFecha son obligatorios.' });
+  }
+  try {
+    const [[row]] = await pool.query(
+      `SELECT * FROM ingresos_savean WHERE ingresoId = ? AND no_pago = 1`,
+      [req.params.id]
+    );
+    if (!row) return res.status(404).json({ error: 'Acta no encontrada o no corresponde a no pago.' });
+    if (row.pago_estado === 'pagado') {
+      return res.status(409).json({ error: 'Esta acta ya fue marcada como pagada.' });
+    }
+    await pool.query(
+      `UPDATE ingresos_savean SET pago_estado = 'pagado', pago_lugar = ?, pago_fecha = ? WHERE ingresoId = ?`,
+      [pagoLugar.trim(), pagoFecha, req.params.id]
+    );
+    const [[updated]] = await pool.query('SELECT * FROM ingresos_savean WHERE ingresoId = ?', [req.params.id]);
+    return res.json(formatIngreso(updated));
+  } catch (err) {
+    console.error('[PATCH /savean/entrada/ingresos/:id/pagar]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // GET /api/savean/entrada/ingresos — admin + sanidad
 router.get('/ingresos', autenticar, soloSavean, soloAdminOSanidad, async (req, res) => {
-  const { fecha, barreraId, actaTipo } = req.query;
+  const { fecha, barreraId, actaTipo, tipoProducto } = req.query;
   try {
     let sql = 'SELECT * FROM ingresos_savean WHERE 1=1';
     const params = [];
     if (fecha) { sql += ' AND DATE(fecha_hora) = ?'; params.push(fecha); }
     if (barreraId) { sql += ' AND barrera_id = ?'; params.push(barreraId); }
     if (actaTipo) { sql += ' AND acta_tipo = ?'; params.push(actaTipo); }
+    if (tipoProducto) { sql += ' AND tipo_producto = ?'; params.push(tipoProducto); }
     sql += ' ORDER BY fecha_hora DESC';
 
     const [rows] = await pool.query(sql, params);

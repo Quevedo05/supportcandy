@@ -2,8 +2,21 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import {
   LogOut, AlertTriangle, Check, RefreshCw, Search,
-  MapPin, Clock, Package, ChevronDown, ChevronUp, Phone,
+  MapPin, Clock, Package, ChevronDown, ChevronUp, Phone, FileText,
 } from 'lucide-react';
+
+async function abrirPdf(ingresoId: string) {
+  const token = localStorage.getItem('sc_token') || '';
+  try {
+    const res = await fetch(`${API_URL}/savean/entrada/ingresos/${ingresoId}/pdf`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) { alert('Error al generar el PDF.'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch { alert('Error de conexión.'); }
+}
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 
@@ -239,6 +252,17 @@ function TransporteCard({
             <p className="text-xs text-gray-400">
               Procesado el {fmtFechaHora(transporte.fechaRecepcion)}
             </p>
+          )}
+
+          {/* Acta PDF */}
+          {transporte.ingresoId && (
+            <button
+              onClick={e => { e.stopPropagation(); abrirPdf(transporte.ingresoId!); }}
+              className="flex items-center gap-2 text-xs font-semibold text-red-700 hover:text-red-900 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl px-3 py-2 transition"
+            >
+              <FileText size={14} />
+              Ver Acta Cárnica (PDF)
+            </button>
           )}
         </div>
       )}

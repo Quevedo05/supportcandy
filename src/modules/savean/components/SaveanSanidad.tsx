@@ -1,7 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useSavean } from '../context/SaveanContext';
-import { LogOut, ArrowDownCircle, Search, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { LogOut, ArrowDownCircle, Search, Filter, X, ChevronDown, ChevronUp, FileText, Beef, Leaf } from 'lucide-react';
+
+async function abrirPdf(ingresoId: string) {
+  const token = localStorage.getItem('sc_token') || '';
+  try {
+    const res = await fetch(`${API_URL}/savean/entrada/ingresos/${ingresoId}/pdf`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) { alert('Error al generar el PDF.'); return; }
+    const blob = await res.blob();
+    window.open(URL.createObjectURL(blob), '_blank');
+  } catch { alert('Error de conexión.'); }
+}
 
 const API_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 
@@ -155,52 +167,49 @@ function IngresoCard({ ingreso }: { ingreso: Ingreso }) {
             <span>Inspector: {ingreso.inspectorNombre}</span>
             {ingreso.pdfEnviado && <span className="text-green-600 font-medium">PDF enviado por email</span>}
           </div>
+
+          <button
+            onClick={e => { e.stopPropagation(); abrirPdf(ingreso.id); }}
+            className="flex items-center gap-2 text-xs font-semibold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg px-3 py-2 transition w-fit"
+          >
+            <FileText size={13} />
+            Ver Acta (PDF)
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-export function SaveanSanidad() {
-  const { usuario, logout } = useAuth();
-  const { barreras } = useSavean();
+type TabSanidad = 'carnico' | 'vegetal';
 
+export function PanelIngresos({ tipoProducto, barreras }: { tipoProducto: TabSanidad; barreras: { id: string; nombre: string; activa: boolean }[] }) {
   const [ingresos, setIngresos] = useState<Ingreso[]>([]);
   const [cargando, setCargando] = useState(true);
   const [err, setErr] = useState('');
 
   const [filtroFecha, setFiltroFecha] = useState('');
   const [filtroBarrera, setFiltroBarrera] = useState('');
-  const [filtroTipo, setFiltroTipo] = useState('');
   const [busqueda, setBusqueda] = useState('');
 
   const cargar = async () => {
     setCargando(true);
     setErr('');
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ tipoProducto });
       if (filtroFecha) params.set('fecha', filtroFecha);
       if (filtroBarrera) params.set('barreraId', filtroBarrera);
-      if (filtroTipo) params.set('actaTipo', filtroTipo);
 
       const res = await fetch(`${API_URL}/savean/entrada/ingresos?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (!res.ok) { setErr('Error al cargar los ingresos.'); return; }
-      const data = await res.json();
-      setIngresos(data);
+      setIngresos(await res.json());
     } catch { setErr('Error de conexión.'); }
     finally { setCargando(false); }
   };
 
-  useEffect(() => { cargar(); }, [filtroFecha, filtroBarrera, filtroTipo]);
-
-  const limpiarFiltros = () => {
-    setFiltroFecha('');
-    setFiltroBarrera('');
-    setFiltroTipo('');
-    setBusqueda('');
-  };
+  useEffect(() => { cargar(); }, [tipoProducto, filtroFecha, filtroBarrera]);
 
   const ingresosFiltrados = ingresos.filter(i => {
     if (!busqueda) return true;
@@ -213,7 +222,70 @@ export function SaveanSanidad() {
     );
   });
 
-  const hayFiltros = filtroFecha || filtroBarrera || filtroTipo || busqueda;
+  const hayFiltros = filtroFecha || filtroBarrera || busqueda;
+
+  return (
+    <div className="space-y-4">
+      {/* Filtros */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+          <Filter size={14} />Filtros
+          {hayFiltros && (
+            <button onClick={() => { setFiltroFecha(''); setFiltroBarrera(''); setBusqueda(''); }}
+              className="ml-auto flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700">
+              <X size={12} />Limpiar
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Fecha</label>
+            <input type="date" className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+              value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Barrera</label>
+            <select className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+              value={filtroBarrera} onChange={e => setFiltroBarrera(e.target.value)}>
+              <option value="">Todas</option>
+              {barreras.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Buscar</label>
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input className="w-full pl-7 pr-3 border border-gray-300 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                placeholder="N°, nombre, DNI, patente" value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {!cargando && (
+        <p className="text-sm text-gray-500">
+          {ingresosFiltrados.length} ingreso{ingresosFiltrados.length !== 1 ? 's' : ''}
+        </p>
+      )}
+      {cargando && <div className="text-center py-12 text-sm text-gray-400">Cargando...</div>}
+      {err && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">{err}</div>}
+      {!cargando && !err && ingresosFiltrados.length === 0 && (
+        <div className="text-center py-16 text-sm text-gray-400">
+          <ArrowDownCircle size={32} className="mx-auto mb-3 text-gray-300" />
+          <p>No hay ingresos registrados{hayFiltros ? ' con los filtros seleccionados' : ''}.</p>
+        </div>
+      )}
+      <div className="space-y-3">
+        {ingresosFiltrados.map(i => <IngresoCard key={i.id} ingreso={i} />)}
+      </div>
+    </div>
+  );
+}
+
+export function SaveanSanidad() {
+  const { usuario, logout } = useAuth();
+  const { barreras } = useSavean();
+  const [tab, setTab] = useState<TabSanidad>('carnico');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -237,77 +309,34 @@ export function SaveanSanidad() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-6 sm:px-6 space-y-4">
-        {/* Filtros */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-            <Filter size={14} />Filtros
-            {hayFiltros && (
-              <button onClick={limpiarFiltros} className="ml-auto flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700">
-                <X size={12} />Limpiar
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Fecha</label>
-              <input type="date" className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
-                value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Barrera</label>
-              <select className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
-                value={filtroBarrera} onChange={e => setFiltroBarrera(e.target.value)}>
-                <option value="">Todas</option>
-                {barreras.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Tipo de acta</label>
-              <select className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
-                value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>
-                <option value="">Todos</option>
-                {Object.entries(TIPO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Buscar</label>
-              <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input className="w-full pl-7 pr-3 border border-gray-300 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
-                  placeholder="N°, nombre, DNI, patente" value={busqueda} onChange={e => setBusqueda(e.target.value)} />
-              </div>
-            </div>
-          </div>
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex gap-1">
+          <button
+            onClick={() => setTab('carnico')}
+            className={`flex items-center gap-2 px-5 py-3.5 border-b-2 font-semibold text-sm transition ${
+              tab === 'carnico'
+                ? 'border-red-500 text-red-600'
+                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+            }`}
+          >
+            <Beef size={15} />Cárnicos
+          </button>
+          <button
+            onClick={() => setTab('vegetal')}
+            className={`flex items-center gap-2 px-5 py-3.5 border-b-2 font-semibold text-sm transition ${
+              tab === 'vegetal'
+                ? 'border-emerald-500 text-emerald-600'
+                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+            }`}
+          >
+            <Leaf size={15} />Vegetales
+          </button>
         </div>
+      </div>
 
-        {/* Resumen */}
-        {!cargando && (
-          <div className="flex items-center justify-between text-sm text-gray-500">
-            <span>{ingresosFiltrados.length} ingreso{ingresosFiltrados.length !== 1 ? 's' : ''}</span>
-            <span className="text-xs">
-              {ingresosFiltrados.reduce((s, i) => s + (i.productos?.length ?? 0), 0)} productos declarados en total
-            </span>
-          </div>
-        )}
-
-        {/* Lista */}
-        {cargando && (
-          <div className="text-center py-12 text-sm text-gray-400">Cargando ingresos...</div>
-        )}
-        {err && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">{err}</div>
-        )}
-        {!cargando && !err && ingresosFiltrados.length === 0 && (
-          <div className="text-center py-16 text-sm text-gray-400">
-            <ArrowDownCircle size={32} className="mx-auto mb-3 text-gray-300" />
-            <p>No hay ingresos registrados{hayFiltros ? ' con los filtros seleccionados' : ''}.</p>
-          </div>
-        )}
-        <div className="space-y-3">
-          {ingresosFiltrados.map(i => <IngresoCard key={i.id} ingreso={i} />)}
-        </div>
+      <main className="max-w-5xl mx-auto px-4 py-6 sm:px-6">
+        <PanelIngresos key={tab} tipoProducto={tab} barreras={barreras} />
       </main>
     </div>
   );

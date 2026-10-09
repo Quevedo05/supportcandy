@@ -541,38 +541,75 @@ router.get('/usuarios', autenticar, soloSavean, soloAdmin, async (_req, res) => 
   }
 });
 
-// POST /api/savean/usuarios — AUTH + admin (create inspector user with username+password)
+// POST /api/savean/usuarios — AUTH + admin
+// inspector: username + password (cuenta @savean.local)
+// admin / sanidad / punto_control: nombre + email real → invitación por correo
 router.post('/usuarios', autenticar, soloSavean, soloAdmin, async (req, res) => {
   try {
-    const { nombre, username, password } = req.body;
-    if (!nombre?.trim() || !username?.trim() || !password) {
-      return res.status(400).json({ error: 'nombre, username y password son obligatorios' });
+    const { nombre, rol = 'inspector' } = req.body;
+    if (!nombre?.trim()) {
+      return res.status(400).json({ error: 'El nombre es obligatorio' });
     }
-    if (password.length < 4) {
-      return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+    const rolesPermitidos = ['admin', 'inspector', 'sanidad', 'punto_control'];
+    if (!rolesPermitidos.includes(rol)) {
+      return res.status(400).json({ error: `Rol no válido. Roles permitidos: ${rolesPermitidos.join(', ')}` });
     }
-    const usernameClean = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
-    if (!usernameClean) {
-      return res.status(400).json({ error: 'El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos' });
+
+    // ── Inspector: cuenta local con username + password ──
+    if (rol === 'inspector') {
+      const { username, password } = req.body;
+      if (!username?.trim() || !password) {
+        return res.status(400).json({ error: 'nombre, username y password son obligatorios para el rol inspector' });
+      }
+      if (password.length < 4) {
+        return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+      }
+      const usernameClean = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+      if (!usernameClean) {
+        return res.status(400).json({ error: 'El usuario solo puede tener letras, números, puntos, guiones y guiones bajos' });
+      }
+      const email = `${usernameClean}@savean.local`;
+      const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [email]);
+      if (existing.length > 0) {
+        return res.status(409).json({ error: 'El nombre de usuario ya existe' });
+      }
+      const usuarioId = uuidv4();
+      const passwordHash = await bcrypt.hash(password, 10);
+      await pool.query(
+        `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, modulo, activo) VALUES (?, ?, ?, ?, 'inspector', 'savean', 1)`,
+        [usuarioId, nombre.trim(), email, passwordHash]
+      );
+      return res.status(201).json({
+        usuarioId, nombre: nombre.trim(), email, username: usernameClean, rol: 'inspector', activo: true,
+      });
     }
-    const email = `${usernameClean}@savean.local`;
-    const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [email]);
+
+    // ── Admin / Sanidad / Punto de Control: invitación por email ──
+    const { email } = req.body;
+    if (!email?.trim()) {
+      return res.status(400).json({ error: 'El email es obligatorio para este rol' });
+    }
+    const emailClean = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailClean)) {
+      return res.status(400).json({ error: 'El email no tiene un formato válido' });
+    }
+    const [existing] = await pool.query('SELECT usuarioId FROM usuarios WHERE email = ?', [emailClean]);
     if (existing.length > 0) {
-      return res.status(409).json({ error: 'El nombre de usuario ya existe' });
+      return res.status(409).json({ error: 'Ya existe un usuario con ese email' });
     }
     const usuarioId = uuidv4();
-    const passwordHash = await bcrypt.hash(password, 10);
+    const invitationToken = crypto.randomBytes(32).toString('hex');
     await pool.query(
-      `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, modulo, activo) VALUES (?, ?, ?, ?, 'inspector', 'savean', 1)`,
-      [usuarioId, nombre.trim(), email, passwordHash]
+      `INSERT INTO usuarios (usuarioId, nombre, email, password_hash, rol, modulo, activo, invitation_token, invitation_expires_at)
+       VALUES (?, ?, ?, '', ?, 'savean', 1, ?, DATE_ADD(NOW(), INTERVAL 48 HOUR))`,
+      [usuarioId, nombre.trim(), emailClean, rol, invitationToken]
     );
+    const { enviarInvitacionSavean } = require('../services/mailer');
+    enviarInvitacionSavean({ nombre: nombre.trim(), email: emailClean, token: invitationToken, rol })
+      .catch(err => console.error('[POST /savean/usuarios] invitation email error:', err));
     return res.status(201).json({
-      usuarioId,
-      nombre: nombre.trim(),
-      email,
-      username: usernameClean,
-      rol: 'inspector',
-      activo: true,
+      usuarioId, nombre: nombre.trim(), email: emailClean, username: emailClean, rol, activo: true, invitacionEnviada: true,
     });
   } catch (err) {
     console.error('[POST /savean/usuarios]', err);
@@ -598,6 +635,31 @@ router.patch('/usuarios/:id/password', autenticar, soloSavean, soloAdmin, async 
     return res.json({ ok: true });
   } catch (err) {
     console.error('[PATCH /savean/usuarios/:id/password]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PATCH /api/savean/usuarios/:id/rol — AUTH + admin
+router.patch('/usuarios/:id/rol', autenticar, soloSavean, soloAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rol } = req.body;
+    const rolesPermitidos = ['admin', 'inspector', 'sanidad', 'punto_control'];
+    if (!rolesPermitidos.includes(rol)) {
+      return res.status(400).json({ error: `Rol no válido. Roles permitidos: ${rolesPermitidos.join(', ')}` });
+    }
+    if (req.usuario.usuarioId === id) {
+      return res.status(403).json({ error: 'No puede cambiar su propio rol' });
+    }
+    const [rows] = await pool.query(
+      `SELECT usuarioId FROM usuarios WHERE usuarioId = ? AND modulo = 'savean'`,
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+    await pool.query('UPDATE usuarios SET rol = ? WHERE usuarioId = ?', [rol, id]);
+    return res.json({ ok: true, rol });
+  } catch (err) {
+    console.error('[PATCH /savean/usuarios/:id/rol]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
