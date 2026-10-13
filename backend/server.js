@@ -13,6 +13,7 @@ const saveanEntradaRoutes = require('./routes/savean-entrada');
 const saveanPuntoControlRoutes = require('./routes/savean-punto-control');
 const comiteRoutes = require('./routes/comite');
 const reportesRoutes = require('./routes/reportes');
+const configRoutes = require('./routes/config');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
@@ -95,6 +96,7 @@ app.use('/api/savean/entrada', saveanEntradaRoutes);
 app.use('/api/savean/punto-control', saveanPuntoControlRoutes);
 app.use('/api/comite', comiteRoutes);
 app.use('/api/reportes', reportesRoutes);
+app.use('/api/config', configRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {

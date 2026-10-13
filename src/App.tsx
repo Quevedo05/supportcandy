@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { EtapasProvider } from './context/EtapasContext';
 import { LoginPage } from './components/LoginPage';
 
 const TicketsApp      = lazy(() => import('./components/TicketsApp').then(m => ({ default: m.TicketsApp })));
@@ -170,7 +171,7 @@ function AppContent() {
 
   if (!usuario) return <LoginPage />;
 
-  if (usuario.rol === 'dev') return <DevPanel />;
+  if (usuario.rol === 'dev') return <EtapasProvider><DevPanel /></EtapasProvider>;
 
   if (usuario.modulo === 'savean') return <SaveanApp />;
 

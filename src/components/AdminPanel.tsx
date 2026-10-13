@@ -1,22 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useFormularios } from '../context/FormulariosContext';
-import { X, Plus, Trash2, Eye, EyeOff, Users, FileText, Mail, CheckCircle2, ShieldCheck, KeyRound } from 'lucide-react';
+import { useEtapas, type Etapa } from '../context/EtapasContext';
+import { X, Plus, Trash2, Eye, EyeOff, Users, FileText, Mail, CheckCircle2, ShieldCheck, KeyRound, Settings, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
 import { FormulariosPanel } from './FormulariosPanel';
 
-const ESTADOS_TICKET = [
-  'Solicitud inicial',
-  'Revisión de documentación',
-  'Veraz',
-  'Comité de análisis',
-  'Contrato',
-  'Simulador',
-  'Firma de contrato',
-  'Certificación de firma',
-  'Transferencia',
-  'Seguimiento de verificable',
-  'Cerrado',
-] as const;
+const PALETA_COLORES = [
+  { color: '#F97316', bg: '#FFF7ED', nombre: 'Naranja' },
+  { color: '#EAB308', bg: '#FEFCE8', nombre: 'Amarillo' },
+  { color: '#22C55E', bg: '#F0FDF4', nombre: 'Verde' },
+  { color: '#06B6D4', bg: '#ECFEFF', nombre: 'Cyan' },
+  { color: '#3B82F6', bg: '#EFF6FF', nombre: 'Azul' },
+  { color: '#6366F1', bg: '#EEF2FF', nombre: 'Índigo' },
+  { color: '#8B5CF6', bg: '#F5F3FF', nombre: 'Violeta' },
+  { color: '#EC4899', bg: '#FDF2F8', nombre: 'Rosa' },
+  { color: '#D946EF', bg: '#FDF4FF', nombre: 'Fucsia' },
+  { color: '#14B8A6', bg: '#F0FDFA', nombre: 'Teal' },
+  { color: '#F59E0B', bg: '#FFFBEB', nombre: 'Ámbar' },
+  { color: '#EF4444', bg: '#FEF2F2', nombre: 'Rojo' },
+  { color: '#6B7280', bg: '#F9FAFB', nombre: 'Gris' },
+];
 
 interface UsuarioDB {
   usuarioId: string;
@@ -33,11 +36,21 @@ interface UsuarioDB {
 export function AdminPanel() {
   const { usuario } = useAuth();
   const { formularios } = useFormularios();
+  const { etapas, recargar: recargarEtapas } = useEtapas();
   const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
   const [usuariosDB, setUsuariosDB] = useState<UsuarioDB[]>([]);
   const [cargandoUsuarios, setCargandoUsuarios] = useState(true);
   const [mostrarModal, setMostrarModal] = useState(false);
-  const [seccionActiva, setSeccionActiva] = useState<'usuarios' | 'formularios'>('usuarios');
+  const [seccionActiva, setSeccionActiva] = useState<'usuarios' | 'formularios' | 'configuracion'>('usuarios');
+
+  // ── Estado para la sección de etapas ──────────────────────────────────────
+  const [modalEtapa, setModalEtapa] = useState<{
+    modo: 'crear' | 'editar';
+    etapa?: Etapa;
+  } | null>(null);
+  const [formEtapa, setFormEtapa] = useState({ nombre: '', colorIdx: 0, esCierre: false });
+  const [guardandoEtapa, setGuardandoEtapa] = useState(false);
+  const [errorEtapa, setErrorEtapa] = useState('');
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
@@ -196,7 +209,95 @@ export function AdminPanel() {
     }
   };
 
+  // ── Handlers de etapas ────────────────────────────────────────────────────
+  const abrirCrearEtapa = () => {
+    setFormEtapa({ nombre: '', colorIdx: 0, esCierre: false });
+    setErrorEtapa('');
+    setModalEtapa({ modo: 'crear' });
+  };
 
+  const abrirEditarEtapa = (etapa: Etapa) => {
+    const colorIdx = PALETA_COLORES.findIndex(p => p.color === etapa.color);
+    setFormEtapa({ nombre: etapa.nombre, colorIdx: colorIdx >= 0 ? colorIdx : 0, esCierre: etapa.esCierre });
+    setErrorEtapa('');
+    setModalEtapa({ modo: 'editar', etapa });
+  };
+
+  const handleGuardarEtapa = async () => {
+    if (!formEtapa.nombre.trim()) { setErrorEtapa('El nombre es requerido'); return; }
+    setGuardandoEtapa(true);
+    setErrorEtapa('');
+    const token = localStorage.getItem('sc_token');
+    const paleta = PALETA_COLORES[formEtapa.colorIdx];
+    try {
+      const body = { nombre: formEtapa.nombre.trim(), color: paleta.color, bgColor: paleta.bg, esCierre: formEtapa.esCierre };
+      const res = await fetch(
+        modalEtapa?.modo === 'editar'
+          ? `${apiUrl}/config/etapas/${modalEtapa.etapa!.id}`
+          : `${apiUrl}/config/etapas`,
+        {
+          method: modalEtapa?.modo === 'editar' ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(body),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setErrorEtapa(data.error || 'Error al guardar');
+        return;
+      }
+      await recargarEtapas();
+      setModalEtapa(null);
+    } finally {
+      setGuardandoEtapa(false);
+    }
+  };
+
+  const handleEliminarEtapa = async (etapa: Etapa) => {
+    if (!confirm(`¿Eliminar la etapa "${etapa.nombre}"?`)) return;
+    const token = localStorage.getItem('sc_token');
+    const res = await fetch(`${apiUrl}/config/etapas/${etapa.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Error al eliminar');
+      return;
+    }
+    await recargarEtapas();
+  };
+
+  const handleToggleActivaEtapa = async (etapa: Etapa) => {
+    const token = localStorage.getItem('sc_token');
+    await fetch(`${apiUrl}/config/etapas/${etapa.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ activa: !etapa.activa }),
+    });
+    await recargarEtapas();
+  };
+
+  const handleMoverEtapa = async (etapa: Etapa, direccion: 'arriba' | 'abajo') => {
+    const ordenadas = [...etapas].sort((a, b) => a.orden - b.orden);
+    const idx = ordenadas.findIndex(e => e.id === etapa.id);
+    const swapIdx = direccion === 'arriba' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= ordenadas.length) return;
+
+    const newOrden = ordenadas.map((e, i) => {
+      if (i === idx) return { id: e.id, orden: ordenadas[swapIdx].orden };
+      if (i === swapIdx) return { id: e.id, orden: ordenadas[idx].orden };
+      return { id: e.id, orden: e.orden };
+    });
+
+    const token = localStorage.getItem('sc_token');
+    await fetch(`${apiUrl}/config/etapas/reorder`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ orden: newOrden }),
+    });
+    await recargarEtapas();
+  };
 
   return (
     <div className="space-y-6">
@@ -234,6 +335,17 @@ export function AdminPanel() {
         >
           <FileText size={20} />
           Formularios
+        </button>
+        <button
+          onClick={() => setSeccionActiva('configuracion')}
+          className={`flex items-center gap-2 px-6 py-3 font-medium transition duration-200 border-b-2 ${
+            seccionActiva === 'configuracion'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <Settings size={20} />
+          Configuración
         </button>
       </div>
 
@@ -551,8 +663,94 @@ export function AdminPanel() {
         </div>
       )}
         </>
-      ) : (
+      ) : seccionActiva === 'formularios' ? (
         <FormulariosPanel />
+      ) : (
+        /* ── SECCIÓN CONFIGURACIÓN ─────────────────────────────────────── */
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-indigo-600 px-6 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Settings size={16} className="text-white" />
+                <span className="text-white font-semibold text-sm">Etapas del ticket</span>
+                <span className="text-white/70 text-xs ml-2">{etapas.length} etapas</span>
+              </div>
+              <button
+                onClick={abrirCrearEtapa}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-medium rounded-lg transition"
+              >
+                <Plus size={14} />
+                Nueva etapa
+              </button>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {[...etapas].sort((a, b) => a.orden - b.orden).map((etapa, idx, arr) => (
+                <div key={etapa.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition">
+                  {/* Color swatch */}
+                  <div
+                    className="w-4 h-4 rounded-full flex-shrink-0 border border-black/10"
+                    style={{ backgroundColor: etapa.color }}
+                  />
+                  {/* Nombre */}
+                  <span className="flex-1 text-sm font-medium text-gray-800">{etapa.nombre}</span>
+                  {/* Badges */}
+                  <div className="flex items-center gap-2">
+                    {etapa.esCierre && (
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">Cierre</span>
+                    )}
+                    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${etapa.activa ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                      {etapa.activa ? 'Activa' : 'Inactiva'}
+                    </span>
+                  </div>
+                  {/* Acciones */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleMoverEtapa(etapa, 'arriba')}
+                      disabled={idx === 0}
+                      className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 transition"
+                      title="Subir"
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleMoverEtapa(etapa, 'abajo')}
+                      disabled={idx === arr.length - 1}
+                      className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 transition"
+                      title="Bajar"
+                    >
+                      <ChevronDown size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleToggleActivaEtapa(etapa)}
+                      className="p-1 text-gray-400 hover:text-blue-600 transition"
+                      title={etapa.activa ? 'Desactivar' : 'Activar'}
+                    >
+                      {etapa.activa ? <Eye size={16} /> : <EyeOff size={16} />}
+                    </button>
+                    <button
+                      onClick={() => abrirEditarEtapa(etapa)}
+                      className="p-1 text-gray-400 hover:text-indigo-600 transition"
+                      title="Editar"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleEliminarEtapa(etapa)}
+                      disabled={etapa.esCierre}
+                      className="p-1 text-gray-400 hover:text-red-600 disabled:opacity-30 transition"
+                      title={etapa.esCierre ? 'No se puede eliminar la etapa de cierre' : 'Eliminar'}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {etapas.length === 0 && (
+                <div className="text-center py-8 text-gray-400 text-sm">No hay etapas configuradas</div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal asignación de etapas */}
@@ -565,20 +763,21 @@ export function AdminPanel() {
             </div>
             <p className="text-sm text-gray-500 mb-4">Seleccioná las etapas del ticket que maneja este usuario. Cuando se le asigne un ticket, se moverá a esa etapa automáticamente.</p>
             <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-              {ESTADOS_TICKET.map((estado) => (
-                <label key={estado} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+              {[...etapas].sort((a, b) => a.orden - b.orden).filter(e => e.activa).map((etapa) => (
+                <label key={etapa.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={modalEstados.estados.includes(estado)}
+                    checked={modalEstados.estados.includes(etapa.nombre)}
                     onChange={(e) => {
                       const nuevos = e.target.checked
-                        ? [...modalEstados.estados, estado]
-                        : modalEstados.estados.filter((s) => s !== estado);
+                        ? [...modalEstados.estados, etapa.nombre]
+                        : modalEstados.estados.filter((s) => s !== etapa.nombre);
                       setModalEstados({ ...modalEstados, estados: nuevos });
                     }}
                     className="w-4 h-4 text-blue-600 rounded"
                   />
-                  <span className="text-sm text-gray-800">{estado}</span>
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: etapa.color }} />
+                  <span className="text-sm text-gray-800">{etapa.nombre}</span>
                 </label>
               ))}
             </div>
@@ -588,6 +787,90 @@ export function AdminPanel() {
               </button>
               <button onClick={handleGuardarEstados} disabled={guardandoEstados} className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium rounded-lg transition text-sm">
                 {guardandoEstados ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal crear/editar etapa */}
+      {modalEtapa && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-xl font-bold text-gray-900">
+                {modalEtapa.modo === 'crear' ? 'Nueva etapa' : 'Editar etapa'}
+              </h3>
+              <button onClick={() => setModalEtapa(null)} className="text-gray-500 hover:text-gray-700">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <input
+                  type="text"
+                  value={formEtapa.nombre}
+                  onChange={e => setFormEtapa({ ...formEtapa, nombre: e.target.value })}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errorEtapa ? 'border-red-500' : 'border-gray-300'}`}
+                  placeholder="Ej: Estudio de mercado"
+                />
+                {errorEtapa && <p className="text-xs text-red-600 mt-1">{errorEtapa}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
+                <div className="flex flex-wrap gap-2">
+                  {PALETA_COLORES.map((p, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setFormEtapa({ ...formEtapa, colorIdx: idx })}
+                      title={p.nombre}
+                      className={`w-8 h-8 rounded-full border-2 transition ${formEtapa.colorIdx === idx ? 'border-gray-900 scale-110' : 'border-transparent hover:border-gray-400'}`}
+                      style={{ backgroundColor: p.color }}
+                    />
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: PALETA_COLORES[formEtapa.colorIdx].color }} />
+                  <span
+                    className="px-2 py-0.5 rounded-full text-xs font-medium border"
+                    style={{
+                      color: PALETA_COLORES[formEtapa.colorIdx].color,
+                      backgroundColor: PALETA_COLORES[formEtapa.colorIdx].bg,
+                      borderColor: PALETA_COLORES[formEtapa.colorIdx].color + '55',
+                    }}
+                  >
+                    {formEtapa.nombre || 'Vista previa'}
+                  </span>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={formEtapa.esCierre}
+                  onChange={e => setFormEtapa({ ...formEtapa, esCierre: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-700">Es etapa de cierre</span>
+                  <p className="text-xs text-gray-500">Cuando un ticket llega a esta etapa se marca como cerrado. Solo puede haber una.</p>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setModalEtapa(null)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                Cancelar
+              </button>
+              <button
+                onClick={handleGuardarEtapa}
+                disabled={guardandoEtapa}
+                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-medium rounded-lg transition"
+              >
+                {guardandoEtapa ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </div>

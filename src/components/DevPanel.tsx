@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useEtapas } from '../context/EtapasContext';
 import {
   LogOut, Plus, Trash2, CheckCircle2, Clock,
   Users, Shield, Code2, ToggleLeft, ToggleRight, X,
@@ -125,12 +126,6 @@ const ROLES_FORM: Record<ModuloForm, { value: string; label: string }[]> = {
   ],
 };
 
-const ETAPAS_TICKETS = [
-  'Solicitud inicial', 'Revisión de documentación', 'Veraz',
-  'Comité de análisis', 'Contrato', 'Simulador',
-  'Firma de contrato', 'Certificación de firma', 'Transferencia',
-  'Seguimiento de verificable', 'Cerrado',
-];
 
 // ─── API helper ───────────────────────────────────────────────────────────────
 
@@ -446,6 +441,7 @@ function UsuariosPorModulo({
 
 export function DevPanel() {
   const { usuario, logout } = useAuth();
+  const { etapasActivas } = useEtapas();
   const [vista, setVista] = useState<Vista>('panel');
 
   // Usuarios
@@ -759,18 +755,18 @@ export function DevPanel() {
                 Etapas del flujo que maneja este usuario
               </p>
               <div className="flex flex-wrap gap-2">
-                {ETAPAS_TICKETS.map(e => {
-                  const sel = form.etapas.includes(e);
+                {etapasActivas.map(e => {
+                  const sel = form.etapas.includes(e.nombre);
                   return (
                     <button
-                      key={e} type="button" onClick={() => toggleEtapa(e)}
+                      key={e.id} type="button" onClick={() => toggleEtapa(e.nombre)}
                       className={`text-xs px-3 py-1.5 rounded-full border transition font-medium ${
                         sel
                           ? 'bg-violet-600/30 border-violet-500 text-violet-200'
                           : 'bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-500'
                       }`}
                     >
-                      {e}
+                      {e.nombre}
                     </button>
                   );
                 })}

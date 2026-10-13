@@ -510,15 +510,19 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
     if (etapa !== undefined) {
       setClauses.push('etapa = ?');
       params.push(etapa || null);
-      // Sincronizar el campo estado con la etapa visual
-      if (etapa === 'Cerrado') {
-        setClauses.push('estado = ?');
-        params.push('cerrado');
-        setClauses.push('fecha_cierre = NOW()');
-      } else if (etapa !== null && etapa !== '') {
-        setClauses.push('estado = ?');
-        params.push('en_progreso');
-        setClauses.push('fecha_cierre = NULL');
+      // Sincronizar el campo estado con la etapa visual usando el flag es_cierre de la DB
+      if (etapa) {
+        const [etapaRows] = await pool.query('SELECT es_cierre FROM etapas_ticket WHERE nombre = ?', [etapa]);
+        const esCierre = etapaRows.length > 0 && etapaRows[0].es_cierre;
+        if (esCierre) {
+          setClauses.push('estado = ?');
+          params.push('cerrado');
+          setClauses.push('fecha_cierre = NOW()');
+        } else {
+          setClauses.push('estado = ?');
+          params.push('en_progreso');
+          setClauses.push('fecha_cierre = NULL');
+        }
       }
     }
 

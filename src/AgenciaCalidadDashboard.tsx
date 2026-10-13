@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useReducer, useMemo, useState, useEffect } from 'react';
+import { useEtapas } from './context/EtapasContext';
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Search, File, RefreshCw, CheckCircle, Trash2, Pencil, UserCircle, ArrowLeft, BarChart2 } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { useFormularios } from './context/FormulariosContext';
@@ -10,22 +11,7 @@ import { ReportesDashboard } from './components/ReportesDashboard';
 // SECTION 1: TYPE DEFINITIONS
 // ═════════════════════════════════════════════════════════════════════════════
 
-type TicketEstado =
-  | 'Solicitud inicial'
-  | 'Revisión de documentación'
-  | 'Documentación observada'
-  | 'Veraz'
-  | 'Externo/ Comite de selección'
-  | 'Comité de análisis'
-  | 'Contrato'
-  | 'Simulador'
-  | 'Firma de contrato'
-  | 'Certificación de firma'
-  | 'Transferencia'
-  | 'Seguimiento de verificable'
-  | 'Seguimiento de cobranzas'
-  | 'Sin fondo'
-  | 'Cerrado';
+type TicketEstado = string;
 
 type VistaFiltro = 'todos' | 'no_resuelto' | 'sin_asignar' | 'mio' | 'cerrado' | 'eliminado';
 
@@ -177,23 +163,6 @@ type DashboardAction =
 // SECTION 2: CONSTANTS & COLOR CONFIG
 // ═════════════════════════════════════════════════════════════════════════════
 
-const ESTADO_CONFIG: Record<TicketEstado, { color: string; bg: string }> = {
-  'Solicitud inicial':         { color: '#F97316', bg: '#FFF7ED' },
-  'Revisión de documentación': { color: '#EAB308', bg: '#FEFCE8' },
-  'Documentación observada':   { color: '#EF4444', bg: '#FEF2F2' },
-  'Veraz':                     { color: '#06B6D4', bg: '#ECFEFF' },
-  'Externo/ Comite de selección': { color: '#F97316', bg: '#FFF7ED' },
-  'Comité de análisis':        { color: '#8B5CF6', bg: '#F5F3FF' },
-  'Contrato':                  { color: '#6366F1', bg: '#EEF2FF' },
-  'Simulador':                 { color: '#3B82F6', bg: '#EFF6FF' },
-  'Firma de contrato':         { color: '#EC4899', bg: '#FDF2F8' },
-  'Certificación de firma':    { color: '#D946EF', bg: '#FDF4FF' },
-  'Transferencia':             { color: '#22C55E', bg: '#F0FDF4' },
-  'Seguimiento de verificable':{ color: '#14B8A6', bg: '#F0FDFA' },
-  'Seguimiento de cobranzas':  { color: '#F59E0B', bg: '#FFFBEB' },
-  'Sin fondo':                 { color: '#EF4444', bg: '#FEF2F2' },
-  'Cerrado':                   { color: '#6B7280', bg: '#F9FAFB' },
-};
 
 const PRIORIDAD_CONFIG: Record<TicketPrioridad, { color: string; bg: string }> = {
   Normal: { color: '#22C55E', bg: '#F0FDF4' },
@@ -204,23 +173,6 @@ const PRIORIDAD_CONFIG: Record<TicketPrioridad, { color: string; bg: string }> =
 const TIPO_TRAMITE_OPCIONES = ['N/A', 'ANR', 'COMPRA DE MATERIALES', 'CRÉDITO', 'HONORARIOS'] as const;
 
 
-const ESTADOS: TicketEstado[] = [
-  'Solicitud inicial',
-  'Revisión de documentación',
-  'Documentación observada',
-  'Veraz',
-  'Externo/ Comite de selección',
-  'Comité de análisis',
-  'Contrato',
-  'Simulador',
-  'Firma de contrato',
-  'Certificación de firma',
-  'Transferencia',
-  'Seguimiento de verificable',
-  'Seguimiento de cobranzas',
-  'Sin fondo',
-  'Cerrado',
-];
 
 const PRIORIDADES: TicketPrioridad[] = ['Normal', 'Alta', 'Urgente'];
 
@@ -321,7 +273,8 @@ interface EstadoBadgeProps {
 }
 
 const EstadoBadge: React.FC<EstadoBadgeProps> = ({ estado }) => {
-  const config = ESTADO_CONFIG[estado];
+  const { getConfig } = useEtapas();
+  const config = getConfig(estado);
   return (
     <span
       style={{
@@ -852,6 +805,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 }) => {
   const { usuario } = useAuth();
   const { formularios, obtenerCampos } = useFormularios();
+  const { etapasActivas } = useEtapas();
   const [editandoEstado, setEditandoEstado] = useState(false);
   const [estadoTmp, setEstadoTmp] = useState<TicketEstado | ''>('');
   const [derivarAbierto, setDerivarAbierto] = useState(false);
@@ -1430,8 +1384,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     onChange={(e) => setEstadoTmp(e.target.value as TicketEstado)}
                     className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
                   >
-                    {ESTADOS.map((e) => (
-                      <option key={e} value={e}>{e}</option>
+                    {etapasActivas.map((e) => (
+                      <option key={e.nombre} value={e.nombre}>{e.nombre}</option>
                     ))}
                   </select>
                   <div className="flex gap-2">
@@ -2529,6 +2483,7 @@ interface OperativoInfo {
 export default function AgenciaCalidadDashboard() {
   const { usuario } = useAuth();
   const { formularios } = useFormularios();
+  const { etapasActivas } = useEtapas();
   const [state, dispatch] = useReducer(dashboardReducer, undefined, getInitialState);
   const [operativos, setOperativos] = useState<OperativoInfo[]>([]);
   const [verReportes, setVerReportes] = useState(false);
@@ -3039,8 +2994,8 @@ export default function AgenciaCalidadDashboard() {
             className="px-3 py-2 border border-slate-300 rounded-md text-sm text-slate-600 bg-white"
           >
             <option value="Todos">Todos los estados</option>
-            {ESTADOS.map((e) => (
-              <option key={e} value={e}>{e}</option>
+            {etapasActivas.map((e) => (
+              <option key={e.nombre} value={e.nombre}>{e.nombre}</option>
             ))}
           </select>
         </div>

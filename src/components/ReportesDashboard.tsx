@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useEtapas } from '../context/EtapasContext';
 import { BarChart2, Download, RefreshCw, Users, Clock, TrendingUp, FileText, ArrowLeft } from 'lucide-react';
 
 const API = (import.meta.env as Record<string, string>).VITE_API_URL;
@@ -16,13 +17,6 @@ async function apiFetch(path: string, params?: Record<string, string>) {
   if (!res.ok) throw new Error(`Error ${res.status}`);
   return res.json();
 }
-
-const ETAPAS = [
-  'Solicitud inicial', 'Revisión de documentación', 'Documentación observada',
-  'Veraz', 'Externo/ Comite de selección', 'Comité de análisis',
-  'Contrato', 'Simulador', 'Firma de contrato', 'Certificación de firma',
-  'Transferencia', 'Seguimiento de verificable', 'Seguimiento de cobranzas', 'Cerrado',
-];
 
 function ultimos12Meses(): { value: string; label: string }[] {
   const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -122,6 +116,7 @@ function formatMes(mes: string) {
 
 export function ReportesDashboard({ onVolver }: { onVolver: () => void }) {
   const { logout } = useAuth();
+  const { etapas } = useEtapas();
   const [resumen, setResumen] = useState<ResumenData | null>(null);
   const [agentes, setAgentes] = useState<AgenteData[]>([]);
   const [periodos, setPeriodos] = useState<PeriodoData[]>([]);
@@ -257,8 +252,8 @@ export function ReportesDashboard({ onVolver }: { onVolver: () => void }) {
             className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Todas las etapas</option>
-            {ETAPAS.map((e) => (
-              <option key={e} value={e}>{e}</option>
+            {[...etapas].sort((a, b) => a.orden - b.orden).map((e) => (
+              <option key={e.id} value={e.nombre}>{e.nombre}</option>
             ))}
           </select>
 

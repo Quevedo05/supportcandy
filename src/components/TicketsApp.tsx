@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { FormulariosProvider } from '../context/FormulariosContext';
+import { EtapasProvider } from '../context/EtapasContext';
 import AgenciaCalidadDashboard from '../AgenciaCalidadDashboard';
 import { AdminPanel } from './AdminPanel';
 import { FormulariosPanel } from './FormulariosPanel';
@@ -40,7 +41,9 @@ function TicketsAppContent() {
 export function TicketsApp() {
   return (
     <FormulariosProvider>
-      <TicketsAppContent />
+      <EtapasProvider>
+        <TicketsAppContent />
+      </EtapasProvider>
     </FormulariosProvider>
   );
 }
