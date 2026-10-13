@@ -3059,7 +3059,7 @@ export default function AgenciaCalidadDashboard() {
             state.sidebarColapsado ? 'w-0' : 'w-64'
           }`}
         >
-          <div className="p-4 space-y-6">
+          <div className="p-4 space-y-6 h-full overflow-y-auto">
             <div>
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2 flex items-center gap-2">
                 Filtros
