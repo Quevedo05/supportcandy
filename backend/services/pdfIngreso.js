@@ -644,9 +644,11 @@ async function generarPdfIngreso(ingreso) {
     // Página 1 — Acta Fitozoosanitaria (Serie 20)
     dibujarActa(doc, ingreso);
 
-    // Página 2 — Declaración Jurada (Serie 23) en landscape
-    doc.addPage({ size: 'A4', layout: 'landscape', margin: 0 });
-    dibujarDeclaracion(doc, ingreso);
+    // Página 2 — Declaración Jurada (Serie 23) solo para productos vegetales
+    if (ingreso.tipoProducto === 'vegetal') {
+      doc.addPage({ size: 'A4', layout: 'landscape', margin: 0 });
+      dibujarDeclaracion(doc, ingreso);
+    }
 
     doc.end();
   });
