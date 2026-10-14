@@ -108,8 +108,8 @@ function VistaOverlay({ titulo, color, onVolver, children }: {
 
 // ─── Tarjeta de usuario ───────────────────────────────────────────────────────
 
-function UsuarioCard({ usuario, rolDef, onToggle, toggling, onEliminar, eliminando, confirmDelete, onConfirmDelete, onCancelDelete, onResetPassword, reseteando }: {
-  usuario: UsuarioAPI; rolDef: RolDef;
+function UsuarioCard({ usuario, onToggle, toggling, onEliminar, eliminando, confirmDelete, onConfirmDelete, onCancelDelete, onResetPassword, reseteando }: {
+  usuario: UsuarioAPI;
   onToggle: (id: string) => void; toggling: string | null;
   onEliminar: (id: string) => void; eliminando: string | null;
   confirmDelete: string | null; onConfirmDelete: (id: string) => void; onCancelDelete: () => void;
@@ -203,7 +203,7 @@ function RolSection({ rolDef, usuarios, onToggle, toggling, onEliminar, eliminan
         ? <p className="text-xs text-gray-400 italic pl-4 pb-1">Sin usuarios con este rol todavía.</p>
         : <div className="space-y-1.5 pl-2">
             {usuarios.map(u => (
-              <UsuarioCard key={u.usuarioId} usuario={u} rolDef={rolDef}
+              <UsuarioCard key={u.usuarioId} usuario={u}
                 onToggle={onToggle} toggling={toggling}
                 onEliminar={onEliminar} eliminando={eliminando}
                 confirmDelete={confirmDelete} onConfirmDelete={onConfirmDelete} onCancelDelete={onCancelDelete}
