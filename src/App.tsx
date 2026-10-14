@@ -177,7 +177,7 @@ function AppContent() {
 
   if (usuario.modulo === 'comite') return <ComiteDashboard />;
 
-  return <TicketsApp />;
+  return <EtapasProvider><TicketsApp /></EtapasProvider>;
 }
 
 function AppLoader() {
