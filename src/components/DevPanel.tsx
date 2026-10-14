@@ -115,7 +115,6 @@ function UsuarioCard({ usuario, rolDef, onToggle, toggling, onEliminar, eliminan
   confirmDelete: string | null; onConfirmDelete: (id: string) => void; onCancelDelete: () => void;
   onResetPassword: (id: string) => void; reseteando: string | null;
 }) {
-  const { clases } = rolDef;
   const id = usuario.usuarioId;
 
   return (
