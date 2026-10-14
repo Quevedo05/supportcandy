@@ -117,10 +117,66 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
+// ─── Auto-migration: etapas_ticket + config_sistema ──────────────────────────
+async function runMigrations() {
+  const { pool } = require('./db/connection');
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS etapas_ticket (
+      id         INT AUTO_INCREMENT PRIMARY KEY,
+      nombre     VARCHAR(100) NOT NULL,
+      orden      INT          NOT NULL DEFAULT 0,
+      color      VARCHAR(7)   NOT NULL DEFAULT '#6B7280',
+      bg_color   VARCHAR(7)   NOT NULL DEFAULT '#F9FAFB',
+      es_cierre  TINYINT(1)   NOT NULL DEFAULT 0,
+      activa     TINYINT(1)   NOT NULL DEFAULT 1,
+      creado_en  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_etapa_nombre (nombre)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS config_sistema (
+      clave       VARCHAR(100) NOT NULL,
+      valor       TEXT,
+      descripcion VARCHAR(255),
+      PRIMARY KEY (clave)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  const etapas = [
+    ['Solicitud inicial',            1,  '#F97316', '#FFF7ED', 0],
+    ['Revisión de documentación',    2,  '#EAB308', '#FEFCE8', 0],
+    ['Documentación observada',      3,  '#EF4444', '#FEF2F2', 0],
+    ['Veraz',                        4,  '#06B6D4', '#ECFEFF', 0],
+    ['Externo/ Comite de selección', 5,  '#F97316', '#FFF7ED', 0],
+    ['Comité de análisis',           6,  '#8B5CF6', '#F5F3FF', 0],
+    ['Contrato',                     7,  '#6366F1', '#EEF2FF', 0],
+    ['Simulador',                    8,  '#3B82F6', '#EFF6FF', 0],
+    ['Firma de contrato',            9,  '#EC4899', '#FDF2F8', 0],
+    ['Certificación de firma',       10, '#D946EF', '#FDF4FF', 0],
+    ['Transferencia',                11, '#22C55E', '#F0FDF4', 0],
+    ['Seguimiento de verificable',   12, '#14B8A6', '#F0FDFA', 0],
+    ['Seguimiento de cobranzas',     13, '#F59E0B', '#FFFBEB', 0],
+    ['Sin fondo',                    14, '#EF4444', '#FEF2F2', 0],
+    ['Cerrado',                      15, '#6B7280', '#F9FAFB', 1],
+  ];
+
+  for (const [nombre, orden, color, bg_color, es_cierre] of etapas) {
+    await pool.query(
+      'INSERT IGNORE INTO etapas_ticket (nombre, orden, color, bg_color, es_cierre) VALUES (?, ?, ?, ?, ?)',
+      [nombre, orden, color, bg_color, es_cierre]
+    );
+  }
+
+  console.log('✓ Migración etapas_ticket completada');
+}
+
 // ─── Startup ──────────────────────────────────────────────────────────────────
 async function start() {
   try {
     await testConnection();
+    await runMigrations();
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Allowed CORS origins: ${allowedOrigins.join(', ') || '(none configured)'}`);
