@@ -77,13 +77,17 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
+    const ROLES_SAVEAN = ['inspector', 'sanidad', 'punto_control'];
+    const moduloFinal = ROLES_SAVEAN.includes(usuario.rol)
+      ? 'savean'
+      : (usuario.modulo || 'tickets');
     const token = jwt.sign(
       {
         usuarioId: usuario.usuarioId,
         nombre: usuario.nombre,
         email: usuario.email,
         rol: usuario.rol,
-        modulo: usuario.modulo || 'tickets',
+        modulo: moduloFinal,
         puedeEditarDatos: Boolean(usuario.puede_editar_datos),
         formularioId: usuario.formularioId || null,
       },
@@ -110,7 +114,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         nombre: usuario.nombre,
         email: usuario.email,
         rol: usuario.rol,
-        modulo: usuario.modulo || 'tickets',
+        modulo: moduloFinal,
         puedeEditarDatos: Boolean(usuario.puede_editar_datos),
         formularioId: usuario.formularioId || null,
       },
@@ -168,15 +172,17 @@ router.post('/activar', activarLimiter, async (req, res) => {
     );
 
     const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
+    const ROLES_SAVEAN_ACT = ['inspector', 'sanidad', 'punto_control'];
+    const moduloActivar = ROLES_SAVEAN_ACT.includes(u.rol) ? 'savean' : (u.modulo || 'tickets');
     const jwtToken = jwt.sign(
-      { usuarioId: u.usuarioId, nombre: u.nombre, email: u.email, rol: u.rol, modulo: u.modulo || 'tickets' },
+      { usuarioId: u.usuarioId, nombre: u.nombre, email: u.email, rol: u.rol, modulo: moduloActivar },
       process.env.JWT_SECRET,
       { expiresIn }
     );
 
     return res.status(200).json({
       token: jwtToken,
-      usuario: { usuarioId: u.usuarioId, nombre: u.nombre, email: u.email, rol: u.rol, modulo: u.modulo || 'tickets' },
+      usuario: { usuarioId: u.usuarioId, nombre: u.nombre, email: u.email, rol: u.rol, modulo: moduloActivar },
     });
   } catch (err) {
     console.error('[POST /auth/activar]', err);

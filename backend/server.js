@@ -170,6 +170,15 @@ async function runMigrations() {
   }
 
   console.log('✓ Migración etapas_ticket completada');
+
+  // Fix: usuarios con rol de savean que quedaron con modulo incorrecto
+  await pool.query(`
+    UPDATE usuarios
+    SET modulo = 'savean'
+    WHERE rol IN ('inspector', 'sanidad', 'punto_control')
+      AND (modulo IS NULL OR modulo != 'savean')
+  `);
+  console.log('✓ Fix módulos usuarios SAVEAN completado');
 }
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
