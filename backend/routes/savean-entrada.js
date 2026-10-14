@@ -359,10 +359,11 @@ router.post('/ingresos', autenticar, soloSavean, soloInspector, async (req, res)
     const anio = ahora.getFullYear();
 
     const [[{ total }]] = await conn.query(
-      'SELECT COUNT(*) AS total FROM ingresos_savean WHERE YEAR(fecha_hora) = ?',
-      [anio]
+      'SELECT COUNT(*) AS total FROM ingresos_savean WHERE YEAR(fecha_hora) = ? AND tipo_producto = ?',
+      [anio, tipoProducto || 'carnico']
     );
-    const numero = `ENTRADA-${anio}-${String(Number(total) + 1).padStart(5, '0')}`;
+    const prefix = tipoProducto === 'vegetal' ? 'VEG' : 'CAR';
+    const numero = `${prefix}-${anio}-${String(Number(total) + 1).padStart(5, '0')}`;
 
     const inspectorNombre = req.usuario.nombre || req.usuario.email;
 
