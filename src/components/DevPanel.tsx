@@ -6,6 +6,7 @@ import {
   Users, Shield, Code2, ToggleLeft, ToggleRight, X,
   AlertCircle, RefreshCw, ArrowLeft, Ticket, Leaf,
   KeyRound, FileText, TreePine, Stethoscope, MapPin,
+  MessageCircle, Lightbulb, Trash,
 } from 'lucide-react';
 
 const TicketsApp = lazy(() => import('./TicketsApp').then(m => ({ default: m.TicketsApp })));
@@ -465,6 +466,41 @@ export function DevPanel() {
   const [reseteando, setReseteando] = useState<string | null>(null);
   const [resetMsg, setResetMsg] = useState('');
 
+  // Feedback
+  const [feedbackItems, setFeedbackItems] = useState<{
+    id: string; tipo: 'problema' | 'sugerencia'; mensaje: string;
+    usuario_nombre: string; usuario_email: string; usuario_rol: string;
+    usuario_modulo: string; leido: number; creado_en: string;
+  }[]>([]);
+  const [cargandoFeedback, setCargandoFeedback] = useState(false);
+  const [feedbackFiltro, setFeedbackFiltro] = useState<'todos' | 'problema' | 'sugerencia'>('todos');
+
+  const cargarFeedback = useCallback(async () => {
+    setCargandoFeedback(true);
+    try {
+      const token = localStorage.getItem('sc_token') || '';
+      const res = await fetch(`${API_URL}/feedback`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbackItems(data.feedback ?? []);
+      }
+    } catch { /* ignore */ } finally { setCargandoFeedback(false); }
+  }, []);
+
+  const marcarLeido = async (id: string) => {
+    const token = localStorage.getItem('sc_token') || '';
+    await fetch(`${API_URL}/feedback/${id}/leido`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } });
+    setFeedbackItems(prev => prev.map(f => f.id === id ? { ...f, leido: 1 } : f));
+  };
+
+  const eliminarFeedback = async (id: string) => {
+    const token = localStorage.getItem('sc_token') || '';
+    await fetch(`${API_URL}/feedback/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    setFeedbackItems(prev => prev.filter(f => f.id !== id));
+  };
+
+  useEffect(() => { cargarFeedback(); }, [cargarFeedback]);
+
   const cargarUsuarios = useCallback(async () => {
     setCargando(true);
     setErrorCarga('');
@@ -842,6 +878,128 @@ export function DevPanel() {
             />
           )}
         </div>
+
+        {/* ── Feedback de usuarios ── */}
+        {(() => {
+          const noLeidos = feedbackItems.filter(f => !f.leido).length;
+          const visibles = feedbackItems.filter(f =>
+            feedbackFiltro === 'todos' || f.tipo === feedbackFiltro
+          );
+          return (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+              <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <MessageCircle size={16} className="text-violet-400" />
+                  <h2 className="font-bold text-white text-sm uppercase tracking-wide">
+                    Feedback de usuarios
+                  </h2>
+                  {noLeidos > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                      {noLeidos} nuevo{noLeidos !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex bg-slate-800 rounded-lg p-0.5 gap-0.5">
+                    {([
+                      { key: 'todos', label: 'Todos' },
+                      { key: 'problema', label: 'Problemas' },
+                      { key: 'sugerencia', label: 'Sugerencias' },
+                    ] as { key: typeof feedbackFiltro; label: string }[]).map(f => (
+                      <button
+                        key={f.key}
+                        onClick={() => setFeedbackFiltro(f.key)}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
+                          feedbackFiltro === f.key
+                            ? 'bg-violet-600 text-white'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={cargarFeedback}
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition"
+                  >
+                    <RefreshCw size={12} className={cargandoFeedback ? 'animate-spin' : ''} />
+                    Recargar
+                  </button>
+                </div>
+              </div>
+
+              {cargandoFeedback ? (
+                <div className="flex items-center justify-center py-10">
+                  <RefreshCw size={18} className="animate-spin text-slate-500" />
+                </div>
+              ) : visibles.length === 0 ? (
+                <div className="text-center py-10 text-slate-500 text-sm">
+                  No hay mensajes{feedbackFiltro !== 'todos' ? ' de este tipo' : ''}.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {visibles.map(f => (
+                    <div
+                      key={f.id}
+                      className={`rounded-xl border p-4 transition ${
+                        f.leido
+                          ? 'border-slate-800 bg-slate-800/30'
+                          : 'border-slate-700 bg-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {f.tipo === 'problema' ? (
+                            <span className="flex items-center gap-1 text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
+                              <AlertCircle size={11} /> Problema
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs font-semibold text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded-full">
+                              <Lightbulb size={11} /> Sugerencia
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold text-white">{f.usuario_nombre}</span>
+                          <span className="text-xs text-slate-500">{f.usuario_email}</span>
+                          <span className="text-xs text-slate-600">·</span>
+                          <span className="text-xs text-slate-500 capitalize">{f.usuario_rol}</span>
+                          <span className="text-xs text-slate-600">·</span>
+                          <span className="text-xs text-slate-500">{f.usuario_modulo}</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[10px] text-slate-600">
+                            {new Date(f.creado_en).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                            {' '}
+                            {new Date(f.creado_en).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {!f.leido && (
+                            <button
+                              onClick={() => marcarLeido(f.id)}
+                              title="Marcar como leído"
+                              className="text-violet-400 hover:text-violet-300 transition"
+                            >
+                              <CheckCircle2 size={14} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => eliminarFeedback(f.id)}
+                            title="Eliminar"
+                            className="text-slate-600 hover:text-red-400 transition"
+                          >
+                            <Trash size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      <p className={`mt-2 text-sm leading-relaxed ${f.leido ? 'text-slate-500' : 'text-slate-200'}`}>
+                        {f.mensaje}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
       </div>
     </div>

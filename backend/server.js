@@ -14,6 +14,7 @@ const saveanPuntoControlRoutes = require('./routes/savean-punto-control');
 const comiteRoutes = require('./routes/comite');
 const reportesRoutes = require('./routes/reportes');
 const configRoutes = require('./routes/config');
+const feedbackRoutes = require('./routes/feedback');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
@@ -97,6 +98,7 @@ app.use('/api/savean/punto-control', saveanPuntoControlRoutes);
 app.use('/api/comite', comiteRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
@@ -179,6 +181,22 @@ async function runMigrations() {
       AND (modulo IS NULL OR modulo != 'savean')
   `);
   console.log('✓ Fix módulos usuarios SAVEAN completado');
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id              VARCHAR(36)   NOT NULL PRIMARY KEY,
+      tipo            ENUM('problema','sugerencia') NOT NULL,
+      mensaje         TEXT          NOT NULL,
+      usuario_id      VARCHAR(36)   NOT NULL,
+      usuario_nombre  VARCHAR(200)  NOT NULL,
+      usuario_email   VARCHAR(200)  NOT NULL,
+      usuario_rol     VARCHAR(50)   NOT NULL,
+      usuario_modulo  VARCHAR(50)   NOT NULL,
+      leido           TINYINT(1)    NOT NULL DEFAULT 0,
+      creado_en       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+  console.log('✓ Tabla feedback lista');
 }
 
 // ─── Startup ──────────────────────────────────────────────────────────────────

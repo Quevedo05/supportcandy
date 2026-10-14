@@ -9,6 +9,7 @@ const DevPanel        = lazy(() => import('./components/DevPanel').then(m => ({ 
 const ActivarCuenta   = lazy(() => import('./components/ActivarCuenta').then(m => ({ default: m.ActivarCuenta })));
 const ComiteDashboard = lazy(() => import('./components/ComiteDashboard').then(m => ({ default: m.ComiteDashboard })));
 import { CheckCircle2, XCircle, Clock, AlertCircle, ArrowLeft, User, Truck, Package, Shield } from 'lucide-react';
+import { FeedbackWidget } from './components/FeedbackWidget';
 
 // ─── Public guide verification (accessible without login) ──────────────────
 function GuiaVerificacion({ token }: { token: string }) {
@@ -173,11 +174,16 @@ function AppContent() {
 
   if (usuario.rol === 'dev') return <EtapasProvider><DevPanel /></EtapasProvider>;
 
-  if (usuario.modulo === 'savean') return <SaveanApp />;
-
-  if (usuario.modulo === 'comite') return <ComiteDashboard />;
-
-  return <EtapasProvider><TicketsApp /></EtapasProvider>;
+  return (
+    <>
+      <FeedbackWidget />
+      {usuario.modulo === 'savean' && <SaveanApp />}
+      {usuario.modulo === 'comite' && <ComiteDashboard />}
+      {usuario.modulo !== 'savean' && usuario.modulo !== 'comite' && (
+        <EtapasProvider><TicketsApp /></EtapasProvider>
+      )}
+    </>
+  );
 }
 
 function AppLoader() {
