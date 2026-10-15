@@ -98,18 +98,21 @@ function TransporteCard({
   onRecibir,
   onAlerta,
   onNoRecibido,
+  onRecibirAlerta,
   marcando,
 }: {
   transporte: Transporte;
   onRecibir: (id: string, obs: string) => void;
   onAlerta: (id: string, obs: string) => void;
   onNoRecibido: (id: string, obs: string) => void;
+  onRecibirAlerta: (id: string, obs: string) => void;
   marcando: string | null;
 }) {
   const [expandido, setExpandido] = useState(false);
   const [observaciones, setObservaciones] = useState('');
   const cfg = ESTADO_CONFIG[transporte.estado];
   const esTransito = transporte.estado === 'en_transito';
+  const esAlerta = transporte.estado === 'alerta';
   const ocupado = marcando === transporte.id;
 
   return (
@@ -243,6 +246,28 @@ function TransporteCard({
                 className="w-full py-2.5 border border-gray-300 text-gray-600 font-semibold text-sm rounded-2xl transition disabled:opacity-40"
               >
                 No llegó / No recibido
+              </button>
+            </div>
+          )}
+
+          {/* Acción para pasar alerta a recibido */}
+          {esAlerta && (
+            <div className="space-y-2 pt-1 border-t border-red-100">
+              <p className="text-xs text-red-600 font-semibold uppercase tracking-wide">Resolver alerta</p>
+              <textarea
+                className="w-full border border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-300"
+                rows={2}
+                placeholder="Motivo de resolución (opcional)..."
+                value={observaciones}
+                onChange={e => setObservaciones(e.target.value)}
+              />
+              <button
+                onClick={() => onRecibirAlerta(transporte.id, observaciones)}
+                disabled={ocupado}
+                className="w-full flex items-center justify-center gap-2 py-3.5 bg-green-500 active:bg-green-700 text-white font-black text-sm rounded-2xl transition-all disabled:opacity-40 shadow-sm"
+              >
+                <Check size={20} strokeWidth={3} />
+                {ocupado ? '...' : 'Marcar como Recibido'}
               </button>
             </div>
           )}
@@ -460,6 +485,7 @@ export function SaveanPuntoControl() {
               onRecibir={(id, obs) => marcarEstado(id, 'recibir', obs)}
               onAlerta={(id, obs) => marcarEstado(id, 'alerta', obs)}
               onNoRecibido={(id, obs) => marcarEstado(id, 'no-recibido', obs)}
+              onRecibirAlerta={(id, obs) => marcarEstado(id, 'recibir', obs)}
             />
           ))}
         </div>
