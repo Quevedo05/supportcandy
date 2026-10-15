@@ -15,6 +15,7 @@ const comiteRoutes = require('./routes/comite');
 const reportesRoutes = require('./routes/reportes');
 const configRoutes = require('./routes/config');
 const feedbackRoutes = require('./routes/feedback');
+const sistemaRoutes = require('./routes/sistema');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
@@ -99,6 +100,7 @@ app.use('/api/comite', comiteRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/sistema', sistemaRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {

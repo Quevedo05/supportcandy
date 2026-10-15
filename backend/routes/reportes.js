@@ -5,7 +5,7 @@ const { autenticar } = require('../middleware/auth');
 const router = express.Router();
 
 function soloSupervisor(req, res, next) {
-  if (req.usuario.rol !== 'supervisor' && req.usuario.rol !== 'admin') {
+  if (req.usuario.rol !== 'supervisor' && req.usuario.rol !== 'admin' && req.usuario.rol !== 'dev') {
     return res.status(403).json({ error: 'Acceso denegado: se requiere rol de supervisor o admin' });
   }
   next();
