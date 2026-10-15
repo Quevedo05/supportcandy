@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { GuiaSavean, Barrera, Barrerista, SaveanContextType } from '../types/savean';
-import { httpClient } from '../../../services/http-client';
+import { httpClient, HttpError } from '../../../services/http-client';
 
 const SaveanContext = createContext<SaveanContextType | undefined>(undefined);
 
@@ -12,11 +12,16 @@ export function SaveanProvider({ children }: { children: ReactNode }) {
   const [errorCarga, setErrorCarga] = useState<string | undefined>(undefined);
 
   useEffect(() => {
+    if (httpClient.isUsingLocalStorage()) {
+      setErrorCarga('El módulo SAVEAN no está disponible sin conexión a la API.');
+      setLoading(false);
+      return;
+    }
     Promise.all([
       httpClient.get<{ guias: GuiaSavean[] }>('/savean/guias')
         .then(({ guias: list }) => setGuias(list))
-        .catch((err: any) => {
-          if (String(err?.message).includes('403')) {
+        .catch((err: unknown) => {
+          if (err instanceof HttpError && err.status === 403) {
             setErrorCarga('Tu cuenta no tiene permiso para acceder a las guías. Contactá al administrador.');
           } else {
             setErrorCarga('No se pudieron cargar las guías. Verificá tu conexión e intentá recargar la página.');

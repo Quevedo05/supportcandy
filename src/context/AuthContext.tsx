@@ -47,6 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCargando(false);
   }, []);
 
+  useEffect(() => {
+    const handler = () => {
+      setUsuario(null);
+      localStorage.removeItem(STORAGE_KEY_SESION);
+      localStorage.removeItem('sc_token');
+    };
+    window.addEventListener('sc:unauthorized', handler);
+    return () => window.removeEventListener('sc:unauthorized', handler);
+  }, []);
+
   function saveUsuarios(lista: Usuario[]) {
     setUsuarios(lista);
     localStorage.setItem(STORAGE_KEY_USUARIOS, JSON.stringify(lista));

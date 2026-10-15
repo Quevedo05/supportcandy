@@ -6,6 +6,13 @@
 const API_BASE_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api';
 const USE_LOCAL_STORAGE = (import.meta.env as any).VITE_USE_LOCAL_STORAGE === 'true' || !(import.meta.env as any).VITE_API_URL;
 
+export class HttpError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = 'HttpError';
+  }
+}
+
 export class HttpClient {
   private baseUrl: string;
   private useLocalStorage: boolean;
@@ -28,9 +35,9 @@ export class HttpClient {
     if (response.status === 401) {
       localStorage.removeItem('sc_token');
       localStorage.removeItem('sc_sesion');
-      window.location.reload();
+      window.dispatchEvent(new CustomEvent('sc:unauthorized'));
     }
-    throw new Error(message);
+    throw new HttpError(response.status, message);
   }
 
   private getHeaders(contentType = 'application/json'): HeadersInit {
@@ -132,24 +139,19 @@ export class HttpClient {
     }
   }
 
-  // Métodos fallback para localStorage (desarrollo)
   private getLocal<T>(_endpoint: string): Promise<T> {
-    // Será sobrescrito por servicios específicos
     return Promise.reject(new Error('Not implemented in localStorage mode'));
   }
 
   private postLocal<T>(_endpoint: string, _data: unknown): Promise<T> {
-    // Será sobrescrito por servicios específicos
     return Promise.reject(new Error('Not implemented in localStorage mode'));
   }
 
   private patchLocal<T>(_endpoint: string, _data: unknown): Promise<T> {
-    // Será sobrescrito por servicios específicos
     return Promise.reject(new Error('Not implemented in localStorage mode'));
   }
 
   private deleteLocal<T>(_endpoint: string): Promise<T> {
-    // Será sobrescrito por servicios específicos
     return Promise.reject(new Error('Not implemented in localStorage mode'));
   }
 
