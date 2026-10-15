@@ -278,18 +278,6 @@ export function DevPanel() {
     finally { setReseteando(null); }
   };
 
-  const handleCrear = async (data: { nombre: string; email: string; modulo: string; rol: string; etapas: string[] }) => {
-    await apiCall('POST', '/usuarios', {
-      nombre: data.nombre,
-      email: data.email,
-      modulo: data.modulo,
-      rol: data.rol,
-      ...(data.modulo === 'tickets' && data.rol === 'contribuidor' ? { estadosAsignados: data.etapas } : {}),
-    });
-    await cargarUsuarios();
-    return `${data.nombre} fue creado y quedó pendiente de activación.`;
-  };
-
   // ── Feedback ─────────────────────────────────────────────────────────────
   const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
   const [cargandoFeedback, setCargandoFeedback] = useState(false);
@@ -385,7 +373,8 @@ export function DevPanel() {
               onToggle={handleToggle} toggling={toggling}
               onEliminar={handleEliminar} eliminando={eliminando}
               onResetPassword={handleReset} reseteando={reseteando}
-              onCrear={handleCrear}
+              apiUrl={API_URL}
+              token={localStorage.getItem('sc_token')}
             />
           )}
 
