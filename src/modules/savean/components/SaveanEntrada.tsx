@@ -1732,6 +1732,7 @@ export function SaveanEntrada({ onVolver }: { onVolver: () => void }) {
         barreraId: step1.barreraId,
         barreraNombre: barrera?.nombre || '',
         esCargaCarnica: step1.esCargaCarnica,
+        tipoProducto: step1.esCargaCarnica ? 'carnico' : 'vegetal',
         ...step2,
         ...step3,
       };
