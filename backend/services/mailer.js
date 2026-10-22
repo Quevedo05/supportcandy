@@ -1,10 +1,26 @@
 const nodemailer = require('nodemailer');
 const dns = require('dns');
 
-// El servidor no tiene conectividad IPv6: forzamos IPv4 tanto en el socket
-// como en la resolución DNS (family:4 solo no alcanza en algunas versiones).
-function lookupIpv4(hostname, options, callback) {
-  dns.lookup(hostname, { family: 4 }, callback);
+// Resuelve un hostname a su primera dirección IPv4.
+// El servidor no tiene conectividad IPv6 y smtp.gmail.com devuelve IPv6
+// primero, lo que hace fallar la conexión aunque family:4 esté activo.
+function resolveIpv4(hostname) {
+  return new Promise((resolve) => {
+    dns.resolve4(hostname, (err, addresses) => {
+      if (err || !addresses?.length) resolve(hostname);
+      else resolve(addresses[0]);
+    });
+  });
+}
+
+async function makeTransporter(host, port, user, pass) {
+  const resolvedHost = await resolveIpv4(host);
+  return nodemailer.createTransport({
+    host: resolvedHost,
+    port,
+    secure: false,
+    auth: { user, pass },
+  });
 }
 
 const transporter = nodemailer.createTransport({
@@ -12,7 +28,6 @@ const transporter = nodemailer.createTransport({
   port: parseInt(process.env.SMTP_PORT || '587', 10),
   secure: false,
   family: 4,
-  lookup: lookupIpv4,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -155,19 +170,16 @@ async function enviarAsignacionTicket({ nombre, email, ticket }) {
   });
 }
 
-// ─── SAVEAN transporter ───────────────────────────────────────────────────────
+// ─── SAVEAN transporter (resuelto a IPv4 en cada envío) ──────────────────────
 
-const transporterSavean = nodemailer.createTransport({
-  host: process.env.SAVEAN_SMTP_HOST,
-  port: parseInt(process.env.SAVEAN_SMTP_PORT || '587', 10),
-  secure: false,
-  family: 4,
-  lookup: lookupIpv4,
-  auth: {
-    user: process.env.SAVEAN_SMTP_USER,
-    pass: process.env.SAVEAN_SMTP_PASS,
-  },
-});
+function getSaveanTransporter() {
+  return makeTransporter(
+    process.env.SAVEAN_SMTP_HOST,
+    parseInt(process.env.SAVEAN_SMTP_PORT || '587', 10),
+    process.env.SAVEAN_SMTP_USER,
+    process.env.SAVEAN_SMTP_PASS,
+  );
+}
 
 async function enviarGuiaPorEmail(guia) {
   if (!guia.emailContacto) return;
@@ -178,7 +190,8 @@ async function enviarGuiaPorEmail(guia) {
   const sistemaUrl = process.env.SISTEMA_URL || 'https://sistema.agenciacalidadsanjuan.com.ar';
   const verUrl = `${sistemaUrl}/?verificar=${guia.token}`;
 
-  await transporterSavean.sendMail({
+  const saveanTransporter = await getSaveanTransporter();
+  await saveanTransporter.sendMail({
     from: `"SAVEAN — Agencia Calidad San Juan" <${process.env.SAVEAN_SMTP_USER}>`,
     to: guia.emailContacto,
     subject: `Guía de Origen ${guia.numero} — SAVEAN`,
@@ -319,7 +332,8 @@ async function enviarIngresoPorEmail(ingreso) {
   const { generarPdfIngreso } = require('./pdfIngreso');
   const pdfBuffer = await generarPdfIngreso(ingreso);
 
-  await transporterSavean.sendMail({
+  const saveanTransporter = await getSaveanTransporter();
+  await saveanTransporter.sendMail({
     from: `"SAVEAN — Agencia Calidad San Juan" <${process.env.SAVEAN_SMTP_USER}>`,
     to: ingreso.emailConductor,
     subject: `Acta de Ingreso ${ingreso.numero} — SAVEAN`,
@@ -394,7 +408,8 @@ async function enviarInvitacionSavean({ nombre, email, token, rol }) {
   const link = `${sistemaUrl}/?activar=${token}`;
   const rolLabel = ROL_LABELS_SAVEAN[rol] || rol;
 
-  await transporterSavean.sendMail({
+  const saveanTransporter = await getSaveanTransporter();
+  await saveanTransporter.sendMail({
     from: `"SAVEAN — Agencia Calidad San Juan" <${process.env.SAVEAN_SMTP_USER}>`,
     to: email,
     subject: 'Invitación al sistema SAVEAN — Agencia de Calidad San Juan',
