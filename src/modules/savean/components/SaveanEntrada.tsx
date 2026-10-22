@@ -920,12 +920,13 @@ function ActaCarnica({ onVolver }: { onVolver: () => void }) {
   };
 
   const handleSubmit = async () => {
-    if (!barreraId)      { setErr('Seleccioná una barrera.'); return; }
-    if (!chasis.trim())  { setErr('Ingresá el Chasis N°.');  return; }
+    if (!barreraId)           { setErr('Seleccioná una barrera.'); return; }
+    if (!chasis.trim())       { setErr('Ingresá el Chasis N°.'); return; }
+    if (!procedenteDe.trim()) { setErr('Ingresá el lugar de procedencia.'); return; }
     setCargando(true); setErr('');
     try {
       let entradaId = '';
-      if (planillaId) {
+      if (planillaId && procedenteDe.trim()) {
         const r = await fetch(`${API_URL}/savean/entrada/entradas`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
@@ -1215,7 +1216,7 @@ function ActaVegetal({ onVolver }: { onVolver: () => void }) {
     setCargando(true); setErr('');
     try {
       let entradaId = '';
-      if (planillaId) {
+      if (planillaId && chasis.trim() && procedenteDe.trim()) {
         const r = await fetch(`${API_URL}/savean/entrada/entradas`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
@@ -1470,7 +1471,7 @@ function ActaNoPago({ onVolver }: { onVolver: () => void }) {
     setCargando(true); setErr('');
     try {
       let entradaId = '';
-      if (planillaId) {
+      if (planillaId && chasis.trim() && procedenteDe.trim()) {
         const r = await fetch(`${API_URL}/savean/entrada/entradas`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
