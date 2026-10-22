@@ -359,11 +359,12 @@ router.post('/ingresos', autenticar, soloSavean, soloInspector, async (req, res)
     const anio = ahora.getFullYear();
 
     const prefix = tipoProducto === 'vegetal' ? 'VEG' : 'CAR';
-    const [[{ total }]] = await conn.query(
-      'SELECT COUNT(*) AS total FROM ingresos_savean WHERE numero LIKE ?',
+    const [[{ maxSeq }]] = await conn.query(
+      `SELECT MAX(CAST(SUBSTRING_INDEX(numero, '-', -1) AS UNSIGNED)) AS maxSeq
+         FROM ingresos_savean WHERE numero LIKE ? FOR UPDATE`,
       [`${prefix}-${anio}-%`]
     );
-    const numero = `${prefix}-${anio}-${String(Number(total) + 1).padStart(5, '0')}`;
+    const numero = `${prefix}-${anio}-${String((Number(maxSeq) || 0) + 1).padStart(5, '0')}`;
 
     const inspectorNombre = req.usuario.nombre || req.usuario.email;
 
