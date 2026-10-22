@@ -93,7 +93,7 @@ function EstadoBadge({ estado }: { estado: string }) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export function SaveanAdmin() {
-  const { guias, barreras } = useSavean();
+  const { guias, barreras, usuariosSavean } = useSavean();
 
   const [guiaVista, setGuiaVista]                 = useState<GuiaSavean | null>(null);
   const [kpiModal, setKpiModal]                   = useState<{ title: string; guias: GuiaSavean[] } | null>(null);
@@ -129,19 +129,45 @@ export function SaveanAdmin() {
   const denegadasMes   = guiasMes.filter(g => g.estado === 'denegada').length;
   const tasaVerifMes   = emitidasMes > 0 ? Math.round(verificadasMes / emitidasMes * 100) : 0;
 
-  // ── Personal activo por fecha seleccionada (unifica barreristas + inspectores) ──
+  // ── Personal activo por fecha seleccionada ────────────────────────────────
+  // Muestra TODOS los inspectores activos del sistema, con su actividad del día.
+  // Los que no escanearon nada aparecen con 0/0 y sin barrera.
   const guiasFecha = guias.filter(g => localDateOf(g.fechaVerificacion ?? '') === fechaFiltro);
-  const personalActivo = [...new Set(guiasFecha.filter(g => g.inspectorUsuario).map(g => g.inspectorUsuario!))].map(usr => {
-    const ug = guiasFecha.filter(g => g.inspectorUsuario === usr);
-    const barreraId = ug[ug.length - 1]?.barreraId;
-    return {
-      usuario:     usr,
-      nombre:      ug[0]?.inspectorNombre ?? usr,
-      barrera:     barreras.find(b => b.id === barreraId)?.nombre ?? '—',
-      verificadas: ug.filter(g => g.estado === 'verificada').length,
-      denegadas:   ug.filter(g => g.estado === 'denegada').length,
-    };
-  });
+
+  const inspectoresDelSistema = usuariosSavean.filter(u => u.rol === 'inspector' && u.activo);
+  const emailsEnSistema = new Set(inspectoresDelSistema.map(u => u.email));
+
+  // Inspectores que verificaron guías ese día pero no están en la lista de usuarios (cuentas legacy)
+  const inspectoresLegacy = [...new Set(
+    guiasFecha.filter(g => g.inspectorUsuario && !emailsEnSistema.has(g.inspectorUsuario)).map(g => g.inspectorUsuario!)
+  )];
+
+  const personalActivo = [
+    ...inspectoresDelSistema.map(u => {
+      const ug = guiasFecha.filter(g => g.inspectorUsuario === u.email);
+      const barreraId = ug[ug.length - 1]?.barreraId;
+      return {
+        usuario:     u.email,
+        nombre:      u.nombre,
+        barrera:     ug.length > 0 ? (barreras.find(b => b.id === barreraId)?.nombre ?? '—') : '—',
+        verificadas: ug.filter(g => g.estado === 'verificada').length,
+        denegadas:   ug.filter(g => g.estado === 'denegada').length,
+        sinActividad: ug.length === 0,
+      };
+    }),
+    ...inspectoresLegacy.map(usr => {
+      const ug = guiasFecha.filter(g => g.inspectorUsuario === usr);
+      const barreraId = ug[ug.length - 1]?.barreraId;
+      return {
+        usuario:     usr,
+        nombre:      ug[0]?.inspectorNombre ?? usr,
+        barrera:     barreras.find(b => b.id === barreraId)?.nombre ?? '—',
+        verificadas: ug.filter(g => g.estado === 'verificada').length,
+        denegadas:   ug.filter(g => g.estado === 'denegada').length,
+        sinActividad: false,
+      };
+    }),
+  ];
 
   // ── Barreras por fecha (sin columnas Emit. ni Pend.) ─────────────────────
   const barrerasStats = barreras.map(b => {
@@ -293,7 +319,7 @@ export function SaveanAdmin() {
               </thead>
               <tbody>
                 {personalActivo.map(p => (
-                  <tr key={p.usuario} className="border-b border-gray-50">
+                  <tr key={p.usuario} className={`border-b border-gray-50 ${p.sinActividad ? 'opacity-40' : ''}`}>
                     <td className="py-1.5 font-semibold text-gray-800">{p.nombre}</td>
                     <td className="py-1.5 text-gray-500">{p.barrera}</td>
                     <td className="py-1.5 text-center font-bold text-green-700">{p.verificadas}</td>

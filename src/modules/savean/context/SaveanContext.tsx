@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { GuiaSavean, Barrera, Barrerista, SaveanContextType } from '../types/savean';
+import { GuiaSavean, Barrera, Barrerista, UsuarioSavean, SaveanContextType } from '../types/savean';
 import { httpClient, HttpError } from '../../../services/http-client';
 
 const SaveanContext = createContext<SaveanContextType | undefined>(undefined);
@@ -8,6 +8,7 @@ export function SaveanProvider({ children }: { children: ReactNode }) {
   const [guias, setGuias] = useState<GuiaSavean[]>([]);
   const [barreras, setBarreras] = useState<Barrera[]>([]);
   const [barreristas, setBarreristas] = useState<Barrerista[]>([]);
+  const [usuariosSavean, setUsuariosSavean] = useState<UsuarioSavean[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorCarga, setErrorCarga] = useState<string | undefined>(undefined);
 
@@ -33,6 +34,9 @@ export function SaveanProvider({ children }: { children: ReactNode }) {
       httpClient.get<{ barreristas: Barrerista[] }>('/savean/barreristas')
         .then(({ barreristas: list }) => setBarreristas(list))
         .catch((err: unknown) => { console.error('[SaveanContext] Error cargando barreristas:', err); }),
+      httpClient.get<{ usuarios: UsuarioSavean[] }>('/savean/usuarios')
+        .then(({ usuarios: list }) => setUsuariosSavean(list))
+        .catch((err: unknown) => { console.error('[SaveanContext] Error cargando usuarios savean:', err); }),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -86,7 +90,7 @@ export function SaveanProvider({ children }: { children: ReactNode }) {
 
   return (
     <SaveanContext.Provider value={{
-      guias, barreras, barreristas, loading, errorCarga,
+      guias, barreras, barreristas, usuariosSavean, loading, errorCarga,
       crearGuia, verificarGuia, denegarGuia, modificarYVerificarGuia,
       obtenerGuia, obtenerGuiaPorNumero,
       agregarBarrerista, desactivarBarrerista, eliminarBarrerista, agregarBarrera,

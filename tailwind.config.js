@@ -8,6 +8,8 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        serif: ['"Source Serif 4"', 'system-ui', 'sans-serif'],
+        mono: ['ui-monospace', '"SF Mono"', 'Menlo', 'monospace'],
       },
     },
   },

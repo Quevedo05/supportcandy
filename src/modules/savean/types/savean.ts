@@ -62,10 +62,20 @@ export interface Barrerista {
   activo: boolean;
 }
 
+export interface UsuarioSavean {
+  usuarioId: string;
+  nombre: string;
+  email: string;
+  username: string;
+  rol: string;
+  activo: boolean;
+}
+
 export interface SaveanContextType {
   guias: GuiaSavean[];
   barreras: Barrera[];
   barreristas: Barrerista[];
+  usuariosSavean: UsuarioSavean[];
   loading: boolean;
   errorCarga?: string;
   crearGuia: (data: Omit<GuiaSavean, 'id' | 'numero' | 'token' | 'estado' | 'fechaEmision' | 'fechaVencimiento'>) => Promise<GuiaSavean>;
