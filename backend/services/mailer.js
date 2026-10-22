@@ -1,9 +1,18 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+// El servidor no tiene conectividad IPv6: forzamos IPv4 tanto en el socket
+// como en la resolución DNS (family:4 solo no alcanza en algunas versiones).
+function lookupIpv4(hostname, options, callback) {
+  dns.lookup(hostname, { family: 4 }, callback);
+}
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || '587', 10),
-  secure: false, // STARTTLS
+  secure: false,
+  family: 4,
+  lookup: lookupIpv4,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -152,6 +161,8 @@ const transporterSavean = nodemailer.createTransport({
   host: process.env.SAVEAN_SMTP_HOST,
   port: parseInt(process.env.SAVEAN_SMTP_PORT || '587', 10),
   secure: false,
+  family: 4,
+  lookup: lookupIpv4,
   auth: {
     user: process.env.SAVEAN_SMTP_USER,
     pass: process.env.SAVEAN_SMTP_PASS,
