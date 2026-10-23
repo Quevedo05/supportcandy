@@ -23,16 +23,14 @@ async function makeTransporter(host, port, user, pass) {
   });
 }
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587', 10),
-  secure: false,
-  family: 4,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+function getTransporter() {
+  return makeTransporter(
+    process.env.SMTP_HOST,
+    parseInt(process.env.SMTP_PORT || '587', 10),
+    process.env.SMTP_USER,
+    process.env.SMTP_PASS,
+  );
+}
 
 async function enviarInvitacion({ nombre, email, token, modulo, rol }) {
   const sistemaUrl = process.env.SISTEMA_URL || 'https://sistema.agenciacalidadsanjuan.com.ar';
@@ -44,6 +42,7 @@ async function enviarInvitacion({ nombre, email, token, modulo, rol }) {
       ? rol === 'admin' ? 'Director / Agencia' : 'Inspector Barrerista'
       : rol === 'admin' ? 'Administrador' : 'Colaborador';
 
+  const transporter = await getTransporter();
   await transporter.sendMail({
     from: `"Agencia de Calidad San Juan" <${process.env.SMTP_FROM}>`,
     to: email,
@@ -111,6 +110,7 @@ async function enviarInvitacion({ nombre, email, token, modulo, rol }) {
 async function enviarAsignacionTicket({ nombre, email, ticket }) {
   const sistemaUrl = process.env.SISTEMA_URL || 'https://sistema.agenciacalidadsanjuan.com.ar';
 
+  const transporter = await getTransporter();
   await transporter.sendMail({
     from: `"Agencia de Calidad San Juan" <${process.env.SMTP_FROM}>`,
     to: email,
@@ -265,6 +265,7 @@ async function enviarResetPassword({ nombre, email, token, modulo, rol }) {
 
   const sistemaLabel = modulo === 'savean' ? 'SAVEAN — Guías de Origen Fitosanitario' : 'Sistema de Tickets';
 
+  const transporter = await getTransporter();
   await transporter.sendMail({
     from: `"Agencia de Calidad San Juan" <${process.env.SMTP_FROM}>`,
     to: email,
