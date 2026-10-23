@@ -1244,7 +1244,24 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                               <p className="text-xs font-medium text-slate-600">Archivos adjuntos:</p>
                               {esPropio && (
                                 <button
-                                  onClick={() => { setEditandoAdjuntosId(entrada.id); setAdjuntosEditandoTmp([...entrada.adjuntos]); }}
+                                  onClick={async () => {
+                                    setEditandoAdjuntosId(entrada.id);
+                                    const token = localStorage.getItem('sc_token');
+                                    const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+                                    const conContenido = await Promise.all(
+                                      entrada.adjuntos.map(async (adj, i) => {
+                                        if (adj.contenido) return adj;
+                                        try {
+                                          const r = await fetch(`${apiUrl}/tickets/${ticket.id}/comentarios/${entrada.id}/adjuntos/${i}`, {
+                                            headers: { Authorization: `Bearer ${token}` },
+                                          });
+                                          if (r.ok) return await r.json() as Adjunto;
+                                        } catch { /* silencioso */ }
+                                        return adj;
+                                      })
+                                    );
+                                    setAdjuntosEditandoTmp(conContenido);
+                                  }}
                                   className="text-xs text-slate-400 hover:text-[#FF9500] flex items-center gap-0.5"
                                   title="Editar adjuntos"
                                 >
@@ -1253,17 +1270,23 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                               )}
                             </div>
                             {entrada.adjuntos.map((adj, idx) => (
-                              adj.contenido ? (
-                                <button key={idx} type="button" onClick={() => descargarBase64(adj.contenido!, decodeAdjNombre(adj.nombre), adj.tipo)}
-                                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline text-left">
-                                  <File size={12} /> {decodeAdjNombre(adj.nombre)}
-                                  <span className="text-slate-400">({formatBytes(adj.tamano)})</span>
-                                </button>
-                              ) : (
-                                <span key={idx} className="flex items-center gap-1.5 text-xs text-slate-500">
-                                  <File size={12} /> {adj.nombre}
-                                </span>
-                              )
+                              <button key={idx} type="button" onClick={async () => {
+                                if (adj.contenido) { descargarBase64(adj.contenido, decodeAdjNombre(adj.nombre), adj.tipo); return; }
+                                const token = localStorage.getItem('sc_token');
+                                const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+                                try {
+                                  const r = await fetch(`${apiUrl}/tickets/${ticket.id}/comentarios/${entrada.id}/adjuntos/${idx}`, {
+                                    headers: { Authorization: `Bearer ${token}` },
+                                  });
+                                  if (!r.ok) return;
+                                  const data = await r.json() as Adjunto;
+                                  if (data.contenido) descargarBase64(data.contenido, decodeAdjNombre(data.nombre || adj.nombre), data.tipo || adj.tipo);
+                                } catch { /* silencioso */ }
+                              }}
+                                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline text-left">
+                                <File size={12} /> {decodeAdjNombre(adj.nombre)}
+                                <span className="text-slate-400">({formatBytes(adj.tamano)})</span>
+                              </button>
                             ))}
                           </div>
                         )}

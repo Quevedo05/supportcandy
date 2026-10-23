@@ -764,7 +764,9 @@ router.get('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) =
 
     const comentarios = rows.map((c) => ({
       ...c,
-      adjuntos: c.adjuntos ? JSON.parse(c.adjuntos) : [],
+      adjuntos: c.adjuntos
+        ? JSON.parse(c.adjuntos).map(({ nombre, tipo, tamano }) => ({ nombre, tipo, tamano }))
+        : [],
     }));
 
     return res.status(200).json({ comentarios });
@@ -877,6 +879,29 @@ router.patch('/:ticketId/comentarios/:comentarioId', autenticar, soloTickets, as
     return res.status(200).json({ ok: true, adjuntos: tieneAdjuntos ? adjuntos : undefined, contenido: tieneContenido ? contenido : undefined });
   } catch (err) {
     console.error('[PATCH /tickets/:id/comentarios/:cid]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET /api/tickets/:ticketId/comentarios/:comentarioId/adjuntos/:adjIdx — descarga un adjunto individual
+router.get('/:ticketId/comentarios/:comentarioId/adjuntos/:adjIdx', autenticar, soloTickets, async (req, res) => {
+  try {
+    const { ticketId, comentarioId, adjIdx } = req.params;
+    const idx = parseInt(adjIdx, 10);
+    if (isNaN(idx) || idx < 0) return res.status(400).json({ error: 'Índice inválido' });
+
+    const [rows] = await pool.query(
+      'SELECT adjuntos FROM comentarios WHERE comentarioId = ? AND ticketId = ?',
+      [comentarioId, ticketId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Comentario no encontrado' });
+
+    const adjuntos = rows[0].adjuntos ? JSON.parse(rows[0].adjuntos) : [];
+    if (idx >= adjuntos.length) return res.status(404).json({ error: 'Adjunto no encontrado' });
+
+    return res.status(200).json(adjuntos[idx]);
+  } catch (err) {
+    console.error('[GET /tickets/:id/comentarios/:cid/adjuntos/:idx]', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
