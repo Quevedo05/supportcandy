@@ -899,8 +899,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }
     const acumulado = comentarioAdjuntos.reduce((s, a) => s + a.tamano, 0);
     const nuevos = Array.from(files).reduce((s, f) => s + f.size, 0);
-    if (acumulado + nuevos > 20 * 1024 * 1024) {
-      alert('El total de archivos adjuntos supera los 20 MB. Eliminá algún archivo antes de agregar más.');
+    if (acumulado + nuevos > 10 * 1024 * 1024) {
+      alert('El total de archivos adjuntos supera los 10 MB. Eliminá algún archivo antes de agregar más.');
       if (adjuntosRef.current) adjuntosRef.current.value = '';
       return;
     }
@@ -2757,6 +2757,13 @@ export default function AgenciaCalidadDashboard() {
           const tieneTexto = state.comentarioNuevo.trim().length > 0;
           const tieneAdjuntos = adjuntos.length > 0;
           if (token && apiUrl && state.ticketAbierto && (tieneTexto || tieneAdjuntos)) {
+            if (tieneAdjuntos) {
+              const totalBytes = adjuntos.reduce((s, a) => s + a.tamano, 0);
+              if (totalBytes > 8 * 1024 * 1024) {
+                alert('Los archivos adjuntos superan los 8 MB. El servidor no puede recibirlos. Eliminá algunos archivos antes de enviar.');
+                return;
+              }
+            }
             try {
               const res = await fetch(`${apiUrl}/tickets/${state.ticketAbierto.id}/comentarios`, {
                 method: 'POST',
@@ -2781,7 +2788,12 @@ export default function AgenciaCalidadDashboard() {
                 return;
               }
             } catch {
-              alert('Error de conexión al guardar el comentario.');
+              const totalBytes = adjuntos.reduce((s, a) => s + a.tamano, 0);
+              if (totalBytes > 1024 * 1024) {
+                alert('No se pudo guardar el comentario. Los archivos adjuntos pueden ser demasiado grandes para el servidor. Intentá con archivos más pequeños.');
+              } else {
+                alert('Error de conexión al guardar el comentario. Verificá tu conexión e intentá de nuevo.');
+              }
               return;
             }
           }
