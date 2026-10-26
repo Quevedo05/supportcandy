@@ -2357,7 +2357,11 @@ const getInitialState = (): DashboardState => {
 
 function decodeAdjNombre(nombre: string): string {
   if (nombre.startsWith('fn:')) {
-    try { return atob(nombre.slice(3)); } catch { return nombre; }
+    const raw = nombre.slice(3);
+    if (raw.includes('%')) {
+      try { return decodeURIComponent(raw); } catch { return raw; }
+    }
+    try { return atob(raw); } catch { return raw; }
   }
   return nombre;
 }
@@ -2771,7 +2775,7 @@ export default function AgenciaCalidadDashboard() {
                 body: JSON.stringify({
                   contenido: state.comentarioNuevo,
                   adjuntos: tieneAdjuntos ? adjuntos.map(adj => ({
-                    nombre: adj.contenido ? 'fn:' + btoa(adj.nombre) : adj.nombre,
+                    nombre: adj.contenido ? 'fn:' + encodeURIComponent(adj.nombre) : adj.nombre,
                     tipo: adj.tipo,
                     tamano: adj.tamano,
                     contenido: adj.contenido ? '2b64:' + btoa(adj.contenido) : adj.contenido,

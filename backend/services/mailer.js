@@ -20,6 +20,7 @@ async function makeTransporter(host, port, user, pass) {
     port,
     secure: false,
     auth: { user, pass },
+    tls: { servername: host },
   });
 }
 
