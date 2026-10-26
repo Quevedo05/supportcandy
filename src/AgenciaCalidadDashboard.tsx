@@ -911,7 +911,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         const buffer = e.target?.result as ArrayBuffer;
         const bytes = new Uint8Array(buffer);
         let binary = '';
-        const chunk = 65536;
+        const chunk = 8192;
         for (let i = 0; i < bytes.byteLength; i += chunk) {
           binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
         }
