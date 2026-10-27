@@ -892,20 +892,23 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const handleAgregarArchivos = (files: FileList | null) => {
     if (!files) return;
     const demasiado = Array.from(files).filter((f) => f.size > MAX_FILE_SIZE);
+    const validos = Array.from(files).filter((f) => f.size <= MAX_FILE_SIZE);
     if (demasiado.length > 0) {
-      alert(`Los siguientes archivos superan el límite de 8 MB y no pueden adjuntarse:\n${demasiado.map((f) => f.name).join('\n')}`);
+      alert(`Los siguientes archivos superan el límite de 8 MB y no se adjuntarán:\n${demasiado.map((f) => f.name).join('\n')}`);
+    }
+    if (validos.length === 0) {
       if (adjuntosRef.current) adjuntosRef.current.value = '';
       return;
     }
     const acumulado = comentarioAdjuntos.reduce((s, a) => s + a.tamano, 0);
-    const nuevos = Array.from(files).reduce((s, f) => s + f.size, 0);
-    if (acumulado + nuevos > 10 * 1024 * 1024) {
-      alert('El total de archivos adjuntos supera los 10 MB. Eliminá algún archivo antes de agregar más.');
+    const nuevos = validos.reduce((s, f) => s + f.size, 0);
+    if (acumulado + nuevos > 20 * 1024 * 1024) {
+      alert('El total de archivos adjuntos supera los 20 MB. Eliminá algún archivo antes de agregar más.');
       if (adjuntosRef.current) adjuntosRef.current.value = '';
       return;
     }
     let adjuntosActuales = [...comentarioAdjuntos];
-    Array.from(files).forEach((file) => {
+    validos.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const buffer = e.target?.result as ArrayBuffer;
@@ -1042,6 +1045,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       ref={adjuntosRef}
                       type="file"
                       multiple
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt"
                       className="hidden"
                       onChange={(e) => handleAgregarArchivos(e.target.files)}
                     />
@@ -1049,7 +1053,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                       onClick={() => adjuntosRef.current?.click()}
                       className="flex items-center gap-1 text-xs text-slate-500 hover:text-[#FF9500] border border-slate-300 rounded px-2.5 py-1.5 hover:border-[#FF9500] transition-colors"
                     >
-                      <File size={13} /> Adjuntar archivo
+                      <File size={13} /> Adjuntar archivos
                     </button>
                     {/* Derivar button */}
                     <div className="relative">
@@ -2761,13 +2765,6 @@ export default function AgenciaCalidadDashboard() {
           const tieneTexto = state.comentarioNuevo.trim().length > 0;
           const tieneAdjuntos = adjuntos.length > 0;
           if (token && apiUrl && state.ticketAbierto && (tieneTexto || tieneAdjuntos)) {
-            if (tieneAdjuntos) {
-              const totalBytes = adjuntos.reduce((s, a) => s + a.tamano, 0);
-              if (totalBytes > 8 * 1024 * 1024) {
-                alert('Los archivos adjuntos superan los 8 MB. El servidor no puede recibirlos. Eliminá algunos archivos antes de enviar.');
-                return;
-              }
-            }
             try {
               const res = await fetch(`${apiUrl}/tickets/${state.ticketAbierto.id}/comentarios`, {
                 method: 'POST',
