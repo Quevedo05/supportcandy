@@ -6,6 +6,7 @@ import { SaveanInspector } from './components/SaveanInspector';
 import { SaveanFormulario } from './components/SaveanFormulario';
 import { SaveanAdmin } from './components/SaveanAdmin';
 import { SaveanInformes } from './components/SaveanInformes';
+import { SaveanReportes } from './components/SaveanReportes';
 import { SaveanUsuarios } from './components/SaveanUsuarios';
 import { SaveanConfiguracion } from './components/SaveanConfiguracion';
 import { SaveanEntrada } from './components/SaveanEntrada';
@@ -17,6 +18,7 @@ import {
   LogOut, Shield, BarChart2, Plus, User,
   ArrowDownToLine, ArrowUpFromLine, ClipboardList, Settings, Menu, X, Home,
   Beef, Leaf, Ban, LayoutDashboard, ChevronRight, CheckCircle2, RefreshCw,
+  FileBarChart,
 } from 'lucide-react';
 
 // ─── Inspector app (barreristas) ────────────────────────────────────────────
@@ -216,7 +218,7 @@ function InspectorApp() {
 // ─── Admin app (empleados de la agencia) ────────────────────────────────────
 type SeccionAdmin =
   | 'inicio'
-  | 'guias' | 'nueva' | 'informes'
+  | 'guias' | 'nueva' | 'informes' | 'reportes'
   | 'actas_carnicas' | 'actas_vegetales' | 'planillas' | 'no_pagos'
   | 'configuracion' | 'perfil';
 
@@ -605,7 +607,7 @@ function AdminApp() {
 
   // Auto-expandir sección padre cuando se navega a un sub-ítem
   useEffect(() => {
-    if (['guias', 'nueva', 'informes'].includes(seccion)) setSalidaOpen(true);
+    if (['guias', 'nueva', 'informes', 'reportes'].includes(seccion)) setSalidaOpen(true);
     if (['actas_carnicas', 'actas_vegetales', 'planillas', 'no_pagos'].includes(seccion)) setEntradaOpen(true);
   }, [seccion]);
 
@@ -614,6 +616,7 @@ function AdminApp() {
     guias:           'Salida · Panel de Guías',
     nueva:           'Salida · Nueva Guía',
     informes:        'Salida · Informes',
+    reportes:        'Salida · Reportes',
     actas_carnicas:  'Entrada · Actas Cárnicos',
     actas_vegetales: 'Entrada · Actas Vegetales',
     planillas:       'Entrada · Planillas de Control',
@@ -673,13 +676,22 @@ function AdminApp() {
               expanded={salidaOpen}
             />
             {salidaOpen && (
-              <SidebarItem
-                icon={<BarChart2 size={14} />}
-                label="Panel de Guías"
-                active={seccion === 'guias'}
-                onClick={() => setSeccion('guias')}
-                sub
-              />
+              <>
+                <SidebarItem
+                  icon={<BarChart2 size={14} />}
+                  label="Panel de Guías"
+                  active={seccion === 'guias'}
+                  onClick={() => setSeccion('guias')}
+                  sub
+                />
+                <SidebarItem
+                  icon={<FileBarChart size={14} />}
+                  label="Reportes"
+                  active={seccion === 'reportes'}
+                  onClick={() => setSeccion('reportes')}
+                  sub
+                />
+              </>
             )}
 
             {/* Entrada */}
@@ -750,6 +762,7 @@ function AdminApp() {
             {seccion === 'guias'           && <SaveanAdmin />}
             {seccion === 'nueva'           && <SaveanFormulario onVolver={() => setSeccion('guias')} />}
             {seccion === 'informes'        && <SaveanInformes />}
+            {seccion === 'reportes'        && <SaveanReportes />}
             {seccion === 'actas_carnicas'  && <PanelIngresos tipoProducto="carnico" barreras={barreras} />}
             {seccion === 'actas_vegetales' && <PanelIngresos tipoProducto="vegetal" barreras={barreras} />}
             {seccion === 'planillas'       && <AdminPlanillas />}
