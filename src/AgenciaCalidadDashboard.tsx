@@ -510,19 +510,19 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
 }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const MAX_MODAL_FILE_SIZE = 8 * 1024 * 1024; // 8 MB por archivo
+  const MAX_MODAL_FILE_SIZE = 5 * 1024 * 1024; // 5 MB por archivo
 
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
     const demasiado = Array.from(files).filter((f) => f.size > MAX_MODAL_FILE_SIZE);
     if (demasiado.length > 0) {
-      alert(`Los siguientes archivos superan el límite de 8 MB:\n${demasiado.map((f) => f.name).join('\n')}`);
+      alert(`Los siguientes archivos superan el límite de 5 MB:\n${demasiado.map((f) => f.name).join('\n')}`);
       return;
     }
     const acumulado = modal.adjuntos.reduce((s, a) => s + a.tamano, 0);
     const nuevos = Array.from(files).reduce((s, f) => s + f.size, 0);
-    if (acumulado + nuevos > 20 * 1024 * 1024) {
-      alert('El total de archivos adjuntos supera los 20 MB. Eliminá algún archivo antes de agregar más.');
+    if (acumulado + nuevos > 8 * 1024 * 1024) {
+      alert('El total de archivos adjuntos supera los 8 MB. Enviá los archivos más grandes por separado.');
       return;
     }
     let adjuntosActuales = [...modal.adjuntos];
@@ -691,7 +691,7 @@ const NuevoTicketModal: React.FC<NuevoTicketModalProps> = ({
               <p className="text-sm text-slate-600">
                 Arrastrá archivos aquí o <span className="text-[#FF9500] font-medium">seleccioná archivos</span>
               </p>
-              <p className="text-xs text-slate-400 mt-1">PDF, Word, Excel, imágenes</p>
+              <p className="text-xs text-slate-400 mt-1">PDF, Word, Excel, imágenes · máx. 5 MB por archivo · 8 MB en total</p>
             </div>
             {modal.adjuntos.length > 0 && (
               <div className="mt-3 space-y-1.5">
@@ -887,14 +887,15 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     </button>
   );
 
-  const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8 MB por archivo
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB por archivo
+  const MAX_TOTAL_SIZE = 8 * 1024 * 1024; // 8 MB total (con overhead de codificación el servidor recibe ~14 MB)
 
   const handleAgregarArchivos = (files: FileList | null) => {
     if (!files) return;
     const demasiado = Array.from(files).filter((f) => f.size > MAX_FILE_SIZE);
     const validos = Array.from(files).filter((f) => f.size <= MAX_FILE_SIZE);
     if (demasiado.length > 0) {
-      alert(`Los siguientes archivos superan el límite de 8 MB y no se adjuntarán:\n${demasiado.map((f) => f.name).join('\n')}`);
+      alert(`Los siguientes archivos superan el límite de 5 MB y no se adjuntarán:\n${demasiado.map((f) => f.name).join('\n')}`);
     }
     if (validos.length === 0) {
       if (adjuntosRef.current) adjuntosRef.current.value = '';
@@ -902,8 +903,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }
     const acumulado = comentarioAdjuntos.reduce((s, a) => s + a.tamano, 0);
     const nuevos = validos.reduce((s, f) => s + f.size, 0);
-    if (acumulado + nuevos > 20 * 1024 * 1024) {
-      alert('El total de archivos adjuntos supera los 20 MB. Eliminá algún archivo antes de agregar más.');
+    if (acumulado + nuevos > MAX_TOTAL_SIZE) {
+      alert('El total de archivos adjuntos supera los 8 MB. Enviá los archivos más grandes por separado en otro comentario.');
       if (adjuntosRef.current) adjuntosRef.current.value = '';
       return;
     }
