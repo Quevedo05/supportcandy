@@ -18,7 +18,7 @@ import {
   LogOut, Shield, BarChart2, Plus, User,
   ArrowDownToLine, ArrowUpFromLine, ClipboardList, Settings, Menu, X, Home,
   Beef, Leaf, Ban, LayoutDashboard, ChevronRight, CheckCircle2, RefreshCw,
-  FileBarChart,
+  FileBarChart, Search,
 } from 'lucide-react';
 
 // ─── Inspector app (barreristas) ────────────────────────────────────────────
@@ -437,6 +437,7 @@ function NoPagosPanel() {
   const [fecha, setFecha]         = useState('');
   const [err, setErr]             = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [busqueda, setBusqueda]   = useState('');
 
   const cargar = async () => {
     setCargando(true);
@@ -480,6 +481,12 @@ function NoPagosPanel() {
 
   const inputCls = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white';
 
+  const q = busqueda.toLowerCase().trim();
+  const itemsFiltrados = !q ? items : items.filter(item =>
+    item.chasis?.toLowerCase().includes(q) ||
+    item.interesadoNombre?.toLowerCase().includes(q)
+  );
+
   if (cargando) {
     return (
       <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
@@ -502,15 +509,41 @@ function NoPagosPanel() {
         </button>
       </div>
 
+      {/* Buscador */}
+      {items.length > 0 && (
+        <div className="relative">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input
+            className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white"
+            placeholder="Buscar por patente o nombre del chofer/empresa…"
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+          />
+          {busqueda && (
+            <button
+              onClick={() => setBusqueda('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
+
       {items.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl text-center py-14 space-y-2">
           <CheckCircle2 size={36} className="text-green-500 mx-auto" />
           <p className="font-semibold text-gray-700">Sin actas pendientes</p>
           <p className="text-sm text-gray-400">Todos los aranceles están al día.</p>
         </div>
+      ) : itemsFiltrados.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-xl text-center py-10 space-y-1">
+          <p className="font-semibold text-gray-600">Sin resultados para "{busqueda}"</p>
+          <p className="text-sm text-gray-400">Probá con otro término de búsqueda.</p>
+        </div>
       ) : (
         <div className="space-y-3">
-          {items.map(item => (
+          {itemsFiltrados.map(item => (
             <div key={item.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               {/* Datos del acta */}
               <div className="px-4 py-4 flex items-start justify-between gap-3">

@@ -414,6 +414,7 @@ function Step2({ data, onChange, onNext, onBack }: {
   onNext: () => void;
   onBack: () => void;
 }) {
+  const [err2, setErr2] = useState('');
   const tipos = [
     { v: 'inspeccion', l: 'Inspección' },
     { v: 'rechazo', l: 'Rechazo' },
@@ -423,7 +424,21 @@ function Step2({ data, onChange, onNext, onBack }: {
   ];
 
   const handleNext = () => {
-    if (!data.actaTipo) { alert('Seleccioná el tipo de acta.'); return; }
+    if (!data.actaTipo)                   { setErr2('Seleccioná el tipo de acta.'); return; }
+    if (!data.localidad.trim())           { setErr2('Completá la localidad del control.'); return; }
+    if (!data.departamento.trim())        { setErr2('Completá el departamento del control.'); return; }
+    if (!data.provincia.trim())           { setErr2('Completá la provincia del control.'); return; }
+    if (!data.interesadoNombre.trim())    { setErr2('Completá el nombre del interesado.'); return; }
+    if (!data.interesadoDni.trim())       { setErr2('Completá el DNI del interesado.'); return; }
+    if (!data.interesadoDomicilio.trim()) { setErr2('Completá el domicilio del interesado.'); return; }
+    if (!data.interesadoLocalidad.trim()) { setErr2('Completá la localidad del interesado.'); return; }
+    if (!data.interesadoProvincia.trim()) { setErr2('Completá la provincia del interesado.'); return; }
+    if (!data.vehiculo.trim())            { setErr2('Completá el vehículo (marca/modelo).'); return; }
+    if (!data.chasis.trim())              { setErr2('Completá el Chasis N°.'); return; }
+    if (!data.procedenteDe.trim())        { setErr2('Completá la procedencia.'); return; }
+    if (!data.destino.trim())             { setErr2('Completá el destino.'); return; }
+    if (!data.declaracion.trim())         { setErr2('Completá la declaración del señor.'); return; }
+    setErr2('');
     onNext();
   };
 
@@ -458,11 +473,11 @@ function Step2({ data, onChange, onNext, onBack }: {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Lugar del control</p>
         <div className="grid grid-cols-3 gap-3">
-          <div><label className={labelCls}>Localidad</label>
+          <div><label className={labelCls}>Localidad *</label>
             <input className={inputCls} value={data.localidad} onChange={e => onChange({ localidad: e.target.value })} /></div>
-          <div><label className={labelCls}>Departamento</label>
+          <div><label className={labelCls}>Departamento *</label>
             <input className={inputCls} value={data.departamento} onChange={e => onChange({ departamento: e.target.value })} /></div>
-          <div><label className={labelCls}>Provincia</label>
+          <div><label className={labelCls}>Provincia *</label>
             <input className={inputCls} value={data.provincia} onChange={e => onChange({ provincia: e.target.value })} /></div>
         </div>
       </div>
@@ -471,17 +486,17 @@ function Step2({ data, onChange, onNext, onBack }: {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Interesado</p>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className={labelCls}>Nombre completo</label>
+          <div><label className={labelCls}>Nombre completo *</label>
             <input className={inputCls} value={data.interesadoNombre} onChange={e => onChange({ interesadoNombre: e.target.value })} /></div>
-          <div><label className={labelCls}>DNI</label>
+          <div><label className={labelCls}>DNI *</label>
             <input className={inputCls} value={data.interesadoDni} onChange={e => onChange({ interesadoDni: e.target.value })} /></div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <div><label className={labelCls}>Domicilio</label>
+          <div><label className={labelCls}>Domicilio *</label>
             <input className={inputCls} value={data.interesadoDomicilio} onChange={e => onChange({ interesadoDomicilio: e.target.value })} /></div>
-          <div><label className={labelCls}>Localidad</label>
+          <div><label className={labelCls}>Localidad *</label>
             <input className={inputCls} value={data.interesadoLocalidad} onChange={e => onChange({ interesadoLocalidad: e.target.value })} /></div>
-          <div><label className={labelCls}>Provincia</label>
+          <div><label className={labelCls}>Provincia *</label>
             <input className={inputCls} value={data.interesadoProvincia} onChange={e => onChange({ interesadoProvincia: e.target.value })} /></div>
         </div>
       </div>
@@ -490,27 +505,29 @@ function Step2({ data, onChange, onNext, onBack }: {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Vehículo</p>
         <div className="grid grid-cols-3 gap-3 mb-3">
-          <div><label className={labelCls}>Vehículo</label>
+          <div><label className={labelCls}>Vehículo *</label>
             <input className={inputCls} value={data.vehiculo} onChange={e => onChange({ vehiculo: e.target.value })} /></div>
-          <div><label className={labelCls}>Chasis N°</label>
+          <div><label className={labelCls}>Chasis N° *</label>
             <input className={inputCls} value={data.chasis} onChange={e => onChange({ chasis: e.target.value })} /></div>
           <div><label className={labelCls}>Acoplado N°</label>
             <input className={inputCls} value={data.acoplado} onChange={e => onChange({ acoplado: e.target.value })} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={labelCls}>Procedente de</label>
+          <div><label className={labelCls}>Procedente de *</label>
             <input className={inputCls} value={data.procedenteDe} onChange={e => onChange({ procedenteDe: e.target.value })} /></div>
-          <div><label className={labelCls}>Destino</label>
+          <div><label className={labelCls}>Destino *</label>
             <input className={inputCls} value={data.destino} onChange={e => onChange({ destino: e.target.value })} /></div>
         </div>
       </div>
 
       {/* Declaración */}
       <div className="border-t pt-4">
-        <label className={labelCls}>El señor declara</label>
+        <label className={labelCls}>El señor declara *</label>
         <textarea className={inputCls + ' resize-none'} rows={4}
           value={data.declaracion} onChange={e => onChange({ declaracion: e.target.value })} />
       </div>
+
+      {err2 && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{err2}</p>}
 
       <div className="flex gap-3 pt-2">
         <button onClick={onBack} className={btnSecondary}><ChevronLeft size={15} />Atrás</button>
@@ -557,6 +574,35 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica, pas
 }) {
   const [busqueda, setBusqueda] = useState('');
   const [mostrarBuscador, setMostrarBuscador] = useState(false);
+  const [err3, setErr3] = useState('');
+
+  const handleValidateAndSubmit = () => {
+    if (!data.remitenteNombre.trim())       { setErr3('Completá el nombre del remitente.'); return; }
+    if (!data.remitenteCuit.trim())          { setErr3('Completá el CUIT del remitente.'); return; }
+    if (!data.remitenteLocalidadCod)         { setErr3('Seleccioná la localidad del remitente.'); return; }
+    if (!data.remitenteProvinciaCod)         { setErr3('Seleccioná la provincia del remitente.'); return; }
+    if (!data.destinatarioNombre.trim())     { setErr3('Completá el nombre del destinatario.'); return; }
+    if (!data.destinatarioCuit.trim())       { setErr3('Completá el CUIT del destinatario.'); return; }
+    if (!data.destinatarioLocalidadCod)      { setErr3('Seleccioná la localidad del destinatario.'); return; }
+    if (!data.destinatarioProvinciaCod)      { setErr3('Seleccioná la provincia del destinatario.'); return; }
+    if (!data.destinoTipo)                   { setErr3('Seleccioná el tipo de destino.'); return; }
+    if (data.productos.length === 0)         { setErr3('Agregá al menos un producto a la declaración jurada.'); return; }
+    const prodSinKg = data.productos.find(p => !p.cant_bultos || !p.kg_bulto);
+    if (prodSinKg)                           { setErr3(`Completá los bultos y kg del producto "${prodSinKg.nombre}".`); return; }
+    if (!data.transporteEmpresa.trim())      { setErr3('Completá la empresa de transporte.'); return; }
+    if (!data.transporteCuit.trim())         { setErr3('Completá el CUIT del transportista.'); return; }
+    if (!data.transportePatente.trim())      { setErr3('Completá la patente del camión.'); return; }
+    if (!data.transporteLicencia.trim())     { setErr3('Completá el número de licencia de conducir.'); return; }
+    if (esCargaCarnica) {
+      if (!data.senasaNumero.trim())         { setErr3('Completá el N° SENASA/DTE.'); return; }
+      if (!data.telefonoChofer.trim())        { setErr3('Completá el teléfono del chofer.'); return; }
+      if (!data.tipoCargaDetalle.trim())     { setErr3('Completá el detalle de la carga.'); return; }
+      if (!data.destinoComercial.trim())     { setErr3('Completá el destino comercial.'); return; }
+      if (!data.destinoTipoCarnico)          { setErr3('Seleccioná el tipo de destino cárnico.'); return; }
+    }
+    setErr3('');
+    onSubmit();
+  };
 
   const productosFiltrados = PRODUCTOS_SAG.filter(p =>
     p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -601,16 +647,16 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica, pas
       <div>
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Remitente</p>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className={labelCls}>Nombre</label>
+          <div><label className={labelCls}>Nombre *</label>
             <input className={inputCls} value={data.remitenteNombre} onChange={e => onChange({ remitenteNombre: e.target.value })} /></div>
-          <div><label className={labelCls}>CUIT</label>
+          <div><label className={labelCls}>CUIT *</label>
             <input className={inputCls} value={data.remitenteCuit} onChange={e => onChange({ remitenteCuit: e.target.value })} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={labelCls}>Localidad</label>
+          <div><label className={labelCls}>Localidad *</label>
             <LocalidadSelect value={data.remitenteLocalidadCod} onChange={v => onChange({ remitenteLocalidadCod: v })} />
           </div>
-          <div><label className={labelCls}>Provincia</label>
+          <div><label className={labelCls}>Provincia *</label>
             <select className={inputCls} value={data.remitenteProvinciaCod} onChange={e => onChange({ remitenteProvinciaCod: e.target.value })}>
               <option value="">Seleccioná provincia</option>
               {PROVINCIAS_SAG.map(p => (
@@ -625,16 +671,16 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica, pas
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Destinatario</p>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className={labelCls}>Nombre</label>
+          <div><label className={labelCls}>Nombre *</label>
             <input className={inputCls} value={data.destinatarioNombre} onChange={e => onChange({ destinatarioNombre: e.target.value })} /></div>
-          <div><label className={labelCls}>CUIT</label>
+          <div><label className={labelCls}>CUIT *</label>
             <input className={inputCls} value={data.destinatarioCuit} onChange={e => onChange({ destinatarioCuit: e.target.value })} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className={labelCls}>Localidad</label>
+          <div><label className={labelCls}>Localidad *</label>
             <LocalidadSelect value={data.destinatarioLocalidadCod} onChange={v => onChange({ destinatarioLocalidadCod: v })} />
           </div>
-          <div><label className={labelCls}>Provincia</label>
+          <div><label className={labelCls}>Provincia *</label>
             <select className={inputCls} value={data.destinatarioProvinciaCod} onChange={e => onChange({ destinatarioProvinciaCod: e.target.value })}>
               <option value="">Seleccioná provincia</option>
               {PROVINCIAS_SAG.map(p => (
@@ -644,7 +690,7 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica, pas
           </div>
         </div>
         <div>
-          <label className={labelCls}>Tipo de destino</label>
+          <label className={labelCls}>Tipo de destino *</label>
           <div className="flex gap-2">
             {[{ v: 'industria', l: 'Industria' }, { v: 'exportacion', l: 'Exportación' }, { v: 'transito', l: 'Tránsito' }].map(t => (
               <button key={t.v} onClick={() => onChange({ destinoTipo: t.v })}
@@ -725,17 +771,17 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica, pas
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Transporte</p>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className={labelCls}>Empresa</label>
+          <div><label className={labelCls}>Empresa *</label>
             <input className={inputCls} value={data.transporteEmpresa} onChange={e => onChange({ transporteEmpresa: e.target.value })} /></div>
-          <div><label className={labelCls}>CUIT transportista</label>
+          <div><label className={labelCls}>CUIT transportista *</label>
             <input className={inputCls} value={data.transporteCuit} onChange={e => onChange({ transporteCuit: e.target.value })} /></div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <div><label className={labelCls}>Patente camión</label>
+          <div><label className={labelCls}>Patente camión *</label>
             <input className={inputCls} value={data.transportePatente} onChange={e => onChange({ transportePatente: e.target.value.toUpperCase() })} /></div>
           <div><label className={labelCls}>Acoplado</label>
             <input className={inputCls} value={data.transporteAcoplado} onChange={e => onChange({ transporteAcoplado: e.target.value.toUpperCase() })} /></div>
-          <div><label className={labelCls}>Licencia conducir</label>
+          <div><label className={labelCls}>Licencia conducir *</label>
             <input className={inputCls} value={data.transporteLicencia} onChange={e => onChange({ transporteLicencia: e.target.value })} /></div>
         </div>
       </div>
@@ -763,28 +809,28 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica, pas
           <div className="space-y-3 p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>N° SENASA / DTE</label>
+                <label className={labelCls}>N° SENASA / DTE *</label>
                 <input className={inputCls} placeholder="DT-E-0XXX-YYYYYYY"
                   value={data.senasaNumero} onChange={e => onChange({ senasaNumero: e.target.value })} />
               </div>
               <div>
-                <label className={labelCls}>Teléfono del chofer</label>
+                <label className={labelCls}>Teléfono del chofer *</label>
                 <input className={inputCls} type="tel" placeholder="264 XXX XXXX"
                   value={data.telefonoChofer} onChange={e => onChange({ telefonoChofer: e.target.value })} />
               </div>
             </div>
             <div>
-              <label className={labelCls}>Detalle de la carga</label>
+              <label className={labelCls}>Detalle de la carga *</label>
               <input className={inputCls} placeholder="Media res, cuartos, menudencias..."
                 value={data.tipoCargaDetalle} onChange={e => onChange({ tipoCargaDetalle: e.target.value })} />
             </div>
             <div>
-              <label className={labelCls}>Destino comercial</label>
+              <label className={labelCls}>Destino comercial *</label>
               <input className={inputCls} placeholder="Nombre del frigorífico o carnicería"
                 value={data.destinoComercial} onChange={e => onChange({ destinoComercial: e.target.value })} />
             </div>
             <div>
-              <label className={labelCls}>Tipo de destino</label>
+              <label className={labelCls}>Tipo de destino *</label>
               <div className="flex gap-2">
                 {[{ v: 'interno', l: 'Interno (SJ)' }, { v: 'externo', l: 'Fuera de SJ' }].map(t => (
                   <button key={t.v} type="button" onClick={() => onChange({ destinoTipoCarnico: t.v })}
@@ -801,9 +847,11 @@ function Step3({ data, onChange, onBack, onSubmit, cargando, esCargaCarnica, pas
       </div>
       )}
 
+      {err3 && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{err3}</p>}
+
       <div className="flex gap-3 pt-2">
         <button onClick={onBack} className={btnSecondary} disabled={cargando}><ChevronLeft size={15} />Atrás</button>
-        <button onClick={onSubmit} disabled={cargando} className={btnPrimary}>
+        <button onClick={handleValidateAndSubmit} disabled={cargando} className={btnPrimary}>
           <Check size={15} />
           {cargando ? 'Generando acta...' : 'Finalizar y generar acta'}
         </button>
@@ -920,9 +968,25 @@ function ActaCarnica({ onVolver }: { onVolver: () => void }) {
   };
 
   const handleSubmit = async () => {
-    if (!barreraId)           { setErr('Seleccioná una barrera.'); return; }
-    if (!chasis.trim())       { setErr('Ingresá el Chasis N°.'); return; }
-    if (!procedenteDe.trim()) { setErr('Ingresá el lugar de procedencia.'); return; }
+    if (!barreraId)                      { setErr('Seleccioná una barrera.'); return; }
+    if (!tipoVehiculo)                   { setErr('Seleccioná el tipo de vehículo.'); return; }
+    if (!localidad.trim())               { setErr('Completá la localidad del control.'); return; }
+    if (!departamento.trim())            { setErr('Completá el departamento del control.'); return; }
+    if (!interesadoNombre.trim())        { setErr('Completá el nombre del interesado.'); return; }
+    if (!interesadoDni.trim())           { setErr('Completá el DNI del interesado.'); return; }
+    if (!interesadoDomicilio.trim())     { setErr('Completá el domicilio del interesado.'); return; }
+    if (!interesadoLocalidad.trim())     { setErr('Completá la localidad del interesado.'); return; }
+    if (!interesadoProvincia.trim())     { setErr('Completá la provincia del interesado.'); return; }
+    if (!vehiculo.trim())                { setErr('Completá el vehículo (marca/modelo).'); return; }
+    if (!chasis.trim())                  { setErr('Ingresá el Chasis N°.'); return; }
+    if (!procedenteDe.trim())            { setErr('Ingresá el lugar de procedencia.'); return; }
+    if (!destino.trim())                 { setErr('Completá el destino.'); return; }
+    if (!permisoTransito.trim())         { setErr('Completá el N° de permiso de tránsito.'); return; }
+    if (!Object.values(productos).some(Boolean)) { setErr('Seleccioná al menos un tipo de producto (vacuno, cerdo, etc.).'); return; }
+    if (!habilitacionSenasa.trim())      { setErr('Completá la habilitación SENASA.'); return; }
+    if (!precintosNum.trim())            { setErr('Completá los Precintos N°.'); return; }
+    if (!destinoComercialCarn.trim())    { setErr('Completá el destino comercial.'); return; }
+    if (!colocacionPrecintos.trim())     { setErr('Completá la colocación de precintos N°.'); return; }
     setCargando(true); setErr('');
     try {
       let entradaId = '';
@@ -1003,11 +1067,11 @@ function ActaCarnica({ onVolver }: { onVolver: () => void }) {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Lugar del control</p>
         <div className="grid grid-cols-3 gap-3">
-          <div><label className={labelCls}>Localidad</label>
+          <div><label className={labelCls}>Localidad *</label>
             <input className={inputCls} value={localidad} onChange={e => setLocalidad(e.target.value)} /></div>
-          <div><label className={labelCls}>Departamento</label>
+          <div><label className={labelCls}>Departamento *</label>
             <input className={inputCls} value={departamento} onChange={e => setDepartamento(e.target.value)} /></div>
-          <div><label className={labelCls}>Provincia</label>
+          <div><label className={labelCls}>Provincia *</label>
             <input className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`} value="San Juan" readOnly /></div>
         </div>
       </div>
@@ -1016,17 +1080,17 @@ function ActaCarnica({ onVolver }: { onVolver: () => void }) {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Interesado</p>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className={labelCls}>Nombre completo</label>
+          <div><label className={labelCls}>Nombre completo *</label>
             <input className={inputCls} value={interesadoNombre} onChange={e => setInteresadoNombre(e.target.value)} /></div>
-          <div><label className={labelCls}>DNI</label>
+          <div><label className={labelCls}>DNI *</label>
             <input className={inputCls} value={interesadoDni} onChange={e => setInteresadoDni(e.target.value)} /></div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <div><label className={labelCls}>Domicilio</label>
+          <div><label className={labelCls}>Domicilio *</label>
             <input className={inputCls} value={interesadoDomicilio} onChange={e => setInteresadoDomicilio(e.target.value)} /></div>
-          <div><label className={labelCls}>Localidad</label>
+          <div><label className={labelCls}>Localidad *</label>
             <input className={inputCls} value={interesadoLocalidad} onChange={e => setInteresadoLocalidad(e.target.value)} /></div>
-          <div><label className={labelCls}>Provincia</label>
+          <div><label className={labelCls}>Provincia *</label>
             <input className={inputCls} value={interesadoProvincia} onChange={e => setInteresadoProvincia(e.target.value)} /></div>
         </div>
       </div>
@@ -1035,17 +1099,17 @@ function ActaCarnica({ onVolver }: { onVolver: () => void }) {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Vehículo</p>
         <div className="grid grid-cols-3 gap-3 mb-3">
-          <div><label className={labelCls}>Vehículo</label>
+          <div><label className={labelCls}>Vehículo *</label>
             <input className={inputCls} value={vehiculo} onChange={e => setVehiculo(e.target.value)} /></div>
-          <div><label className={labelCls}>Chasis N°</label>
+          <div><label className={labelCls}>Chasis N° *</label>
             <input className={inputCls} value={chasis} onChange={e => setChasis(e.target.value.toUpperCase())} /></div>
           <div><label className={labelCls}>Acoplado N°</label>
             <input className={inputCls} value={acoplado} onChange={e => setAcoplado(e.target.value.toUpperCase())} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={labelCls}>Procedente de</label>
+          <div><label className={labelCls}>Procedente de *</label>
             <input className={inputCls} value={procedenteDe} onChange={e => setProcedenteDe(e.target.value)} /></div>
-          <div><label className={labelCls}>Destino</label>
+          <div><label className={labelCls}>Destino *</label>
             <input className={inputCls} value={destino} onChange={e => setDestino(e.target.value)} /></div>
         </div>
       </div>
@@ -1200,8 +1264,26 @@ function ActaVegetal({ onVolver }: { onVolver: () => void }) {
   };
 
   const handleSiguiente = () => {
-    if (!barreraId)     { setErr('Seleccioná una barrera.'); return; }
-    if (!chasis.trim()) { setErr('Ingresá el Chasis N°.');  return; }
+    if (!barreraId)                      { setErr('Seleccioná una barrera.'); return; }
+    if (!tipoVehiculo)                   { setErr('Seleccioná el tipo de vehículo.'); return; }
+    if (!localidad.trim())               { setErr('Completá la localidad del control.'); return; }
+    if (!departamento.trim())            { setErr('Completá el departamento del control.'); return; }
+    if (!interesadoNombre.trim())        { setErr('Completá el nombre del interesado.'); return; }
+    if (!interesadoDni.trim())           { setErr('Completá el DNI del interesado.'); return; }
+    if (!interesadoDomicilio.trim())     { setErr('Completá el domicilio del interesado.'); return; }
+    if (!interesadoLocalidad.trim())     { setErr('Completá la localidad del interesado.'); return; }
+    if (!interesadoProvincia.trim())     { setErr('Completá la provincia del interesado.'); return; }
+    if (!vehiculo.trim())                { setErr('Completá el vehículo (marca/modelo).'); return; }
+    if (!chasis.trim())                  { setErr('Ingresá el Chasis N°.'); return; }
+    if (!procedenteDe.trim())            { setErr('Completá la procedencia.'); return; }
+    if (!destino.trim())                 { setErr('Completá el destino.'); return; }
+    if (!declaracion.trim())             { setErr('Completá la declaración del señor.'); return; }
+    if (decomiso) {
+      if (!decomMarca.trim())            { setErr('Completá la marca del vehículo en el decomiso.'); return; }
+      if (!decomDominio.trim())          { setErr('Completá el dominio en el decomiso.'); return; }
+      if (!decomCantidad.trim())         { setErr('Completá la cantidad decomisada.'); return; }
+      if (!decomProductoHosp.trim())     { setErr('Completá el producto hospedero en el decomiso.'); return; }
+    }
     setErr('');
     setPaso('ddjj');
   };
@@ -1296,11 +1378,11 @@ function ActaVegetal({ onVolver }: { onVolver: () => void }) {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Lugar del control</p>
         <div className="grid grid-cols-3 gap-3">
-          <div><label className={labelCls}>Localidad</label>
+          <div><label className={labelCls}>Localidad *</label>
             <input className={inputCls} value={localidad} onChange={e => setLocalidad(e.target.value)} /></div>
-          <div><label className={labelCls}>Departamento</label>
+          <div><label className={labelCls}>Departamento *</label>
             <input className={inputCls} value={departamento} onChange={e => setDepartamento(e.target.value)} /></div>
-          <div><label className={labelCls}>Provincia</label>
+          <div><label className={labelCls}>Provincia *</label>
             <input className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`} value="San Juan" readOnly /></div>
         </div>
       </div>
@@ -1309,17 +1391,17 @@ function ActaVegetal({ onVolver }: { onVolver: () => void }) {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Interesado</p>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className={labelCls}>Nombre completo</label>
+          <div><label className={labelCls}>Nombre completo *</label>
             <input className={inputCls} value={interesadoNombre} onChange={e => setInteresadoNombre(e.target.value)} /></div>
-          <div><label className={labelCls}>DNI</label>
+          <div><label className={labelCls}>DNI *</label>
             <input className={inputCls} value={interesadoDni} onChange={e => setInteresadoDni(e.target.value)} /></div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <div><label className={labelCls}>Domicilio</label>
+          <div><label className={labelCls}>Domicilio *</label>
             <input className={inputCls} value={interesadoDomicilio} onChange={e => setInteresadoDomicilio(e.target.value)} /></div>
-          <div><label className={labelCls}>Localidad</label>
+          <div><label className={labelCls}>Localidad *</label>
             <input className={inputCls} value={interesadoLocalidad} onChange={e => setInteresadoLocalidad(e.target.value)} /></div>
-          <div><label className={labelCls}>Provincia</label>
+          <div><label className={labelCls}>Provincia *</label>
             <input className={inputCls} value={interesadoProvincia} onChange={e => setInteresadoProvincia(e.target.value)} /></div>
         </div>
       </div>
@@ -1328,24 +1410,24 @@ function ActaVegetal({ onVolver }: { onVolver: () => void }) {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Vehículo</p>
         <div className="grid grid-cols-3 gap-3 mb-3">
-          <div><label className={labelCls}>Vehículo</label>
+          <div><label className={labelCls}>Vehículo *</label>
             <input className={inputCls} value={vehiculo} onChange={e => setVehiculo(e.target.value)} /></div>
-          <div><label className={labelCls}>Chasis N°</label>
+          <div><label className={labelCls}>Chasis N° *</label>
             <input className={inputCls} value={chasis} onChange={e => handleChasisChange(e.target.value)} /></div>
           <div><label className={labelCls}>Acoplado N°</label>
             <input className={inputCls} value={acoplado} onChange={e => setAcoplado(e.target.value.toUpperCase())} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={labelCls}>Procedente de</label>
+          <div><label className={labelCls}>Procedente de *</label>
             <input className={inputCls} value={procedenteDe} onChange={e => setProcedenteDe(e.target.value)} /></div>
-          <div><label className={labelCls}>Destino</label>
+          <div><label className={labelCls}>Destino *</label>
             <input className={inputCls} value={destino} onChange={e => setDestino(e.target.value)} /></div>
         </div>
       </div>
 
       {/* El señor declara — texto libre */}
       <div className="border-t pt-4">
-        <label className={labelCls}>El señor declara</label>
+        <label className={labelCls}>El señor declara *</label>
         <textarea
           className={`${inputCls} resize-none`}
           rows={4}
@@ -1466,8 +1548,21 @@ function ActaNoPago({ onVolver }: { onVolver: () => void }) {
     `No abonar arancel correspondiente a la desinseccion según res 11028/25 de valor $${monto}, se podra abonar en barreras fitosanitarias (encon, vallecito, san carlos), o agencia calidad san juan (25 de mayo 577 e).\nSe entrega copia al sr chofer ${chofer} ${numeroActa} quedando notificado a su parecer y el transporte.`;
 
   const handleSubmit = async () => {
-    if (!barreraId)     { setErr('Seleccioná una barrera.'); return; }
-    if (!chasis.trim()) { setErr('Ingresá el Chasis N°.');  return; }
+    if (!barreraId)                      { setErr('Seleccioná una barrera.'); return; }
+    if (!tipoVehiculo)                   { setErr('Seleccioná el tipo de vehículo.'); return; }
+    if (!localidad.trim())               { setErr('Completá la localidad del control.'); return; }
+    if (!departamento.trim())            { setErr('Completá el departamento del control.'); return; }
+    if (!interesadoNombre.trim())        { setErr('Completá el nombre del interesado.'); return; }
+    if (!interesadoDni.trim())           { setErr('Completá el DNI del interesado.'); return; }
+    if (!interesadoDomicilio.trim())     { setErr('Completá el domicilio del interesado.'); return; }
+    if (!interesadoLocalidad.trim())     { setErr('Completá la localidad del interesado.'); return; }
+    if (!interesadoProvincia.trim())     { setErr('Completá la provincia del interesado.'); return; }
+    if (!vehiculo.trim())                { setErr('Completá el vehículo (marca/modelo).'); return; }
+    if (!chasis.trim())                  { setErr('Ingresá el Chasis N°.'); return; }
+    if (!procedenteDe.trim())            { setErr('Completá la procedencia.'); return; }
+    if (!destino.trim())                 { setErr('Completá el destino.'); return; }
+    if (!monto.trim())                   { setErr('Completá el monto del arancel.'); return; }
+    if (!chofer.trim())                  { setErr('Completá el nombre del chofer.'); return; }
     setCargando(true); setErr('');
     try {
       let entradaId = '';
@@ -1546,11 +1641,11 @@ function ActaNoPago({ onVolver }: { onVolver: () => void }) {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Lugar del control</p>
         <div className="grid grid-cols-3 gap-3">
-          <div><label className={labelCls}>Localidad</label>
+          <div><label className={labelCls}>Localidad *</label>
             <input className={inputCls} value={localidad} onChange={e => setLocalidad(e.target.value)} /></div>
-          <div><label className={labelCls}>Departamento</label>
+          <div><label className={labelCls}>Departamento *</label>
             <input className={inputCls} value={departamento} onChange={e => setDepartamento(e.target.value)} /></div>
-          <div><label className={labelCls}>Provincia</label>
+          <div><label className={labelCls}>Provincia *</label>
             <input className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`} value="San Juan" readOnly /></div>
         </div>
       </div>
@@ -1559,17 +1654,17 @@ function ActaNoPago({ onVolver }: { onVolver: () => void }) {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Interesado</p>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className={labelCls}>Nombre completo</label>
+          <div><label className={labelCls}>Nombre completo *</label>
             <input className={inputCls} value={interesadoNombre} onChange={e => setInteresadoNombre(e.target.value)} /></div>
-          <div><label className={labelCls}>DNI</label>
+          <div><label className={labelCls}>DNI *</label>
             <input className={inputCls} value={interesadoDni} onChange={e => setInteresadoDni(e.target.value)} /></div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <div><label className={labelCls}>Domicilio</label>
+          <div><label className={labelCls}>Domicilio *</label>
             <input className={inputCls} value={interesadoDomicilio} onChange={e => setInteresadoDomicilio(e.target.value)} /></div>
-          <div><label className={labelCls}>Localidad</label>
+          <div><label className={labelCls}>Localidad *</label>
             <input className={inputCls} value={interesadoLocalidad} onChange={e => setInteresadoLocalidad(e.target.value)} /></div>
-          <div><label className={labelCls}>Provincia</label>
+          <div><label className={labelCls}>Provincia *</label>
             <input className={inputCls} value={interesadoProvincia} onChange={e => setInteresadoProvincia(e.target.value)} /></div>
         </div>
       </div>
@@ -1578,17 +1673,17 @@ function ActaNoPago({ onVolver }: { onVolver: () => void }) {
       <div className="border-t pt-4">
         <p className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Vehículo</p>
         <div className="grid grid-cols-3 gap-3 mb-3">
-          <div><label className={labelCls}>Vehículo</label>
+          <div><label className={labelCls}>Vehículo *</label>
             <input className={inputCls} value={vehiculo} onChange={e => setVehiculo(e.target.value)} /></div>
-          <div><label className={labelCls}>Chasis N°</label>
+          <div><label className={labelCls}>Chasis N° *</label>
             <input className={inputCls} value={chasis} onChange={e => setChasis(e.target.value.toUpperCase())} /></div>
           <div><label className={labelCls}>Acoplado N°</label>
             <input className={inputCls} value={acoplado} onChange={e => setAcoplado(e.target.value.toUpperCase())} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={labelCls}>Procedente de</label>
+          <div><label className={labelCls}>Procedente de *</label>
             <input className={inputCls} value={procedenteDe} onChange={e => setProcedenteDe(e.target.value)} /></div>
-          <div><label className={labelCls}>Destino</label>
+          <div><label className={labelCls}>Destino *</label>
             <input className={inputCls} value={destino} onChange={e => setDestino(e.target.value)} /></div>
         </div>
       </div>
