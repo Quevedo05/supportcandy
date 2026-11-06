@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           nombre: data.usuario.nombre,
           rol: data.usuario.rol,
           modulo: data.usuario.modulo ?? 'tickets',
+          puedeSolicitar: Boolean(data.usuario.puedeSolicitar),
           formularioId: data.usuario.formularioId ?? null,
         };
         setUsuario(sesion);

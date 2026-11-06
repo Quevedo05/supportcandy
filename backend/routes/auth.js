@@ -52,7 +52,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       ? emailNorm.replace('@savean.local', '@savean.gob.ar')
       : null;
     const [rows] = await pool.query(
-      `SELECT usuarioId, nombre, email, password_hash, rol, modulo, activo, puede_editar_datos, formularioId FROM usuarios WHERE email = ?${emailAlt ? ' OR email = ?' : ''}`,
+      `SELECT usuarioId, nombre, email, password_hash, rol, modulo, activo, puede_editar_datos, puede_solicitar, formularioId FROM usuarios WHERE email = ?${emailAlt ? ' OR email = ?' : ''}`,
       emailAlt ? [emailNorm, emailAlt] : [emailNorm]
     );
 
@@ -89,6 +89,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         rol: usuario.rol,
         modulo: moduloFinal,
         puedeEditarDatos: Boolean(usuario.puede_editar_datos),
+        puedeSolicitar: Boolean(usuario.puede_solicitar),
         formularioId: usuario.formularioId || null,
       },
       process.env.JWT_SECRET,
@@ -116,6 +117,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         rol: usuario.rol,
         modulo: moduloFinal,
         puedeEditarDatos: Boolean(usuario.puede_editar_datos),
+        puedeSolicitar: Boolean(usuario.puede_solicitar),
         formularioId: usuario.formularioId || null,
       },
       expiresIn: expiresInSeconds,

@@ -21,6 +21,7 @@ function autenticar(req, res, next) {
       rol: payload.rol,
       modulo: payload.modulo,
       puedeEditarDatos: Boolean(payload.puedeEditarDatos),
+      puedeSolicitar: Boolean(payload.puedeSolicitar),
     };
     next();
   } catch (err) {

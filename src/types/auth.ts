@@ -22,6 +22,7 @@ export interface SesionActiva {
   rol: RolSistema;
   modulo: Modulo;
   puedeEditarDatos?: boolean;
+  puedeSolicitar?: boolean;
   formularioId?: string | null;
 }
 

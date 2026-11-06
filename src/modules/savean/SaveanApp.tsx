@@ -10,6 +10,7 @@ import { SaveanReportes } from './components/SaveanReportes';
 import { SaveanUsuarios } from './components/SaveanUsuarios';
 import { SaveanConfiguracion } from './components/SaveanConfiguracion';
 import { SaveanEntrada } from './components/SaveanEntrada';
+import { InspectorSolicitudes, AdminSolicitudes } from './components/SaveanSolicitudes';
 // import { AdminEntradas } from './components/AdminEntradas'; // reservado para futuro uso
 import { AdminPlanillas } from './components/AdminPlanillas';
 import { SaveanSanidad, PanelIngresos } from './components/SaveanSanidad';
@@ -18,29 +19,33 @@ import {
   LogOut, Shield, BarChart2, Plus, User,
   ArrowDownToLine, ArrowUpFromLine, ClipboardList, Settings, Menu, X, Home,
   Beef, Leaf, Ban, LayoutDashboard, ChevronRight, CheckCircle2, RefreshCw,
-  FileBarChart, Search,
+  FileBarChart, Search, Send,
 } from 'lucide-react';
 
 // ─── Inspector app (barreristas) ────────────────────────────────────────────
-type SeccionInspector = 'inicio' | 'guias' | 'nueva' | 'entrada' | 'nopagos' | 'perfil';
+type SeccionInspector = 'inicio' | 'guias' | 'nueva' | 'entrada' | 'nopagos' | 'perfil' | 'solicitudes';
 
 const MENU_INSPECTOR: {
   label: string;
   desc: string;
   icon: JSX.Element;
   key: SeccionInspector;
+  soloSolicitar?: boolean;
 }[] = [
-  { key: 'entrada',  label: 'Entrada a la Provincia', desc: 'Registrar vehículos que ingresan',    icon: <ArrowDownToLine size={18} /> },
-  { key: 'guias',    label: 'Salida de la Provincia', desc: 'Verificar guías de origen',           icon: <ArrowUpFromLine size={18} /> },
-  { key: 'nopagos',  label: 'Actas No Pagadas',        desc: 'Vehículos con arancel pendiente',    icon: <Ban size={18} /> },
+  { key: 'entrada',      label: 'Entrada a la Provincia', desc: 'Registrar vehículos que ingresan',          icon: <ArrowDownToLine size={18} /> },
+  { key: 'guias',        label: 'Salida de la Provincia', desc: 'Verificar guías de origen',                 icon: <ArrowUpFromLine size={18} /> },
+  { key: 'nopagos',      label: 'Actas No Pagadas',        desc: 'Vehículos con arancel pendiente',          icon: <Ban size={18} /> },
+  { key: 'solicitudes',  label: 'Mis Solicitudes',         desc: 'Enviá solicitudes de insumos u otras', icon: <Send size={18} />, soloSolicitar: true },
 ];
 
 function InicioInspector({
   nombreUsuario,
   onSelect,
+  puedeSolicitar,
 }: {
   nombreUsuario: string;
   onSelect: (s: SeccionInspector) => void;
+  puedeSolicitar?: boolean;
 }) {
   const hora = new Date().getHours();
   const saludo = hora < 13 ? 'Buenos días' : hora < 20 ? 'Buenas tardes' : 'Buenas noches';
@@ -56,7 +61,7 @@ function InicioInspector({
       <div>
         <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-3">Menú principal</p>
         <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden bg-white">
-          {MENU_INSPECTOR.map((item) => (
+          {MENU_INSPECTOR.filter(item => !item.soloSolicitar || puedeSolicitar).map((item) => (
             <button
               key={item.key}
               onClick={() => onSelect(item.key)}
@@ -78,13 +83,14 @@ function InicioInspector({
   );
 }
 
-const NAV_INSPECTOR: { key: SeccionInspector; label: string; icon: JSX.Element }[] = [
-  { key: 'inicio',   label: 'Inicio',            icon: <Home size={16} /> },
-  { key: 'entrada',  label: 'Entrada Provincia',  icon: <ArrowDownToLine size={16} /> },
-  { key: 'guias',    label: 'Salida / Guías',     icon: <ArrowUpFromLine size={16} /> },
-  { key: 'nueva',    label: 'Nueva Guía',         icon: <Plus size={16} /> },
-  { key: 'nopagos',  label: 'No Pagaron',         icon: <Ban size={16} /> },
-  { key: 'perfil',   label: 'Mi Perfil',          icon: <User size={16} /> },
+const NAV_INSPECTOR: { key: SeccionInspector; label: string; icon: JSX.Element; soloSolicitar?: boolean }[] = [
+  { key: 'inicio',       label: 'Inicio',            icon: <Home size={16} /> },
+  { key: 'entrada',      label: 'Entrada Provincia',  icon: <ArrowDownToLine size={16} /> },
+  { key: 'guias',        label: 'Salida / Guías',     icon: <ArrowUpFromLine size={16} /> },
+  { key: 'nueva',        label: 'Nueva Guía',         icon: <Plus size={16} /> },
+  { key: 'nopagos',      label: 'No Pagaron',         icon: <Ban size={16} /> },
+  { key: 'solicitudes',  label: 'Solicitudes',        icon: <Send size={16} />, soloSolicitar: true },
+  { key: 'perfil',       label: 'Mi Perfil',          icon: <User size={16} /> },
 ];
 
 function InspectorApp() {
@@ -165,7 +171,7 @@ function InspectorApp() {
 
         {/* Nav items */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {NAV_INSPECTOR.map((item) => (
+          {NAV_INSPECTOR.filter(item => !item.soloSolicitar || usuario?.puedeSolicitar).map((item) => (
             <button
               key={item.key}
               onClick={() => navegar(item.key)}
@@ -199,6 +205,7 @@ function InspectorApp() {
           <InicioInspector
             nombreUsuario={usuario?.nombre ?? ''}
             onSelect={setSeccion}
+            puedeSolicitar={usuario?.puedeSolicitar}
           />
         )}
         {seccion === 'guias' && <SaveanInspector soloQR />}
@@ -208,8 +215,9 @@ function InspectorApp() {
         {seccion === 'entrada' && (
           <SaveanEntrada onVolver={() => setSeccion('inicio')} />
         )}
-        {seccion === 'nopagos' && <NoPagosPanel />}
-        {seccion === 'perfil' && <PerfilView rolLabel="Inspector Fitosanitario (Barrerista)" />}
+        {seccion === 'nopagos'      && <NoPagosPanel />}
+        {seccion === 'solicitudes'  && <InspectorSolicitudes />}
+        {seccion === 'perfil'       && <PerfilView rolLabel="Inspector Fitosanitario (Barrerista)" />}
       </main>
     </div>
   );
@@ -220,6 +228,7 @@ type SeccionAdmin =
   | 'inicio'
   | 'guias' | 'nueva' | 'informes' | 'reportes'
   | 'actas_carnicas' | 'actas_vegetales' | 'planillas' | 'no_pagos'
+  | 'solicitudes'
   | 'configuracion' | 'perfil';
 
 function SidebarItem({
@@ -730,6 +739,7 @@ function AdminApp() {
     actas_vegetales: 'Entrada · Actas Vegetales',
     planillas:       'Entrada · Planillas de Control',
     no_pagos:        'Entrada · No Pagos',
+    solicitudes:     'Solicitudes de Inspectores',
     configuracion:   'Configuración',
     perfil:          'Mi Perfil',
   };
@@ -843,6 +853,15 @@ function AdminApp() {
               </>
             )}
 
+            {/* Solicitudes de inspectores */}
+            <SidebarItem
+              icon={<Send size={14} />}
+              label="Solicitudes"
+              active={seccion === 'solicitudes'}
+              onClick={() => setSeccion('solicitudes')}
+              accent="bg-orange-500/20 text-orange-300"
+            />
+
             {/* Configuración — a continuación de Entrada */}
             <SidebarItem
               icon={<Settings size={14} />}
@@ -876,6 +895,7 @@ function AdminApp() {
             {seccion === 'actas_vegetales' && <PanelIngresos tipoProducto="vegetal" barreras={barreras} />}
             {seccion === 'planillas'       && <AdminPlanillas />}
             {seccion === 'no_pagos'        && <AdminNoPagos />}
+            {seccion === 'solicitudes'     && <AdminSolicitudes />}
             {seccion === 'configuracion'   && <AdminConfiguracion />}
             {seccion === 'perfil'          && <PerfilView rolLabel="Director · Agencia de Calidad San Juan" />}
           </div>
