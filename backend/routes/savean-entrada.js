@@ -129,6 +129,8 @@ function formatIngreso(row) {
     pagoEstado: row.pago_estado || 'pendiente',
     pagoLugar: row.pago_lugar || null,
     pagoFecha: row.pago_fecha ? String(row.pago_fecha).slice(0, 10) : null,
+    pagoConfirmadoId: row.pago_confirmado_id || null,
+    pagoConfirmadoNombre: row.pago_confirmado_nombre || null,
     creadoEn: row.creado_en,
   };
 }
@@ -525,6 +527,21 @@ router.get('/ingresos/no-pago', autenticar, soloSavean, noPuntoControl, async (r
   }
 });
 
+// GET /api/savean/entrada/ingresos/no-pago-pagados — historial de pagos confirmados
+router.get('/ingresos/no-pago-pagados', autenticar, soloSavean, noPuntoControl, async (req, res) => {
+  try {
+    const limite = Math.min(parseInt(req.query.limite) || 100, 500);
+    const [rows] = await pool.query(
+      `SELECT * FROM ingresos_savean WHERE no_pago = 1 AND pago_estado = 'pagado' ORDER BY pago_fecha DESC, fecha_hora DESC LIMIT ?`,
+      [limite]
+    );
+    return res.json(rows.map(formatIngreso));
+  } catch (err) {
+    console.error('[GET /savean/entrada/ingresos/no-pago-pagados]', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // PATCH /api/savean/entrada/ingresos/:id/pagar — inspectores, admins y sanidad
 router.patch('/ingresos/:id/pagar', autenticar, soloSavean, noPuntoControl, async (req, res) => {
   const { pagoLugar, pagoFecha } = req.body;
@@ -541,8 +558,8 @@ router.patch('/ingresos/:id/pagar', autenticar, soloSavean, noPuntoControl, asyn
       return res.status(409).json({ error: 'Esta acta ya fue marcada como pagada.' });
     }
     await pool.query(
-      `UPDATE ingresos_savean SET pago_estado = 'pagado', pago_lugar = ?, pago_fecha = ? WHERE ingresoId = ?`,
-      [pagoLugar.trim(), pagoFecha, req.params.id]
+      `UPDATE ingresos_savean SET pago_estado = 'pagado', pago_lugar = ?, pago_fecha = ?, pago_confirmado_id = ?, pago_confirmado_nombre = ? WHERE ingresoId = ?`,
+      [pagoLugar.trim(), pagoFecha, req.user.id, req.user.nombre || req.user.email, req.params.id]
     );
     const [[updated]] = await pool.query('SELECT * FROM ingresos_savean WHERE ingresoId = ?', [req.params.id]);
     return res.json(formatIngreso(updated));

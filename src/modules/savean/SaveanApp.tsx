@@ -421,16 +421,22 @@ const getNpToken = () => localStorage.getItem('sc_token') || '';
 
 interface NoPagoItem {
   id: string;
+  numero: string;
   interesadoNombre: string | null;
   chasis: string | null;
   barreraNombre: string;
   montoNoPago: number | null;
   fechaHora: string;
   inspectorNombre: string;
+  // Pago confirmado
+  pagoLugar: string | null;
+  pagoFecha: string | null;
+  pagoConfirmadoNombre: string | null;
 }
 
 function NoPagosPanel() {
   const [items, setItems]         = useState<NoPagoItem[]>([]);
+  const [pagados, setPagados]     = useState<NoPagoItem[]>([]);
   const [cargando, setCargando]   = useState(true);
   const [pagandoId, setPagandoId] = useState<string | null>(null);
   const [lugar, setLugar]         = useState('');
@@ -438,14 +444,17 @@ function NoPagosPanel() {
   const [err, setErr]             = useState('');
   const [guardando, setGuardando] = useState(false);
   const [busqueda, setBusqueda]   = useState('');
+  const [verHistorial, setVerHistorial] = useState(false);
 
   const cargar = async () => {
     setCargando(true);
     try {
-      const res = await fetch(`${NP_API}/savean/entrada/ingresos/no-pago`, {
-        headers: { Authorization: `Bearer ${getNpToken()}` },
-      });
-      if (res.ok) setItems(await res.json());
+      const [resPend, resPag] = await Promise.all([
+        fetch(`${NP_API}/savean/entrada/ingresos/no-pago`,         { headers: { Authorization: `Bearer ${getNpToken()}` } }),
+        fetch(`${NP_API}/savean/entrada/ingresos/no-pago-pagados`, { headers: { Authorization: `Bearer ${getNpToken()}` } }),
+      ]);
+      if (resPend.ok) setItems(await resPend.json());
+      if (resPag.ok)  setPagados(await resPag.json());
     } catch { /* ignore */ } finally { setCargando(false); }
   };
 
@@ -503,10 +512,23 @@ function NoPagosPanel() {
           <h2 className="text-lg font-bold text-gray-900">Actas No Pagadas</h2>
           <p className="text-sm text-gray-400 mt-0.5">Vehículos que no abonaron el arancel fitosanitario</p>
         </div>
-        <button onClick={cargar} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 border border-gray-200 rounded-lg px-3 py-1.5 transition hover:bg-gray-50">
-          <RefreshCw size={13} />
-          Actualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setVerHistorial(v => !v)}
+            className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 transition ${
+              verHistorial
+                ? 'bg-green-50 border-green-300 text-green-700 font-semibold'
+                : 'border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+            }`}
+          >
+            <CheckCircle2 size={13} />
+            Historial ({pagados.length})
+          </button>
+          <button onClick={cargar} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 border border-gray-200 rounded-lg px-3 py-1.5 transition hover:bg-gray-50">
+            <RefreshCw size={13} />
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {/* Buscador */}
@@ -621,6 +643,60 @@ function NoPagosPanel() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Historial de pagados ── */}
+      {verHistorial && (
+        <div className="mt-2">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle2 size={15} className="text-green-500" />
+            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Historial de pagos confirmados</h3>
+            <span className="text-xs text-gray-400">({pagados.length})</span>
+          </div>
+
+          {pagados.length === 0 ? (
+            <div className="bg-white border border-gray-200 rounded-xl text-center py-8">
+              <p className="text-sm text-gray-400">Aún no hay pagos registrados.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden bg-white">
+              {pagados.map(item => (
+                <div key={item.id} className="px-4 py-3 flex items-start justify-between gap-3 hover:bg-gray-50 transition">
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm text-gray-900 truncate">
+                        {item.interesadoNombre || 'Sin nombre'}
+                      </span>
+                      <span className="font-mono text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                        {item.chasis || '—'}
+                      </span>
+                      {item.numero && (
+                        <span className="text-xs text-gray-400">{item.numero}</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {item.barreraNombre}
+                      {' · '}
+                      Registrada: {new Date(item.fechaHora).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {' · '}
+                      Inspector: <span className="font-medium">{item.inspectorNombre}</span>
+                    </p>
+                    <p className="text-xs text-green-700 font-medium">
+                      ✓ Pagó el {item.pagoFecha ? new Date(item.pagoFecha + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                      {item.pagoLugar && <> en <span className="font-semibold">{item.pagoLugar}</span></>}
+                      {item.pagoConfirmadoNombre && <> · Confirmó: <span className="font-semibold">{item.pagoConfirmadoNombre}</span></>}
+                    </p>
+                  </div>
+                  {item.montoNoPago != null && (
+                    <span className="flex-shrink-0 text-sm font-bold text-gray-500 line-through">
+                      ${item.montoNoPago.toLocaleString('es-AR')}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
