@@ -236,15 +236,17 @@ async function runMigrations() {
   console.log('✓ Tabla feedback lista');
 
   // Migración: columna origen en tickets (integración con socios externos)
-  await pool.query(`
-    ALTER TABLE tickets
-    ADD COLUMN IF NOT EXISTS origen VARCHAR(50) NULL AFTER codigo_externo
-  `);
+  try {
+    await pool.query(`ALTER TABLE tickets ADD COLUMN origen VARCHAR(50) NULL AFTER codigo_externo`);
+  } catch (err) {
+    if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+  }
   // Migración: columna datos_externos en tickets (datos estructurados de formularios externos)
-  await pool.query(`
-    ALTER TABLE tickets
-    ADD COLUMN IF NOT EXISTS datos_externos MEDIUMTEXT NULL AFTER origen
-  `);
+  try {
+    await pool.query(`ALTER TABLE tickets ADD COLUMN datos_externos MEDIUMTEXT NULL AFTER origen`);
+  } catch (err) {
+    if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+  }
   console.log('✓ Columnas origen y datos_externos en tickets listas');
 }
 
