@@ -17,6 +17,7 @@ const reportesRoutes = require('./routes/reportes');
 const configRoutes = require('./routes/config');
 const feedbackRoutes = require('./routes/feedback');
 const sistemaRoutes = require('./routes/sistema');
+const externalApiRoutes = require('./routes/external-api');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
@@ -75,7 +76,7 @@ app.use(
       callback(new Error(`CORS: origin ${origin} not allowed`));
     },
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Api-Key'],
     credentials: true,
   })
 );
@@ -103,6 +104,7 @@ app.use('/api/reportes', reportesRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/sistema', sistemaRoutes);
+app.use('/api/external', externalApiRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
@@ -232,6 +234,18 @@ async function runMigrations() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
   console.log('✓ Tabla feedback lista');
+
+  // Migración: columna origen en tickets (integración con socios externos)
+  await pool.query(`
+    ALTER TABLE tickets
+    ADD COLUMN IF NOT EXISTS origen VARCHAR(50) NULL AFTER codigo_externo
+  `);
+  // Migración: columna datos_externos en tickets (datos estructurados de formularios externos)
+  await pool.query(`
+    ALTER TABLE tickets
+    ADD COLUMN IF NOT EXISTS datos_externos MEDIUMTEXT NULL AFTER origen
+  `);
+  console.log('✓ Columnas origen y datos_externos en tickets listas');
 }
 
 // ─── Startup ──────────────────────────────────────────────────────────────────

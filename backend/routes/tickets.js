@@ -65,6 +65,8 @@ function formatTicket(row) {
     numeroActa: row.numero_acta || null,
     importe: row.importe != null ? Number(row.importe) : null,
     codigoExterno: row.codigo_externo || null,
+    origen: row.origen || null,
+    datosExternos: row.datos_externos ? JSON.parse(row.datos_externos) : null,
     observaciones: row.observaciones || null,
     leido: row.leido === 1 || row.leido === true,
     eliminado: row.eliminado === 1 || row.eliminado === true,
@@ -296,7 +298,7 @@ router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
-              t.importe, t.codigo_externo, t.observaciones,
+              t.importe, t.codigo_externo, t.origen, t.datos_externos, t.observaciones,
               t.leido, t.fecha_creacion, t.fecha_cierre,
               f.programa AS formulario_programa
        FROM tickets t
@@ -363,7 +365,7 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
-              t.importe, t.codigo_externo, t.observaciones,
+              t.importe, t.codigo_externo, t.origen, t.datos_externos, t.observaciones,
               t.leido, t.eliminado, t.eliminado_por, t.fecha_eliminacion, t.fecha_creacion, t.fecha_cierre,
               f.programa AS formulario_programa
        FROM tickets t
@@ -425,7 +427,7 @@ router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
-              t.importe, t.codigo_externo, t.observaciones,
+              t.importe, t.codigo_externo, t.origen, t.datos_externos, t.observaciones,
               t.leido, t.fecha_creacion, t.fecha_cierre,
               f.programa AS formulario_programa
        FROM tickets t
@@ -661,7 +663,7 @@ router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
       `SELECT t.ticketId, t.numero, t.titulo, t.descripcion, t.estado, t.etapa, t.agentes, t.prioridad,
               t.asignado_a, t.formularioId, t.ciudadano_nombre, t.ciudadano_email,
               t.ciudadano_telefono, t.ciudadano_dni, t.tipo_tramite, t.numero_legajo, t.numero_acta,
-              t.importe, t.codigo_externo, t.observaciones,
+              t.importe, t.codigo_externo, t.origen, t.datos_externos, t.observaciones,
               t.leido, t.fecha_creacion, t.fecha_cierre,
               f.programa AS formulario_programa
        FROM tickets t

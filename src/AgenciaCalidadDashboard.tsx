@@ -75,6 +75,8 @@ interface Ticket {
   emailSolicitante?: string;
   importe?: number;
   codigoExterno?: string;
+  origen?: string;
+  datosExternos?: Record<string, unknown>;
   observaciones?: string;
   eliminado?: boolean;
   eliminadoPor?: string | null;
@@ -89,6 +91,7 @@ interface FiltrosActivos {
   programa: TipoPrograma | 'Todos';
   prioridad: TicketPrioridad | 'Todos';
   estado: TicketEstado | 'Todos';
+  soloRivadavia: boolean;
 }
 
 interface ModalState {
@@ -135,6 +138,7 @@ type DashboardAction =
   | { type: 'SET_FILTRO_PROGRAMA'; payload: TipoPrograma | 'Todos' }
   | { type: 'SET_FILTRO_PRIORIDAD'; payload: TicketPrioridad | 'Todos' }
   | { type: 'SET_FILTRO_ESTADO'; payload: TicketEstado | 'Todos' }
+  | { type: 'SET_FILTRO_ORIGEN'; payload: boolean }
   | { type: 'RESTABLECER_FILTROS' }
   | { type: 'TOGGLE_SIDEBAR' }
   | { type: 'TOGGLE_SELECCION'; payload: string }
@@ -228,6 +232,9 @@ function aplicarFiltros(
     )
     .filter((t) =>
       filtros.estado === 'Todos' ? true : t.estado === filtros.estado
+    )
+    .filter((t) =>
+      filtros.soloRivadavia ? t.origen === 'rivadavia' : true
     )
     .filter((t) => {
       if (!filtros.busqueda.trim()) return true;
@@ -376,6 +383,11 @@ const TicketRow: React.FC<TicketRowProps> = ({
         <td className={`px-4 py-3 text-sm text-slate-700 ${textWeight}`}>
           {unread && <span className="inline-block w-2 h-2 rounded-full bg-[#FF9500] mr-1.5 mb-0.5" />}
           {ticket.programa}
+          {ticket.origen === 'rivadavia' && (
+            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700 border border-green-200 align-middle">
+              Rivadavia
+            </span>
+          )}
         </td>
         <td className={`px-4 py-3 text-sm text-slate-600 font-mono ${textWeight}`}>
           {ticket.legajo ?? '—'}
@@ -2046,6 +2058,12 @@ function dashboardReducer(
         filtros: { ...state.filtros, estado: action.payload },
         paginaActual: 1,
       };
+    case 'SET_FILTRO_ORIGEN':
+      return {
+        ...state,
+        filtros: { ...state.filtros, soloRivadavia: action.payload },
+        paginaActual: 1,
+      };
     case 'RESTABLECER_FILTROS':
       return {
         ...state,
@@ -2056,6 +2074,7 @@ function dashboardReducer(
           programa: 'Todos',
           prioridad: 'Todos',
           estado: 'Todos',
+          soloRivadavia: false,
         },
         paginaActual: 1,
         seleccionados: new Set(),
@@ -2504,6 +2523,8 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
     eliminado: t.eliminado === true,
     eliminadoPor: t.eliminadoPor ? String(t.eliminadoPor) : null,
     formularioId: t.formularioId ? String(t.formularioId) : undefined,
+    origen: t.origen ? String(t.origen) : undefined,
+    datosExternos: t.datosExternos && typeof t.datosExternos === 'object' ? t.datosExternos as Record<string, unknown> : undefined,
   };
 }
 
@@ -3172,6 +3193,32 @@ export default function AgenciaCalidadDashboard() {
             </div>
 
           </div>
+
+            <div>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">
+                Origen
+              </h3>
+              <div className="px-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={state.filtros.soloRivadavia}
+                    onChange={(e) =>
+                      dispatch({ type: 'SET_FILTRO_ORIGEN', payload: e.target.checked })
+                    }
+                    className="w-4 h-4 rounded border-slate-300 cursor-pointer"
+                  />
+                  <span className="text-sm text-slate-700 flex items-center gap-1.5">
+                    Solo Rivadavia
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700 border border-green-200">
+                      Rivadavia
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+        </div>
         </div>
 
         {/* Main Content */}
