@@ -248,6 +248,18 @@ async function runMigrations() {
     if (err.code !== 'ER_DUP_FIELDNAME') throw err;
   }
   console.log('✓ Columnas origen y datos_externos en tickets listas');
+
+  // Migración: agregar visor_rivadavia al ENUM rol de usuarios
+  try {
+    await pool.query(`
+      ALTER TABLE usuarios MODIFY COLUMN rol
+        ENUM('admin','contribuidor','inspector','supervisor','operativo','sanidad','punto_control','dev','visor_rivadavia')
+        NOT NULL DEFAULT 'contribuidor'
+    `);
+    console.log('✓ ENUM rol usuarios actualizado con visor_rivadavia');
+  } catch (err) {
+    if (err.code !== 'ER_DUP_FIELDNAME') console.error('⚠ No se pudo actualizar ENUM rol:', err.message);
+  }
 }
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
