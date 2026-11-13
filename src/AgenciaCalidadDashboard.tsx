@@ -2345,6 +2345,7 @@ const getInitialState = (): DashboardState => {
       programa: 'Todos',
       prioridad: 'Todos',
       estado: 'Todos',
+      soloRivadavia: false,
     },
     paginaActual: 1,
     porPagina: 50,
