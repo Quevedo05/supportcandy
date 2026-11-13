@@ -2477,8 +2477,12 @@ function mapApiTicket(t: Record<string, unknown>): Ticket {
   // Preferir el programa del formulario (campo directo), con fallback al patrón legacy del titulo
   let programa = String(t.formularioPrograma ?? '');
   if (!programa) {
-    const partes = titulo.split(' - ');
-    programa = partes.length > 1 ? partes[partes.length - 1] : 'Sin programa';
+    if (t.origen === 'rivadavia') {
+      programa = 'Plan Productivo Rivadavia';
+    } else {
+      const partes = titulo.split(' - ');
+      programa = partes.length > 1 ? partes[partes.length - 1] : 'Sin programa';
+    }
   }
 
   const nombreCompleto = String(t.ciudadanoNombre ?? '');
