@@ -192,6 +192,16 @@ router.post('/rivadavia/solicitudes', autenticarApiKey, limiter, async (req, res
 
     // Si hay documentos, crear un comentario inicial con los archivos adjuntos
     if (Array.isArray(documentos) && documentos.length > 0) {
+      // Normalizar al formato interno: campo contenido (data URL) + tamano en bytes
+      const adjuntosNormalizados = documentos.map((doc) => {
+        const base64 = doc.datos || '';
+        const contenido = base64.startsWith('data:')
+          ? base64
+          : `data:${doc.tipo};base64,${base64}`;
+        const tamano = Math.round((base64.replace(/=+$/, '').length * 3) / 4);
+        return { nombre: doc.nombre, tipo: doc.tipo, tamano, contenido };
+      });
+
       const comentarioId = uuidv4();
       await pool.query(
         `INSERT INTO comentarios (comentarioId, ticketId, autor_id, contenido, adjuntos, tipo, fecha)
@@ -200,7 +210,7 @@ router.post('/rivadavia/solicitudes', autenticarApiKey, limiter, async (req, res
           comentarioId,
           ticketId,
           'Documentación adjuntada automáticamente desde la plataforma Rivadavia.',
-          JSON.stringify(documentos),
+          JSON.stringify(adjuntosNormalizados),
           new Date(),
         ]
       );
