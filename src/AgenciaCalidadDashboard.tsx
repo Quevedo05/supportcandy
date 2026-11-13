@@ -3196,8 +3196,6 @@ export default function AgenciaCalidadDashboard() {
               </div>
             </div>
 
-          </div>
-
             <div>
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">
                 Origen
@@ -3222,7 +3220,7 @@ export default function AgenciaCalidadDashboard() {
               </div>
             </div>
 
-        </div>
+          </div>
         </div>
 
         {/* Main Content */}
