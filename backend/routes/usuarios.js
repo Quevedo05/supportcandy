@@ -55,7 +55,7 @@ router.post('/', soloAdmin, async (req, res) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email.trim())) errores.email = 'El email no es válido';
     if (!['tickets', 'savean', 'comite'].includes(modulo)) errores.modulo = 'Módulo inválido';
-    if (modulo !== 'comite' && (!rol || !['admin', 'contribuidor', 'inspector', 'supervisor', 'sanidad', 'punto_control'].includes(rol))) {
+    if (modulo !== 'comite' && (!rol || !['admin', 'contribuidor', 'inspector', 'supervisor', 'sanidad', 'punto_control', 'visor_rivadavia'].includes(rol))) {
       errores.rol = 'Rol inválido';
     }
     if (modulo === 'comite' && !formularioId) errores.formularioId = 'El programa es requerido para usuarios de comité';
@@ -178,7 +178,7 @@ router.patch('/:usuarioId/rol', soloAdmin, async (req, res) => {
       return res.status(403).json({ error: 'No puede cambiar su propio rol' });
     }
 
-    const rolesValidos = ['admin', 'contribuidor', 'inspector', 'supervisor'];
+    const rolesValidos = ['admin', 'contribuidor', 'inspector', 'supervisor', 'visor_rivadavia'];
     if (!rol || !rolesValidos.includes(rol)) {
       return res.status(400).json({ error: 'Rol inválido' });
     }

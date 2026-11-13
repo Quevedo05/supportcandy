@@ -196,7 +196,12 @@ router.post('/crear-desde-formulario', crearTicketLimiter, async (req, res) => {
 
 // POST /api/tickets/crear-manual — JWT required
 // Permite crear tickets con programas no publicados (activo=0) desde el portal de agencia.
-router.post('/crear-manual', autenticar, soloTickets, async (req, res) => {
+router.post('/crear-manual', autenticar, soloTickets, (req, res, next) => {
+  if (req.usuario.rol === 'visor_rivadavia') {
+    return res.status(403).json({ error: 'Sin permisos para crear tickets.' });
+  }
+  next();
+}, async (req, res) => {
   try {
     const {
       formularioId,
@@ -343,6 +348,11 @@ router.get('/', autenticar, soloTickets, async (req, res) => {
       params.push(estado);
     }
 
+    if (req.usuario.rol === 'visor_rivadavia') {
+      conditions.push("t.origen = 'rivadavia'");
+      conditions.push("t.etapa != 'Solicitud inicial'");
+    }
+
     if (formularioId) {
       conditions.push('t.formularioId = ?');
       params.push(formularioId);
@@ -438,6 +448,12 @@ router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Ticket no encontrado' });
     }
+    if (req.usuario.rol === 'visor_rivadavia') {
+      const t = rows[0];
+      if (t.origen !== 'rivadavia' || t.etapa === 'Solicitud inicial') {
+        return res.status(403).json({ error: 'Sin acceso a este ticket.' });
+      }
+    }
     return res.status(200).json(formatTicket(rows[0]));
   } catch (err) {
     console.error('[GET /tickets/:id]', err);
@@ -446,7 +462,12 @@ router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
 });
 
 // PATCH /api/tickets/:ticketId — JWT required
-router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
+router.patch('/:ticketId', autenticar, soloTickets, (req, res, next) => {
+  if (req.usuario.rol === 'visor_rivadavia') {
+    return res.status(403).json({ error: 'Sin permisos para modificar tickets.' });
+  }
+  next();
+}, async (req, res) => {
   try {
     const { ticketId } = req.params;
     const { estado, prioridad, asignadoA, etapa, agentes, descripcion, ciudadanoNombre, ciudadanoEmail, ciudadanoTelefono, ciudadanoDni, legajo, numeroActa, importe, codigoExterno, observaciones, formularioId: nuevoFormularioId } = req.body;
@@ -704,7 +725,12 @@ router.patch('/:ticketId/leido', autenticar, soloTickets, async (req, res) => {
 });
 
 // DELETE /api/tickets/:ticketId — JWT required (soft delete — mueve a papelera)
-router.delete('/:ticketId', autenticar, soloTickets, async (req, res) => {
+router.delete('/:ticketId', autenticar, soloTickets, (req, res, next) => {
+  if (req.usuario.rol === 'visor_rivadavia') {
+    return res.status(403).json({ error: 'Sin permisos para eliminar tickets.' });
+  }
+  next();
+}, async (req, res) => {
   try {
     const { ticketId } = req.params;
     const [rows] = await pool.query('SELECT ticketId FROM tickets WHERE ticketId = ?', [ticketId]);
@@ -779,7 +805,12 @@ router.get('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) =
 });
 
 // POST /api/tickets/:ticketId/comentarios — JWT required, solo asignado o admin
-router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) => {
+router.post('/:ticketId/comentarios', autenticar, soloTickets, (req, res, next) => {
+  if (req.usuario.rol === 'visor_rivadavia') {
+    return res.status(403).json({ error: 'Sin permisos para agregar comentarios.' });
+  }
+  next();
+}, async (req, res) => {
   try {
     const { ticketId } = req.params;
     const { contenido, adjuntos } = req.body;

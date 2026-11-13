@@ -791,7 +791,7 @@ interface TicketDetailModalProps {
 }
 
 const ROL_LABELS: Record<string, string> = {
-  admin: 'Supervisor', contribuidor: 'Operativo',
+  admin: 'Supervisor', contribuidor: 'Operativo', visor_rivadavia: 'Rivadavia',
   inspector: 'Inspector', dev: 'Desarrollador',
 };
 
@@ -847,6 +847,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   if (!ticket) return null;
 
   const autorRol = usuario ? (ROL_LABELS[usuario.rol] ?? usuario.rol) : '';
+  const esVisorRivadavia = usuario?.rol === 'visor_rivadavia';
   const puedeEditarTicket =
     usuario?.rol === 'admin' ||
     (ticket.agentes ?? []).includes(usuario?.nombre ?? '') ||
@@ -964,12 +965,14 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         >
           <ArrowLeft size={14} /> Volver
         </button>
-        <button
-          onClick={onNuevoTicket}
-          className="flex items-center gap-1.5 bg-[#FF9500] hover:bg-[#E67E00] text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
-        >
-          <Plus size={13} /> Nuevo ticket
-        </button>
+        {!esVisorRivadavia && (
+          <button
+            onClick={onNuevoTicket}
+            className="flex items-center gap-1.5 bg-[#FF9500] hover:bg-[#E67E00] text-white text-xs font-medium px-3 py-1.5 rounded transition-colors"
+          >
+            <Plus size={13} /> Nuevo ticket
+          </button>
+        )}
         <button className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors">
           <RefreshCw size={13} /> Refrescar
         </button>
@@ -979,7 +982,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         >
           <CheckCircle size={13} /> Cerrar
         </button>
-        {ticket.eliminado ? (
+        {!esVisorRivadavia && (ticket.eliminado ? (
           <>
             <span className="text-white/70 text-xs">
               🗑 Eliminado por <strong className="text-white">{ticket.eliminadoPor ?? 'desconocido'}</strong>
@@ -1000,7 +1003,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
           >
             <Trash2 size={13} /> Borrar
           </button>
-        )}
+        ))}
       </div>
 
       {/* Título */}
@@ -2975,13 +2978,15 @@ export default function AgenciaCalidadDashboard() {
     <div className="flex flex-col h-screen bg-white">
       {/* Toolbar */}
       <div className="bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-3">
-        <button
-          onClick={() => dispatch({ type: 'ABRIR_MODAL' })}
-          className="flex items-center gap-2 bg-[#FF9500] hover:bg-[#E67E00] text-white text-sm font-medium px-4 py-2 rounded-md transition-colors"
-        >
-          <Plus size={16} />
-          Nuevo Ticket
-        </button>
+        {usuario?.rol !== 'visor_rivadavia' && (
+          <button
+            onClick={() => dispatch({ type: 'ABRIR_MODAL' })}
+            className="flex items-center gap-2 bg-[#FF9500] hover:bg-[#E67E00] text-white text-sm font-medium px-4 py-2 rounded-md transition-colors"
+          >
+            <Plus size={16} />
+            Nuevo Ticket
+          </button>
+        )}
 
         <button
           onClick={() => dispatch({ type: 'TOGGLE_SIDEBAR' })}
