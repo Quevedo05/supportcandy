@@ -1160,7 +1160,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                           body: JSON.stringify({ contenido: textoComentario }),
                         });
-                        onActualizarTicket(ticket.id, { etapa: 'Externo/ Comite de selección' });
+                        onActualizarTicket(ticket.id, { estado: 'Externo/ Comite de selección' });
                         setObservacionDecision('');
                       } catch (e) {
                         alert((e as Error).message || 'Error al registrar la decisión.');
@@ -1194,7 +1194,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                           body: JSON.stringify({ contenido: textoComentario }),
                         });
-                        onActualizarTicket(ticket.id, { etapa: 'Sin fondo' });
+                        onActualizarTicket(ticket.id, { estado: 'Sin fondo' });
                         setObservacionDecision('');
                       } catch (e) {
                         alert((e as Error).message || 'Error al registrar la decisión.');
