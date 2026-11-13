@@ -462,25 +462,28 @@ router.get('/:ticketId', autenticar, soloTickets, async (req, res) => {
 });
 
 // PATCH /api/tickets/:ticketId — JWT required
-router.patch('/:ticketId', autenticar, soloTickets, (req, res, next) => {
-  if (req.usuario.rol === 'visor_rivadavia') {
-    return res.status(403).json({ error: 'Sin permisos para modificar tickets.' });
-  }
-  next();
-}, async (req, res) => {
+router.patch('/:ticketId', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
     const { estado, prioridad, asignadoA, etapa, agentes, descripcion, ciudadanoNombre, ciudadanoEmail, ciudadanoTelefono, ciudadanoDni, legajo, numeroActa, importe, codigoExterno, observaciones, formularioId: nuevoFormularioId } = req.body;
 
     const [rows] = await pool.query(
-      'SELECT ticketId, agentes, etapa AS etapaActual FROM tickets WHERE ticketId = ?',
+      'SELECT ticketId, agentes, etapa AS etapaActual, origen FROM tickets WHERE ticketId = ?',
       [ticketId]
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Ticket no encontrado' });
     }
 
-    if (req.usuario.rol !== 'admin') {
+    if (req.usuario.rol === 'visor_rivadavia') {
+      if (rows[0].origen !== 'rivadavia') {
+        return res.status(403).json({ error: 'Sin acceso a este ticket.' });
+      }
+      const camposPermitidos = Object.keys(req.body).every(k => k === 'etapa');
+      if (!camposPermitidos || !etapa) {
+        return res.status(403).json({ error: 'Solo puede cambiar la etapa del ticket.' });
+      }
+    } else if (req.usuario.rol !== 'admin') {
       const agentesTicket = rows[0].agentes ? JSON.parse(rows[0].agentes) : [];
       const estaAsignado = agentesTicket.includes(req.usuario.nombre);
       if (!estaAsignado && !req.usuario.puedeEditarDatos) {
@@ -804,13 +807,8 @@ router.get('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) =
   }
 });
 
-// POST /api/tickets/:ticketId/comentarios — JWT required, solo asignado o admin
-router.post('/:ticketId/comentarios', autenticar, soloTickets, (req, res, next) => {
-  if (req.usuario.rol === 'visor_rivadavia') {
-    return res.status(403).json({ error: 'Sin permisos para agregar comentarios.' });
-  }
-  next();
-}, async (req, res) => {
+// POST /api/tickets/:ticketId/comentarios — JWT required, solo asignado o admin (o visor_rivadavia en tickets propios)
+router.post('/:ticketId/comentarios', autenticar, soloTickets, async (req, res) => {
   try {
     const { ticketId } = req.params;
     const { contenido, adjuntos } = req.body;
@@ -822,14 +820,18 @@ router.post('/:ticketId/comentarios', autenticar, soloTickets, (req, res, next) 
     }
 
     const [ticketRows] = await pool.query(
-      'SELECT ticketId, agentes, asignado_a FROM tickets WHERE ticketId = ?',
+      'SELECT ticketId, agentes, asignado_a, origen FROM tickets WHERE ticketId = ?',
       [ticketId]
     );
     if (ticketRows.length === 0) {
       return res.status(404).json({ error: 'Ticket no encontrado' });
     }
 
-    if (req.usuario.rol !== 'admin') {
+    if (req.usuario.rol === 'visor_rivadavia') {
+      if (ticketRows[0].origen !== 'rivadavia') {
+        return res.status(403).json({ error: 'Sin acceso a este ticket.' });
+      }
+    } else if (req.usuario.rol !== 'admin') {
       const agentesTicket = ticketRows[0].agentes ? JSON.parse(ticketRows[0].agentes) : [];
       if (!agentesTicket.includes(req.usuario.nombre)) {
         return res.status(403).json({ error: 'Solo el agente asignado puede agregar comentarios' });

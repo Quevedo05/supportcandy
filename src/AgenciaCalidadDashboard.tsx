@@ -855,7 +855,10 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const puedeEditarDatos =
     usuario?.rol === 'admin' ||
     usuario?.puedeEditarDatos === true;
-  const puedeComentarUser = puedeEditarTicket;
+  const puedeComentarUser = puedeEditarTicket || esVisorRivadavia;
+
+  const [observacionDecision, setObservacionDecision] = React.useState('');
+  const [enviandoDecision, setEnviandoDecision] = React.useState(false);
 
   const toggleSeccion = (key: string) =>
     setSeccionesAbiertas((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1071,7 +1074,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     >
                       <File size={13} /> Adjuntar archivos
                     </button>
-                    {/* Derivar button */}
+                    {/* Derivar button — oculto para visor_rivadavia */}
+                    {!esVisorRivadavia && (
                     <div className="relative">
                       <button
                         onClick={() => setDerivarAbierto((v) => !v)}
@@ -1101,6 +1105,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         </div>
                       )}
                     </div>
+                    )}
                   </div>
                   <button
                     onClick={handleEnviarComentario}
@@ -1117,6 +1122,91 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 <p className="text-sm text-slate-500">
                   Solo el agente asignado a este ticket puede agregar comentarios.
                 </p>
+              </div>
+            )}
+
+            {/* Panel de decisión — solo para visor_rivadavia */}
+            {esVisorRivadavia && (
+              <div className="mt-3 border border-slate-200 rounded-lg bg-white p-4">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Decisión de Rivadavia</p>
+                <textarea
+                  value={observacionDecision}
+                  onChange={(e) => setObservacionDecision(e.target.value)}
+                  placeholder="Escribir observación (opcional)..."
+                  rows={2}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm resize-none focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 mb-3"
+                />
+                <div className="flex gap-2">
+                  <button
+                    disabled={enviandoDecision}
+                    onClick={async () => {
+                      setEnviandoDecision(true);
+                      const token = localStorage.getItem('sc_token');
+                      const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+                      try {
+                        // Cambiar etapa
+                        const rEtapa = await fetch(`${apiUrl}/tickets/${ticket.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ etapa: 'Externo/ Comite de selección' }),
+                        });
+                        if (!rEtapa.ok) throw new Error('No se pudo cambiar la etapa.');
+                        // Agregar observación como comentario
+                        const textoComentario = observacionDecision.trim()
+                          ? `✅ APROBADO por Rivadavia\n\n${observacionDecision.trim()}`
+                          : '✅ APROBADO por Rivadavia';
+                        await fetch(`${apiUrl}/tickets/${ticket.id}/comentarios`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ contenido: textoComentario }),
+                        });
+                        onActualizarTicket(ticket.id, { etapa: 'Externo/ Comite de selección' });
+                        setObservacionDecision('');
+                      } catch (e) {
+                        alert((e as Error).message || 'Error al registrar la decisión.');
+                      } finally {
+                        setEnviandoDecision(false);
+                      }
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ✓ Aprobar
+                  </button>
+                  <button
+                    disabled={enviandoDecision}
+                    onClick={async () => {
+                      if (!window.confirm('¿Confirmar que se deniega esta solicitud?')) return;
+                      setEnviandoDecision(true);
+                      const token = localStorage.getItem('sc_token');
+                      const apiUrl = (import.meta.env as Record<string, string>).VITE_API_URL;
+                      try {
+                        const rEtapa = await fetch(`${apiUrl}/tickets/${ticket.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ etapa: 'Sin fondo' }),
+                        });
+                        if (!rEtapa.ok) throw new Error('No se pudo cambiar la etapa.');
+                        const textoComentario = observacionDecision.trim()
+                          ? `❌ DENEGADO por Rivadavia\n\n${observacionDecision.trim()}`
+                          : '❌ DENEGADO por Rivadavia';
+                        await fetch(`${apiUrl}/tickets/${ticket.id}/comentarios`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ contenido: textoComentario }),
+                        });
+                        onActualizarTicket(ticket.id, { etapa: 'Sin fondo' });
+                        setObservacionDecision('');
+                      } catch (e) {
+                        alert((e as Error).message || 'Error al registrar la decisión.');
+                      } finally {
+                        setEnviandoDecision(false);
+                      }
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ✗ Denegar
+                  </button>
+                </div>
               </div>
             )}
           </div>
