@@ -30,35 +30,72 @@ function fmtNum(n: number): string {
   return n.toLocaleString('es-AR');
 }
 
+function vidDestinoLabel(destinos: string[]): string {
+  if (!destinos || destinos.length === 0) return '';
+  return destinos.map(d => {
+    if (d === 'Pasa')  return 'Pasas de Uva';
+    if (d === 'Mesa')  return 'Uva de Mesa';
+    if (d === 'Vino')  return 'Uva para Vino';
+    if (d === 'Mosto') return 'Uva para Mosto';
+    return d;
+  }).join(' / ');
+}
+
 function exportarCSV(guias: GuiaSavean[], label: string) {
   const headers = [
-    'Número', 'Estado', 'Fecha Emisión', 'Fecha Verificación',
-    'Remitente', 'RENSPA', 'Especies', 'Total Bultos', 'Total Kg',
-    'Barrera', 'Inspector', 'Destino',
+    'N°', 'FECHA', 'N° GUÍA', 'PUESTO DE CONTROL', 'REMITENTE', 'ORIGEN',
+    'ESPECIE/HOSPEDERO', 'FRESCO / INDUSTRIALIZADO', 'TIPO ENVASE',
+    'KG MERCADO INTERNO', 'KG MERCADO EXTERNO', 'OBLEAS EN TRÁNSITO',
+    'MERCADO', 'DESTINO', 'MES',
   ];
-  const rows = guias.map(g => {
-    const especies = [...new Set(g.items.map(i => i.especie).filter(Boolean))].join(' / ');
-    const totalBultos = g.items.reduce((s, i) => s + (Number(i.cantidadBultos) || 0), 0);
-    const totalKg = g.items.reduce((s, i) => s + (Number(i.cantidadKg) || 0), 0);
-    const destino = g.destinoTipo === 'externo'
+
+  const rows: (string | number)[][] = [];
+  let n = 0;
+
+  for (const g of guias) {
+    const fecha      = g.fechaEmision.slice(0, 10);
+    const mes        = Number(g.fechaEmision.slice(5, 7));
+    const mercado    = g.destinoTipo === 'externo' ? 'Ext' : 'Int';
+    const destino    = g.destinoTipo === 'externo'
       ? (g.destinoPais ?? g.destinoPuntoSalida ?? 'Exterior')
       : (g.destinoProvincia ?? g.destinoMercadoInterno ?? 'Mercado Interno');
-    return [
-      g.numero, g.estado,
-      g.fechaEmision.slice(0, 10),
-      g.fechaVerificacion?.slice(0, 10) ?? '',
-      g.remitenteNombre, g.remitenteRenspa ?? '',
-      especies, totalBultos || '', totalKg || '',
-      g.barrieraNombre ?? '', g.inspectorNombre ?? '', destino,
-    ];
-  });
+    const obleas     = g.transportePrecintos ?? '';
+    const barrera    = g.barrieraNombre ?? '';
+
+    for (const item of g.items) {
+      n++;
+      const kg    = Number(item.cantidadKg ?? 0);
+      const fresco = item.especie === 'Vid'
+        ? vidDestinoLabel(item.vidDestino ?? [])
+        : (item.variedad ?? '');
+
+      rows.push([
+        n,
+        fecha,
+        g.numero,
+        barrera,
+        g.remitenteNombre,
+        item.lugarEmpaque ?? '',
+        item.especie,
+        fresco,
+        item.tipoEnvase ?? '',
+        g.destinoTipo === 'interno' ? kg || '' : '',
+        g.destinoTipo === 'externo' ? kg || '' : '',
+        obleas,
+        mercado,
+        destino,
+        mes,
+      ]);
+    }
+  }
+
   const csv = [headers, ...rows]
     .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
     .join('\r\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
   a.download = `reporte-savean-${label}-${isoHoy()}.csv`;
   document.body.appendChild(a);
   a.click();
