@@ -866,9 +866,16 @@ export function SaveanReportes() {
 
           {/* ── Exportar ── */}
           {(() => {
-            const filtroSet = new Set(especiesFiltro);
+            const filtroSet      = new Set(especiesFiltro);
+            const vidFiltroSet   = new Set(vidDestinoFiltro);
+            const vidFiltroActivo = vidDestinoFiltro.length > 0;
             const guiasExportar = especiesFiltro.length > 0
-              ? guiasFiltradas.filter(g => g.items.some(i => filtroSet.has(i.especie || '')))
+              ? guiasFiltradas.filter(g => g.items.some(i => {
+                  if (!filtroSet.has(i.especie || '')) return false;
+                  if (i.especie === 'Vid' && vidFiltroActivo)
+                    return i.vidDestino?.some(d => vidFiltroSet.has(d)) ?? false;
+                  return true;
+                }))
               : guiasFiltradas;
             const parteEspecie = especiesFiltro.length > 0 ? especiesFiltro.join('-') : '';
             const parteVid     = vidDestinoFiltro.length > 0 ? vidDestinoFiltro.join('-') : '';
