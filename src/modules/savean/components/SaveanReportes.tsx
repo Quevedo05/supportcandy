@@ -41,7 +41,7 @@ function vidDestinoLabel(destinos: string[]): string {
   }).join(' / ');
 }
 
-function exportarCSV(guias: GuiaSavean[], label: string) {
+function exportarCSV(guias: GuiaSavean[], label: string, vidDestinoFiltro: string[] = []) {
   const headers = [
     'N°', 'FECHA', 'N° GUÍA', 'PUESTO DE CONTROL', 'REMITENTE', 'ORIGEN',
     'ESPECIE/HOSPEDERO', 'FRESCO / INDUSTRIALIZADO', 'TIPO ENVASE',
@@ -51,6 +51,9 @@ function exportarCSV(guias: GuiaSavean[], label: string) {
 
   const rows: (string | number)[][] = [];
   let n = 0;
+
+  const vidFiltroSet   = new Set(vidDestinoFiltro);
+  const vidFiltroActivo = vidDestinoFiltro.length > 0;
 
   for (const g of guias) {
     const fecha      = g.fechaEmision.slice(0, 10);
@@ -63,6 +66,8 @@ function exportarCSV(guias: GuiaSavean[], label: string) {
     const barrera    = g.barrieraNombre ?? '';
 
     for (const item of g.items) {
+      if (item.especie === 'Vid' && vidFiltroActivo &&
+          !item.vidDestino?.some(d => vidFiltroSet.has(d))) continue;
       n++;
       const kg    = Number(item.cantidadKg ?? 0);
       const fresco = item.especie === 'Vid'
@@ -349,6 +354,12 @@ export function SaveanReportes() {
   const [customDesde, setCustomDesde] = useState(isoPrimerMes());
   const [customHasta, setCustomHasta] = useState(isoHoy());
   const [especiesFiltro, setEspeciesFiltro] = useState<string[]>([]);
+  const [vidDestinoFiltro, setVidDestinoFiltro] = useState<string[]>([]);
+
+  const VID_DESTINOS = ['Mesa', 'Pasa', 'Vino', 'Mosto'] as const;
+  const VID_DESTINO_LABEL: Record<string, string> = {
+    Mesa: 'Uva de Mesa', Pasa: 'Pasas', Vino: 'Vino', Mosto: 'Mosto',
+  };
 
   const [desde, hasta] = useMemo((): [string, string] => {
     const hoy = isoHoy();
@@ -375,9 +386,17 @@ export function SaveanReportes() {
     return [...set].sort();
   }, [guiasFiltradas]);
 
-  const toggleEspecie = (esp: string) =>
-    setEspeciesFiltro(prev =>
-      prev.includes(esp) ? prev.filter(e => e !== esp) : [...prev, esp]
+  const toggleEspecie = (esp: string) => {
+    setEspeciesFiltro(prev => {
+      const next = prev.includes(esp) ? prev.filter(e => e !== esp) : [...prev, esp];
+      if (esp === 'Vid' && !next.includes('Vid')) setVidDestinoFiltro([]);
+      return next;
+    });
+  };
+
+  const toggleVidDestino = (dest: string) =>
+    setVidDestinoFiltro(prev =>
+      prev.includes(dest) ? prev.filter(d => d !== dest) : [...prev, dest]
     );
 
   const stats = useMemo(() => {
@@ -389,13 +408,22 @@ export function SaveanReportes() {
     let totalKg = 0;
     let totalGuias = 0;
 
-    const filtroActivo = especiesFiltro.length > 0;
-    const filtroSet = new Set(especiesFiltro);
+    const filtroActivo   = especiesFiltro.length > 0;
+    const filtroSet      = new Set(especiesFiltro);
+    const vidFiltroActivo = vidDestinoFiltro.length > 0;
+    const vidFiltroSet   = new Set(vidDestinoFiltro);
+
+    const itemPasaFiltro = (i: { especie: string; vidDestino?: string[] }) => {
+      if (!filtroActivo) return true;
+      const esp = i.especie || '';
+      if (!filtroSet.has(esp)) return false;
+      if (esp === 'Vid' && vidFiltroActivo)
+        return i.vidDestino?.some(d => vidFiltroSet.has(d)) ?? false;
+      return true;
+    };
 
     for (const g of guiasFiltradas) {
-      const items = filtroActivo
-        ? g.items.filter(i => filtroSet.has(i.especie || ''))
-        : g.items;
+      const items = g.items.filter(itemPasaFiltro);
 
       if (filtroActivo && items.length === 0) continue;
 
@@ -428,7 +456,7 @@ export function SaveanReportes() {
     }
 
     return { byEstado, byBarrera, byEspecie, byDestino, totalBultos, totalKg, totalGuias };
-  }, [guiasFiltradas, especiesFiltro]);
+  }, [guiasFiltradas, especiesFiltro, vidDestinoFiltro]);
 
   // ── Tendencia agrupada ──
   const tendencia = useMemo((): PuntoDato[] => {
@@ -436,12 +464,19 @@ export function SaveanReportes() {
     const spanDias = spanMs / (1000 * 60 * 60 * 24);
     const porMes = periodo === 'año' || (periodo === 'custom' && spanDias > 90);
 
-    const filtroSet = new Set(especiesFiltro);
-    const filtroActivo = especiesFiltro.length > 0;
+    const filtroSet       = new Set(especiesFiltro);
+    const filtroActivo    = especiesFiltro.length > 0;
+    const vidFiltroSet    = new Set(vidDestinoFiltro);
+    const vidFiltroActivo = vidDestinoFiltro.length > 0;
 
     const grupos: Record<string, { emitidas: number; verificadas: number }> = {};
     for (const g of guiasFiltradas) {
-      if (filtroActivo && !g.items.some(i => filtroSet.has(i.especie || ''))) continue;
+      if (filtroActivo && !g.items.some(i => {
+        if (!filtroSet.has(i.especie || '')) return false;
+        if (i.especie === 'Vid' && vidFiltroActivo)
+          return i.vidDestino?.some(d => vidFiltroSet.has(d)) ?? false;
+        return true;
+      })) continue;
       const key = porMes ? g.fechaEmision.slice(0, 7) : g.fechaEmision.slice(0, 10);
       if (!grupos[key]) grupos[key] = { emitidas: 0, verificadas: 0 };
       grupos[key].emitidas++;
@@ -451,7 +486,7 @@ export function SaveanReportes() {
       label: porMes ? k.slice(5) : k.slice(8),
       ...v,
     }));
-  }, [guiasFiltradas, periodo, desde, hasta, especiesFiltro]);
+  }, [guiasFiltradas, periodo, desde, hasta, especiesFiltro, vidDestinoFiltro]);
 
   // ── Derivados ──
   const total = stats.totalGuias;
@@ -571,6 +606,39 @@ export function SaveanReportes() {
               );
             })}
           </div>
+
+          {/* ── Subfiltro vid destino ── */}
+          {especiesFiltro.includes('Vid') && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 mb-2">Tipo de uva:</p>
+              <div className="flex flex-wrap gap-2">
+                {VID_DESTINOS.map(dest => {
+                  const activo = vidDestinoFiltro.includes(dest);
+                  return (
+                    <button
+                      key={dest}
+                      onClick={() => toggleVidDestino(dest)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${
+                        activo
+                          ? 'bg-purple-600 text-white border-purple-600'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-600'
+                      }`}
+                    >
+                      {VID_DESTINO_LABEL[dest]}
+                    </button>
+                  );
+                })}
+                {vidDestinoFiltro.length > 0 && (
+                  <button
+                    onClick={() => setVidDestinoFiltro([])}
+                    className="text-xs text-gray-400 hover:text-gray-600 underline px-1"
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -589,10 +657,15 @@ export function SaveanReportes() {
       {total > 0 && (
         <>
           {/* ── Banner de filtro activo ── */}
-          {especiesFiltro.length > 0 && (
+          {(especiesFiltro.length > 0 || vidDestinoFiltro.length > 0) && (
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs text-orange-700 font-semibold">
               <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
               Reporte filtrado por: {especiesFiltro.join(' · ')}
+              {vidDestinoFiltro.length > 0 && (
+                <span className="text-purple-700">
+                  → {vidDestinoFiltro.map(d => VID_DESTINO_LABEL[d]).join(' · ')}
+                </span>
+              )}
             </div>
           )}
 
@@ -797,20 +870,23 @@ export function SaveanReportes() {
             const guiasExportar = especiesFiltro.length > 0
               ? guiasFiltradas.filter(g => g.items.some(i => filtroSet.has(i.especie || '')))
               : guiasFiltradas;
-            const labelFinal = especiesFiltro.length > 0
-              ? `${labelExport[periodo]}-${especiesFiltro.join('-')}`
-              : labelExport[periodo];
+            const parteEspecie = especiesFiltro.length > 0 ? especiesFiltro.join('-') : '';
+            const parteVid     = vidDestinoFiltro.length > 0 ? vidDestinoFiltro.join('-') : '';
+            const labelFinal   = [labelExport[periodo], parteEspecie, parteVid].filter(Boolean).join('-');
+            const especiesLabel = especiesFiltro.length > 0
+              ? [...especiesFiltro, ...(vidDestinoFiltro.length > 0 ? [`(${vidDestinoFiltro.map(d => VID_DESTINO_LABEL[d]).join(', ')})`] : [])]
+              : [];
             return (
               <div className="flex justify-end gap-2">
                 <button
-                  onClick={() => exportarPDF(guiasExportar, desde, hasta, stats, labelFinal, especiesFiltro)}
+                  onClick={() => exportarPDF(guiasExportar, desde, hasta, stats, labelFinal, especiesLabel)}
                   className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition"
                 >
                   <FileText size={13} />
                   Exportar PDF
                 </button>
                 <button
-                  onClick={() => exportarCSV(guiasExportar, labelFinal)}
+                  onClick={() => exportarCSV(guiasExportar, labelFinal, vidDestinoFiltro)}
                   className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition"
                 >
                   <Download size={13} />
